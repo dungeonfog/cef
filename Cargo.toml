@@ -1,0 +1,11 @@
+[package]
+name = "cef"
+version = "0.1.0"
+authors = ["Andreas Monitzer <andreas@monitzer.com>"]
+edition = "2018"
+
+[dependencies]
+cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
+lazy_static = "1.4"
+typemap = "0.3"
+num_enum = "0.4"
