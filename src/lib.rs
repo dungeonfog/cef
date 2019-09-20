@@ -4,6 +4,7 @@ mod string;
 mod refcounted;
 mod reference;
 mod values;
+pub use values::StoredValue;
 mod ids;
 pub use ids::{PackResource, PackString};
 mod scheme_registrar;

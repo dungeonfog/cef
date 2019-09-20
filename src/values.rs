@@ -1,5 +1,9 @@
 use cef_sys::{cef_list_value_t, cef_list_value_create, cef_dictionary_value_t, cef_dictionary_value_create, cef_binary_value_t, cef_binary_value_create, cef_value_t, cef_value_create, cef_value_type_t, cef_string_userfree_utf16_free};
-use std::convert::{TryInto, TryFrom};
+use std::{
+    convert::{TryInto, TryFrom},
+    collections::HashMap,
+    io::Read,
+};
 
 use crate::{
     string::{CefString, CefStringList},
@@ -17,6 +21,19 @@ pub(crate) enum ValueType {
     Binary = cef_value_type_t::VTYPE_BINARY as i32,
     Dictionary = cef_value_type_t::VTYPE_DICTIONARY as i32,
     List = cef_value_type_t::VTYPE_LIST as i32,
+}
+
+#[derive(Debug, Clone)]
+pub enum StoredValue {
+    Invalid,
+    Null,
+    Bool(bool),
+    Int(i32),
+    Double(f64),
+    String(String),
+    Binary(Vec<u8>),
+    Dictionary(HashMap<String, StoredValue>),
+    List(Vec<StoredValue>),
 }
 
 pub(crate) struct Value(*mut cef_value_t);
@@ -197,6 +214,74 @@ impl Drop for Value {
     }
 }
 
+impl Into<StoredValue> for Value {
+    fn into(self) -> StoredValue {
+        match self.get_type() {
+            ValueType::Invalid => StoredValue::Invalid,
+            ValueType::Null => StoredValue::Null,
+            ValueType::Bool => StoredValue::Bool(self.to_bool()),
+            ValueType::Int => StoredValue::Int(self.to_int()),
+            ValueType::Double => StoredValue::Double(self.to_double()),
+            ValueType::String => StoredValue::String(self.to_string()),
+            ValueType::Binary => {
+                let mut binary = self.try_to_binary().unwrap();
+                let mut buffer = Vec::new();
+                binary.read_to_end(&mut buffer).unwrap();
+                StoredValue::Binary(buffer)
+            },
+            ValueType::Dictionary => {
+                let dictionary = self.try_to_dictionary().unwrap();
+                StoredValue::Dictionary(dictionary.keys().into_iter().map(|key| {
+                    let value = dictionary.get_value(&key).into();
+                    (key, value)
+                }).collect())
+            },
+            ValueType::List => {
+                let list = self.try_to_list().unwrap();
+                StoredValue::List((0..list.len()).map(|index| list.try_get_value(index).unwrap().into()).collect())
+            },
+        }
+    }
+}
+
+impl TryFrom<StoredValue> for Value {
+    type Error = &'static str;
+
+    fn try_from(sv: StoredValue) -> Result<Self, Self::Error> {
+        let mut value = Value::new();
+        if match sv {
+            StoredValue::Invalid | StoredValue::Null => true,
+            StoredValue::Bool(b) => value.set_bool(b),
+            StoredValue::Int(i) => value.set_int(i),
+            StoredValue::Double(f) => value.set_double(f),
+            StoredValue::String(s) => value.set_string(&s),
+            StoredValue::Binary(b) => value.set_binary(&BinaryValue::new(&b)),
+            StoredValue::Dictionary(d) => value.set_dictionary(&{
+                let mut dictionary = DictionaryValue::new();
+                for (key, value) in d {
+                    if let Ok(value) = Value::try_from(value) {
+                        dictionary.insert(&key, value);
+                    }
+                }
+                dictionary
+            }),
+            StoredValue::List(l) => value.set_list(&{
+                let mut list = ListValue::new();
+                let v: Vec<Value> = l.into_iter().map(Value::try_from).filter_map(Result::ok).collect();
+                list.set_len(v.len());
+                for (index, value) in v.into_iter().enumerate() {
+                    list.set_value(index, value);
+                }
+                list
+            }),
+        } {
+            Ok(value)
+        } else {
+            Err("Unable to create type")
+        }
+    }
+}
+
 #[derive(Eq)]
 pub(crate) struct BinaryValue(*mut cef_binary_value_t, usize);
 
@@ -237,7 +322,7 @@ impl std::convert::AsRef<cef_binary_value_t> for BinaryValue {
     }
 }
 
-impl std::io::Read for BinaryValue {
+impl Read for BinaryValue {
     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
         self.as_ref().get_data.and_then(|get_data| Some(unsafe { get_data(self.0, buf.as_mut_ptr() as *mut std::ffi::c_void, buf.len(), self.1) })).and_then(|result| {
             self.1 += result;
@@ -355,6 +440,14 @@ impl DictionaryValue {
             cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
             cef_value_type_t::VTYPE_LIST => ValueType::List,
         })).unwrap_or(ValueType::Invalid)
+    }
+    /// Returns the value at the specified key. For simple types the returned value
+    /// will copy existing data and modifications to the value will not modify this
+    /// object. For complex types (binary, dictionary and list) the returned value
+    /// will reference existing data and modifications to the value will modify
+    /// this object.
+    pub(crate) fn get_value(&self, key: &str) -> Value {
+        self.as_ref().get_value.and_then(|get_value| unsafe { get_value(self.0, CefString::new(key).as_ref()).as_ref() }.and_then(|value| Some(Value(value as *const _ as *mut _)))).unwrap_or_else(|| Value::new())
     }
     /// Returns the value at the specified `key` as type bool.
     pub(crate) fn get_bool(&self, key: &str) -> bool {
