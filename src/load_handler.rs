@@ -1065,19 +1065,19 @@ pub trait LoadHandler: Send + Sync {
     /// navigations that fail or are canceled before commit. For notification of
     /// overall browser load status use [on_loading_state_change] instead.
     fn on_load_start(&self, browser: &Browser, frame: &Frame, transition_type: TransitionType) {}
-    // Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
-    // main frame. Multiple frames may be loading at the same time. Sub-frames may
-    // start or continue loading after the main frame load has ended. This
-    // function will not be called for same page navigations (fragments, history
-    // state, etc.) or for navigations that fail or are canceled before commit.
-    // For notification of overall browser load status use [on_loading_state_change]
-    // instead.
+    /// Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
+    /// main frame. Multiple frames may be loading at the same time. Sub-frames may
+    /// start or continue loading after the main frame load has ended. This
+    /// function will not be called for same page navigations (fragments, history
+    /// state, etc.) or for navigations that fail or are canceled before commit.
+    /// For notification of overall browser load status use [on_loading_state_change]
+    /// instead.
     fn on_load_end(&self, browser: &Browser, frame: &Frame, http_status_code: i32) {}
-    // Called when a navigation fails or is canceled. This function may be called
-    // by itself if before commit or in combination with [on_load_start]/[on_load_end] if
-    // after commit. `error_code` is the error code number, `error_text` is the
-    // error text and `failed_url` is the URL that failed to load. See
-    // net\base\net_error_list.h for complete descriptions of the error codes.
+    /// Called when a navigation fails or is canceled. This function may be called
+    /// by itself if before commit or in combination with [on_load_start]/[on_load_end] if
+    /// after commit. `error_code` is the error code number, `error_text` is the
+    /// error text and `failed_url` is the URL that failed to load. See
+    /// net\base\net_error_list.h for complete descriptions of the error codes.
     fn on_load_error(&self, browser: &Browser, frame: &Frame, error_code: ErrorCode, error_text: &str, failed_url: &str) {}
 }
 
