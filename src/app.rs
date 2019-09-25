@@ -43,8 +43,8 @@ pub trait AppCallbacks {
     /// Return the handler for functionality specific to the browser process. This
     /// function is called on multiple threads in the browser process.
     fn get_browser_process_handler(&self) -> Option<Box<dyn BrowserProcessHandler>> { None }
-    // / Return the handler for functionality specific to the render process. This
-    // / function is called on the render process main thread.
+    /// Return the handler for functionality specific to the render process. This
+    /// function is called on the render process main thread.
     fn get_render_process_handler(&self) -> Option<Box<dyn RenderProcessHandler>> { None }
 }
 
