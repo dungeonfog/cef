@@ -553,6 +553,23 @@ impl std::convert::AsRef<cef_dictionary_value_t> for DictionaryValue {
     }
 }
 
+impl From<*mut cef_dictionary_value_t> for DictionaryValue {
+    fn from(dictionary: *mut cef_dictionary_value_t) -> Self {
+        unsafe { ((*dictionary).base.add_ref.unwrap())(&mut (*dictionary).base); }
+        Self(dictionary)
+    }
+}
+
+impl Into<HashMap<String, StoredValue>> for DictionaryValue {
+    fn into(self) -> HashMap<String, StoredValue> {
+        let keys = self.keys();
+        keys.into_iter().map(|key| {
+            let value = self.get_value(&key).into();
+            (key, value)
+        }).collect()
+    }
+}
+
 impl PartialEq for DictionaryValue {
     /// Returns true if this object and `that` object have an equivalent
     /// underlying value but are not necessarily the same object.
@@ -743,9 +760,22 @@ impl ListValue {
     }
 }
 
+impl From<*mut cef_list_value_t> for ListValue {
+    fn from(list: *mut cef_list_value_t) -> Self {
+        unsafe { ((*list).base.add_ref.unwrap())(&mut (*list).base); }
+        Self(list)
+    }
+}
+
 impl std::convert::AsRef<cef_list_value_t> for ListValue {
     fn as_ref(&self) -> &cef_list_value_t {
         unsafe { self.0.as_ref().unwrap() }
+    }
+}
+
+impl Into<Vec<StoredValue>> for ListValue {
+    fn into(self) -> Vec<StoredValue> {
+        (0..self.len()).map(|idx| self.try_get_value(idx).unwrap().into()).collect()
     }
 }
 

@@ -23,8 +23,11 @@ mod load_handler;
 pub use load_handler::LoadHandler;
 mod render_process_handler;
 pub use render_process_handler::RenderProcessHandler;
+mod v8context;
+mod dom;
+mod process;
 
 mod command_line;
 pub use command_line::CommandLine;
 mod app;
-pub use app::{App, AppCallbacks};
+pub use app::{App, AppRef, AppCallbacks};

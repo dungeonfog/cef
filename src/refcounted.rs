@@ -1,80 +1,86 @@
 use std::{
-    sync::Mutex,
-    collections::{HashMap, hash_map::DefaultHasher},
-    ptr::hash,
-    hash::Hasher,
+    sync::atomic::{AtomicUsize, Ordering},
     os::raw::c_int,
+    ops::{Deref, DerefMut},
+    mem::ManuallyDrop,
 };
-use lazy_static::lazy_static;
-
 use cef_sys::cef_base_ref_counted_t;
 
 use crate::ptr_hash::Hashed;
 
-lazy_static! {
-    static ref REFCOUNT: Mutex<HashMap<u64, usize>> = Mutex::new(HashMap::new());
+pub(crate) trait RefCounter {
+    type Wrapper;
+    fn set_base(&mut self, base: cef_base_ref_counted_t);
 }
 
-pub struct RefCounted;
+#[repr(C)]
+pub(crate) struct RefCounted<C: RefCounter + Sized, R> {
+    cefobj: C,
+    refcount: AtomicUsize,
+    object: R,
+}
 
-impl RefCounted {
-    pub fn wrap<T>(obj: T) -> Box<T> {
-        let size = std::mem::size_of::<T>();
-        let obj = Box::new(obj);
-        let obj_ptr = Box::into_raw(obj);
-        let base: *mut cef_base_ref_counted_t = obj_ptr as *mut cef_base_ref_counted_t;
-        unsafe {
-            (*base).size = size;
-            (*base).add_ref = Some(RefCounted::add_ref);
-            (*base).release = Some(RefCounted::release::<T>);
-            (*base).has_one_ref = Some(RefCounted::has_one_ref);
-            (*base).has_at_least_one_ref = Some(RefCounted::has_at_least_one_ref);
-        }
-        if let Ok(ref mut ref_count) = REFCOUNT.lock() {
-            ref_count.insert(Hashed::from(base).into(), 1);
-        }
-        unsafe { Box::from_raw(obj_ptr) }
+unsafe impl<C: RefCounter + Sized, R> Sync for RefCounted<C, R> {}
+unsafe impl<C: RefCounter + Sized, R> Send for RefCounted<C, R> {}
+
+impl<C: RefCounter + Sized, R> Deref for RefCounted<C, R> {
+    type Target = R;
+
+    fn deref(&self) -> &Self::Target {
+        &self.object
+    }
+}
+
+impl<C: RefCounter + Sized, R> DerefMut for RefCounted<C, R> {
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        &mut self.object
+    }
+}
+
+impl<C: RefCounter + Sized, R> RefCounted<C, R> {
+    pub(crate) unsafe fn make_temp(ptr: *mut C) -> ManuallyDrop<Box<Self>> {
+        ManuallyDrop::new(unsafe { Box::from_raw(ptr as *mut Self) })
     }
 
-    extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
-        if let Ok(ref mut ref_count) = REFCOUNT.lock() {
-            if let Some(c) = ref_count.get_mut(&Hashed::from(ref_counted).into()) {
-                *c += 1;
-            }
-        }
+    pub(crate) fn new(mut cefobj: C, object: R) -> *mut Self {
+        cefobj.set_base(cef_base_ref_counted_t {
+            size: std::mem::size_of::<C>(),
+            add_ref: Some(Self::add_ref),
+            release: Some(Self::release),
+            has_one_ref: Some(Self::has_one_ref),
+            has_at_least_one_ref: Some(Self::has_at_least_one_ref),
+        });
+
+        Box::into_raw(Box::new(Self {
+            cefobj,
+            refcount: AtomicUsize::new(1),
+            object,
+        }))
     }
-    extern "C" fn release<T>(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        if let Ok(ref mut ref_count) = REFCOUNT.lock() {
-            let hash = Hashed::from(ref_counted).into();
-            if let Some(c) = ref_count.get_mut(&hash) {
-                *c -= 1;
-                if *c == 0 {
-                    ref_count.remove(&hash);
-                    unsafe { Box::from_raw(ref_counted as *mut T); }
-                    return 1;
-                }
-            }
-        }
-        0
+
+    pub(crate) fn get_cef(&mut self) -> *mut C {
+        &mut self.cefobj as *mut C
+    }
+
+    pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
+        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        this.refcount.fetch_add(1, Ordering::AcqRel);
+    }
+    pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
+        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        if this.refcount.fetch_sub(1, Ordering::AcqRel) > 1 {
+            ManuallyDrop::into_inner(this);
+            0
+        } else { 1 }
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        if let Ok(ref mut ref_count) = REFCOUNT.lock() {
-            let hash = Hashed::from(ref_counted).into();
-            if let Some(c) = ref_count.get_mut(&hash) {
-                if *c == 1 {
-                    return 1;
-                }
-            }
-        }
-        0
+        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        let counter = this.refcount.load(Ordering::Acquire);
+        if counter == 1 { 1 } else { 0 }
     }
     extern "C" fn has_at_least_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        if let Ok(ref mut ref_count) = REFCOUNT.lock() {
-            let hash = Hashed::from(ref_counted).into();
-            if ref_count.contains_key(&hash) {
-                return 1;
-            }
-        }
-        0
+        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        let counter = this.refcount.load(Ordering::Acquire);
+        if counter >= 1 { 1 } else { 0 }
     }
 }

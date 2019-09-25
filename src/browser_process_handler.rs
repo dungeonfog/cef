@@ -1,3 +1,5 @@
+use cef_sys::{cef_browser_process_handler_t};
+
 use crate::{
     command_line::CommandLine,
     values::StoredValue,
@@ -22,7 +24,7 @@ pub trait BrowserProcessHandler: Sync + Send {
     /// Return the handler for printing on Linux. If a print handler is not
     /// provided then printing will not be supported on the Linux platform.
     #[cfg(target_os = "linux")]
-    fn get_print_handler(&self) -> Option<Box<impl PrintHandler>> { None }
+    fn get_print_handler(&self) -> Option<Box<dyn PrintHandler>> { None }
     /// Called from any thread when work has been scheduled for the browser process
     /// main (UI) thread. This callback is used in combination with CefSettings.
     /// external_message_pump and cef_do_message_loop_work() in cases where the CEF
@@ -36,3 +38,8 @@ pub trait BrowserProcessHandler: Sync + Send {
     /// cancelled.
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {}
 }
+
+pub(crate) struct BrowserProcessHandlerWrapper(Box<dyn BrowserProcessHandler>, *mut cef_browser_process_handler_t);
+
+unsafe impl Send for BrowserProcessHandlerWrapper {}
+unsafe impl Sync for BrowserProcessHandlerWrapper {}
