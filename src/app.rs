@@ -24,7 +24,7 @@ pub trait AppCallbacks {
     /// processing by CEF and Chromium. The `process_type` value will be `None` for
     /// the browser process. Do not keep a reference to the CommandLine
     /// object passed to this function. The [CefSettings.command_line_args_disabled]
-    /// value can be used to start with an NULL command-line object. Any values
+    /// value can be used to start with a None command-line object. Any values
     /// specified in [CefSettings] that equate to command-line arguments will be set
     /// before this function is called. Be cautious when using this function to
     /// modify command-line arguments for non-browser processes as this may result
