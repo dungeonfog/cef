@@ -818,14 +818,14 @@ pub struct Size {
 
 /// Structure representing a range.
 #[derive(Clone, Debug)]
-pub struct Size {
+pub struct Range {
     from: i32,
     to: i32,
 }
 
 /// Structure representing insets.
 #[derive(Clone, Debug)]
-pub struct Size {
+pub struct Insets {
     top: i32,
     left: i32,
     bottom: i32,
