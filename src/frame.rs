@@ -264,8 +264,7 @@ impl Frame {
     /// The `request` object will be marked as read-only after calling this
     /// function.
     pub fn create_urlrequest(&self, request: &mut Request, client: Box<dyn URLRequestClient>) -> URLRequest {
-        let wrapper = URLRequestClientWrapper::wrap(client);
-        let urlrequest = unsafe { (&*self.0).create_urlrequest.unwrap()(self.0, request.as_ptr(), (*wrapper).get_cef()) };
+        let urlrequest = unsafe { (&*self.0).create_urlrequest.unwrap()(self.0, request.as_ptr(), URLRequestClientWrapper::wrap(client)) };
         URLRequest::from(urlrequest)
     }
 }

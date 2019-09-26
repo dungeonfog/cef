@@ -44,10 +44,12 @@ impl From<*mut cef_web_plugin_info_t> for WebPluginInfo {
             version: CefString::copy_raw_to_string(version).unwrap(),
             description: CefString::copy_raw_to_string(description).unwrap(),
         }};
-        cef_string_userfree_utf16_free(name);
-        cef_string_userfree_utf16_free(path);
-        cef_string_userfree_utf16_free(version);
-        cef_string_userfree_utf16_free(description);
+        unsafe {
+            cef_string_userfree_utf16_free(name);
+            cef_string_userfree_utf16_free(path);
+            cef_string_userfree_utf16_free(version);
+            cef_string_userfree_utf16_free(description);
+        }
         result
     }
 }

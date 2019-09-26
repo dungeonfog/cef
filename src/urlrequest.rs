@@ -1,5 +1,6 @@
-use cef_sys::{cef_urlrequest_t, cef_urlrequest_client_t, cef_auth_callback_t, cef_urlrequest_status_t, cef_base_ref_counted_t, cef_response_t, cef_request_context_t, cef_string_t, cef_response_filter_status_t, cef_request_callback_t};
+use cef_sys::{cef_urlrequest_t, cef_urlrequest_create, cef_urlrequest_client_t, cef_auth_callback_t, cef_urlrequest_status_t, cef_base_ref_counted_t, cef_response_t, cef_request_context_t, cef_string_t, cef_response_filter_status_t, cef_request_callback_t};
 use num_enum::UnsafeFromPrimitive;
+use std::ptr::null_mut;
 
 use crate::{
     request::Request,
@@ -60,42 +61,37 @@ impl URLRequest {
     ///   - The `request_context` parameter must be None.
     ///
     /// The `request` object will be marked as read-only after calling this function.
-    pub fn new(request: &mut Request, client: Box<dyn URLRequestClient>, request_contest: Option<&RequestContext>) -> Self {
-        //cef_urlrequest_create
-        unimplemented!()
+    pub fn new(request: &mut Request, client: Box<dyn URLRequestClient>, request_context: Option<&RequestContext>) -> Self {
+        Self(unsafe { cef_urlrequest_create(request.as_ptr(), URLRequestClientWrapper::wrap(client), request_context.and_then(|ctx| Some(ctx.as_ptr())).unwrap_or_else(null_mut)) })
     }
     /// Returns the request object used to create this URL request. The returned
     /// object is read-only and should not be modified.
     pub fn get_request(&self) -> Request {
-        unimplemented!()
-    }
-    /// Returns the client.
-    pub fn get_client(&self) -> impl URLRequestClient {
-        unimplemented!()
+        Request::from(unsafe { (*self.0).get_request.unwrap()(self.0) })
     }
     /// Returns the request status.
     pub fn get_request_status(&self) -> URLRequestStatus {
-        unimplemented!()
+        unsafe { URLRequestStatus::from_unchecked((*self.0).get_request_status.unwrap()(self.0) as i32) }
     }
     /// Returns the request error if status is [URLRequestStatus::Canceled] or [URLRequestStatus::Failed], or [ErrorCode::None]
     /// otherwise.
     pub fn get_request_error(&self) -> ErrorCode {
-        unimplemented!()
+        unsafe { ErrorCode::from_unchecked((*self.0).get_request_error.unwrap()(self.0) as i32) }
     }
     /// Returns the response, or None if no response information is available.
     /// Response information will only be available after the upload has completed.
     /// The returned object is read-only and should not be modified.
     pub fn get_response(&self) -> Option<Response> {
-        unimplemented!()
+        unsafe { (*self.0).get_response.unwrap()(self.0).as_mut() }.and_then(|response| Some(Response::from(response as *mut _)))
     }
     /// Returns true if the response body was served from the cache. This
     /// includes responses for which revalidation was required.
     pub fn response_was_cached(&self) -> bool {
-        unimplemented!()
+        unsafe { (*self.0).response_was_cached.unwrap()(self.0) != 0 }
     }
     /// Cancel the request.
     pub fn cancel(&self) {
-        unimplemented!()
+        unsafe { (*self.0).cancel.unwrap()(self.0) }
     }
 }
 
@@ -129,14 +125,14 @@ impl AuthCallback {
         if let Some(cont) = unsafe { &*self.0 }.cont {
             unsafe { cont(self.0, CefString::new(username).as_ref(), CefString::new(password).as_ref()); }
         }
-        ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base);
+        unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
     }
     /// Cancel the authentication request.
     pub fn cancel(&self) {
         if let Some(cancel) = unsafe { &*self.0 }.cancel {
             unsafe { cancel(self.0); }
         }
-        ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base);
+        unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
     }
 }
 
@@ -200,15 +196,16 @@ impl RefCounter for cef_urlrequest_client_t {
 pub(crate) struct URLRequestClientWrapper();
 
 impl URLRequestClientWrapper {
-    pub(crate) fn wrap(client: Box<dyn URLRequestClient>) -> *mut <cef_urlrequest_client_t as RefCounter>::Wrapper {
-        RefCounted::new(cef_urlrequest_client_t {
+    pub(crate) fn wrap(client: Box<dyn URLRequestClient>) -> *mut cef_urlrequest_client_t {
+        let rc = RefCounted::new(cef_urlrequest_client_t {
             on_request_complete: Some(Self::request_complete),
             on_upload_progress: Some(Self::upload_progress),
             on_download_progress: Some(Self::download_progress),
             on_download_data: Some(Self::download_data),
             get_auth_credentials: Some(Self::get_auth_credentials),
             ..Default::default()
-        }, client)
+        }, client);
+        unsafe { rc.as_mut() }.unwrap().get_cef()
     }
 
     extern "C" fn request_complete(self_: *mut cef_urlrequest_client_t, request: *mut cef_urlrequest_t) {
@@ -239,6 +236,23 @@ pub struct Response(*mut cef_response_t);
 
 unsafe impl Send for Response {}
 unsafe impl Sync for Response {}
+
+impl From<*mut cef_response_t> for Response {
+    fn from(response: *mut cef_response_t) -> Self {
+        unsafe {
+            ((*response).base.add_ref.unwrap())(&mut (*response).base);
+        }
+        Self(response)
+    }
+}
+
+impl Drop for Response {
+    fn drop(&mut self) {
+        unsafe {
+            unsafe { &*self.0 }.base.release.unwrap()(self.0 as *mut cef_base_ref_counted_t);
+        }
+    }
+}
 
 pub struct RequestCallback(*mut cef_request_callback_t);
 
@@ -313,7 +327,7 @@ pub trait ResourceHandler: Send + Sync {
     /// to continue or cancel the request. To cancel the request immediately set
     /// `handle_request` to true and return false. This function will be
     /// called in sequence but not from a dedicated thread.
-    fn open(&self, request: &Request, handle_request: &bool, callback: Callback) -> bool {
+    fn open(&self, request: &Request, handle_request: &mut bool, callback: Callback) -> bool {
         (*handle_request) = true;
         false
     }

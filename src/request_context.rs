@@ -66,7 +66,7 @@ pub trait RequestContextHandler: Send + Sync {
     fn get_resource_request_handler(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Box<dyn ResourceRequestHandler>> { None }
 }
 
-struct RequestContextHandlerWrapper {
+pub(crate) struct RequestContextHandlerWrapper {
     delegate: Box<dyn RequestContextHandler>,
     resource_request_handler: Option<*mut cef_resource_request_handler_t>,
 }
@@ -100,11 +100,11 @@ impl RequestContextHandlerWrapper {
         if let Some(policy) = this.delegate.on_before_plugin_load(&CefString::copy_raw_to_string(mime_type).unwrap(),
             CefString::copy_raw_to_string(plugin_url).as_ref().and_then(|s| Some(s.as_str())),
             is_main_frame != 0,
-            CefString::copy_raw_to_string(top_origin_url).and_then(|s| Some(s.as_str())),
+            CefString::copy_raw_to_string(top_origin_url).as_ref().and_then(|s| Some(s.as_str())),
             &WebPluginInfo::from(plugin_info),
             unsafe { PluginPolicy::from_unchecked(plugin_policy as i32) },
         ) {
-            (*plugin_policy) = unsafe { std::mem::transmute(policy) };
+            unsafe { (*plugin_policy) = std::mem::transmute(policy) };
             1
         } else {
             0
@@ -112,10 +112,10 @@ impl RequestContextHandlerWrapper {
     }
     extern "C" fn get_resource_request_handler(self_: *mut cef_request_context_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, is_navigation: std::os::raw::c_int, is_download: std::os::raw::c_int, request_initiator: *const cef_string_t, disable_default_handling: *mut std::os::raw::c_int) -> *mut cef_resource_request_handler_t {
         let mut this = unsafe { <cef_request_context_handler_t as RefCounter>::Wrapper::make_temp(self_) };
-        let local_disable_default_handling = false;
+        let mut local_disable_default_handling = false;
         if let Some(resource_request_handler) = this.delegate.get_resource_request_handler(
-            unsafe { browser.as_mut() }.and_then(|browser| Some(&Browser::from(browser as *mut _))),
-            unsafe { frame.as_mut() }.and_then(|frame| Some(&Frame::from(frame as *mut _))),
+            unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _))).as_ref(),
+            unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _))).as_ref(),
             &Request::from(request),
             is_navigation != 0,
             is_download != 0,
@@ -123,7 +123,7 @@ impl RequestContextHandlerWrapper {
             &mut local_disable_default_handling
         ) {
             if local_disable_default_handling {
-                (*disable_default_handling) = 1;
+                unsafe { (*disable_default_handling) = 1 };
             }
             if let Some(resource_request_handler) = this.resource_request_handler.replace(ResourceRequestHandlerWrapper::wrap(resource_request_handler)) {
                 <cef_resource_request_handler_t as RefCounter>::Wrapper::release(resource_request_handler as *mut cef_base_ref_counted_t);
@@ -131,7 +131,7 @@ impl RequestContextHandlerWrapper {
             this.resource_request_handler.unwrap()
         } else {
             if local_disable_default_handling {
-                (*disable_default_handling) = 1;
+                unsafe { (*disable_default_handling) = 1 };
             }
             if let Some(resource_request_handler) = this.resource_request_handler.take() {
                 <cef_resource_request_handler_t as RefCounter>::Wrapper::release(resource_request_handler as *mut cef_base_ref_counted_t);
@@ -172,6 +172,10 @@ impl RequestContext {
         };
         Self(unsafe { cef_create_context_shared(other.0, handler_ptr) })
     }
+
+    pub(crate) fn as_ptr(&self) -> *mut cef_request_context_t {
+        self.0
+    }
 }
 
 /// Request context initialization settings.
@@ -201,7 +205,7 @@ impl RequestContextBuilder {
     }
 
     /// Optionally supply a handler to the request context. See [RequestContextHandler].
-    pub fn with_handler(self, handler: Box<dyn RequestContextHandler>) -> Self {
+    pub fn with_handler(mut self, handler: Box<dyn RequestContextHandler>) -> Self {
         self.1.replace(handler);
         self
     }
@@ -214,7 +218,7 @@ impl RequestContextBuilder {
     /// across sessions if a cache path is specified. To share the global browser
     /// cache and related configuration set this value to match the
     /// [CefSettings::cache_path] value.
-    pub fn with_cache_path(self, path: &str) -> Self {
+    pub fn with_cache_path(mut self, path: &str) -> Self {
         let settings = self.get_settings();
         let len = path.len();
         unsafe { cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, len, &mut settings.cache_path); }
@@ -227,7 +231,7 @@ impl RequestContextBuilder {
     /// Web browsers do not persist them. Can be set globally using the
     /// [CefSettings::persist_session_cookies] value. This value will be ignored if
     /// `cache_path` is empty or if it matches the [CefSettings::cache_path] value.
-    pub fn persist_session_cookies(self, flag: bool) -> Self {
+    pub fn persist_session_cookies(mut self, flag: bool) -> Self {
         let settings = self.get_settings();
         settings.persist_session_cookies = flag as i32;
         self
@@ -237,7 +241,7 @@ impl RequestContextBuilder {
     /// this value to true. Can be set globally using the
     /// [CefSettings::persist_user_preferences] value. This value will be ignored if
     /// `cache_path` is empty or if it matches the [CefSettings::cache_path] value.
-    pub fn persist_user_preferences(self, flag: bool) -> Self {
+    pub fn persist_user_preferences(mut self, flag: bool) -> Self {
         let settings = self.get_settings();
         settings.persist_user_preferences = flag as i32;
         self
@@ -249,7 +253,7 @@ impl RequestContextBuilder {
     /// internet should not enable this setting. Can be set globally using the
     /// [CefSettings::ignore_certificate_errors] value. This value will be ignored if
     /// `cache_path` matches the [CefSettings::cache_path] value.
-    pub fn ignore_certificate_errors(self, flag: bool) -> Self {
+    pub fn ignore_certificate_errors(mut self, flag: bool) -> Self {
         let settings = self.get_settings();
         settings.ignore_certificate_errors = flag as i32;
         self
@@ -262,7 +266,7 @@ impl RequestContextBuilder {
     /// 10 weeks in the past. See https://www.certificate-transparency.org/ and
     /// https://www.chromium.org/hsts for details. Can be set globally using the
     /// [CefSettings::enable_net_security_expiration] value.
-    pub fn enable_net_security_expiration(self, flag: bool) -> Self {
+    pub fn enable_net_security_expiration(mut self, flag: bool) -> Self {
         let settings = self.get_settings();
         settings.enable_net_security_expiration = flag as i32;
         self
@@ -274,7 +278,7 @@ impl RequestContextBuilder {
     /// browser basis using the [BrowserSettings::accept_language_list] value. If
     /// all values are empty then "en-US,en" will be used. This value will be
     /// ignored if `cache_path` matches the [CefSettings::cache_path] value.
-    pub fn accept_language_list(self, list: &str) -> Self {
+    pub fn accept_language_list(mut self, list: &str) -> Self {
         let settings = self.get_settings();
         let len = list.len();
         unsafe { cef_string_utf8_to_utf16(list.as_ptr() as *const std::os::raw::c_char, len, &mut settings.accept_language_list); }
