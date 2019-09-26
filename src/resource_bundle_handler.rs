@@ -9,7 +9,6 @@ use crate::{
     string::CefString,
     refcounted::{RefCounted, RefCounter},
     ptr_hash::Hashed,
-    reference,
     PackResource, PackString,
 };
 

@@ -16,7 +16,6 @@ use crate::{
     StoredValue,
     values::{ListValue, DictionaryValue},
     refcounted::{RefCounted, RefCounter},
-    reference,
     ptr_hash::Hashed,
 };
 

@@ -10,7 +10,6 @@ use crate::{
     browser::Browser,
     frame::Frame,
     refcounted::{RefCounted, RefCounter},
-    reference,
     ptr_hash::Hashed,
     string::CefString,
 };
