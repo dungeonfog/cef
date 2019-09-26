@@ -2,7 +2,6 @@
 mod ptr_hash;
 mod string;
 mod refcounted;
-mod reference;
 mod values;
 pub use values::StoredValue;
 mod ids;

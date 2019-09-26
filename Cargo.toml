@@ -7,5 +7,4 @@ edition = "2018"
 [dependencies]
 cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
 lazy_static = "1.4"
-typemap = "0.3"
 num_enum = "0.4"
