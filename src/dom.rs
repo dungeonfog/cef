@@ -1,12 +1,154 @@
-use cef_sys::{_cef_domnode_t};
-use std::convert::TryFrom;
+use cef_sys::{cef_domnode_t, cef_domvisitor_t, cef_domdocument_t, cef_dom_node_type_t, cef_base_ref_counted_t};
+use std::{
+    convert::TryFrom,
+    collections::HashMap,
+};
+use num_enum::UnsafeFromPrimitive;
 
-pub struct DOMNode(*mut _cef_domnode_t);
+use crate::{
+    refcounted::{RefCounted, RefCounter},
+    values::Rect,
+};
 
-impl TryFrom<*mut _cef_domnode_t> for DOMNode {
+/// DOM node types.
+#[repr(i32)]
+#[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
+pub enum DOMNodeType {
+    Unsupported            = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED as i32,
+    Element                = cef_dom_node_type_t::DOM_NODE_TYPE_ELEMENT as i32,
+    Attribute              = cef_dom_node_type_t::DOM_NODE_TYPE_ATTRIBUTE as i32,
+    Text                   = cef_dom_node_type_t::DOM_NODE_TYPE_TEXT as i32,
+    CDataSection           = cef_dom_node_type_t::DOM_NODE_TYPE_CDATA_SECTION as i32,
+    ProcessingInstructions = cef_dom_node_type_t::DOM_NODE_TYPE_PROCESSING_INSTRUCTIONS as i32,
+    Comment                = cef_dom_node_type_t::DOM_NODE_TYPE_COMMENT as i32,
+    Document               = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT as i32,
+    DocumentType           = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_TYPE as i32,
+    DocumentFragment       = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as i32,
+}
+
+/// Structure used to represent a DOM node. The functions of this structure
+/// should only be called on the render process main thread.
+pub struct DOMNode(*mut cef_domnode_t);
+
+impl DOMNode {
+    /// Returns the type for this node.
+    pub fn get_type(&self) -> DOMNodeType {
+        unimplemented!()
+    }
+    /// Returns true if this is a text node.
+    pub fn is_text(&self) -> bool {
+        unimplemented!()
+    }
+    // Returns true if this is an element node.
+    pub fn is_element(&self) -> bool {
+        unimplemented!()
+    }
+    /// Returns true if this is an editable node.
+    pub fn is_editable(&self) -> bool {
+        unimplemented!()
+    }
+    /// Returns true if this is a form control element node.
+    pub fn is_form_control_element(&self) -> bool {
+        unimplemented!()
+    }
+    /// Returns the type of this form control element node.
+    pub fn get_form_control_element_type(&self) -> String {
+        unimplemented!()
+    }
+    /// Returns the name of this node.
+    pub fn get_name(&self) -> String {
+        unimplemented!()
+    }
+    /// Returns the value of this node.
+    pub fn get_value(&self) -> String {
+        unimplemented!()
+    }
+    /// Set the value of this node. Returns true on success.
+    pub fn set_value(&mut self, value: &str) -> bool {
+        unimplemented!()
+    }
+    /// Returns the contents of this node as markup.
+    pub fn get_as_markup(&self) -> String {
+        unimplemented!()
+    }
+    /// Returns the document associated with this node.
+    pub fn get_document(&self) -> DOMDocument {
+        unimplemented!()
+    }
+    /// Returns the parent node.
+    pub fn get_parent(&self) -> Option<Self> {
+        unimplemented!()
+    }
+    /// Returns the previous sibling node.
+    pub fn get_previous_sibling(&self) -> Option<Self> {
+        unimplemented!()
+    }
+    /// Returns the next sibling node.
+    pub fn get_next_sibling(&self) -> Option<Self> {
+        unimplemented!()
+    }
+    /// Returns true if this node has child nodes.
+    pub fn has_children(&self) -> bool {
+        unimplemented!()
+    }
+    /// Return the first child node.
+    pub fn get_first_child(&self) -> Option<Self> {
+        unimplemented!()
+    }
+    /// Returns the last child node.
+    pub fn get_last_child(&self) -> Option<Self> {
+        unimplemented!()
+    }
+
+    // The following functions are valid only for element nodes.
+
+    /// Returns the tag name of this element.
+    pub fn get_element_tag_name(&self) -> Option<String> {
+        unimplemented!()
+    }
+    /// Returns true if this element has attributes.
+    pub fn has_element_attributes(&self) -> bool {
+        unimplemented!()
+    }
+    /// Returns true if this element has an attribute named `attrName`.
+    pub fn has_element_attribute(&self, attr_name: &str) -> bool {
+        unimplemented!()
+    }
+    /// Returns the element attribute named |attrName|.
+    pub fn get_element_attribute(&self, attr_name: &str) -> Option<String> {
+        unimplemented!()
+    }
+    /// Returns a map of all element attributes.
+    pub fn get_element_attributes(&self) -> HashMap<String, Option<String>> {
+        unimplemented!()
+    }
+    /// Set the value for the element attribute named `attr_name`. Returns true
+    /// on success.
+    pub fn set_element_attribute(&mut self, attr_name: &str, value: &str) -> bool {
+        unimplemented!()
+    }
+    /// Returns the inner text of the element.
+    pub fn get_element_inner_text(&self) -> Option<String> {
+        unimplemented!()
+    }
+    /// Returns the bounds of the element.
+    pub fn get_element_bounds(&self) -> Option<Rect> {
+        unimplemented!()
+    }
+}
+
+impl PartialEq for DOMNode {
+    // Returns true if this object is pointing to the same handle as `that`
+    // object.
+    fn eq(&self, that: &Self) -> bool {
+        unimplemented!()
+    }
+}
+
+impl TryFrom<*mut cef_domnode_t> for DOMNode {
     type Error = ();
 
-    fn try_from(node: *mut _cef_domnode_t) -> Result<Self, Self::Error> {
+    fn try_from(node: *mut cef_domnode_t) -> Result<Self, Self::Error> {
         if node.is_null() {
             Err(())
         } else {
@@ -19,5 +161,55 @@ impl TryFrom<*mut _cef_domnode_t> for DOMNode {
 impl Drop for DOMNode {
     fn drop(&mut self) {
         unsafe { ((*self.0).base.release.unwrap())(&mut (*self.0).base); }
+    }
+}
+
+pub struct DOMDocument(*mut cef_domdocument_t);
+
+impl From<*mut cef_domdocument_t> for DOMDocument {
+    fn from(document: *mut cef_domdocument_t) -> Self {
+        unsafe { ((*document).base.add_ref.unwrap())(&mut (*document).base); }
+        Self(document)
+    }
+}
+
+impl Drop for DOMDocument {
+    fn drop(&mut self) {
+        unsafe { ((*self.0).base.release.unwrap())(&mut (*self.0).base); }
+    }
+}
+
+/// Structure to implement for visiting the DOM. The functions of this structure
+/// will be called on the render process main thread.
+pub trait DOMVisitor: Send + Sync {
+    /// Method executed for visiting the DOM. The document object passed to this
+    /// function represents a snapshot of the DOM at the time this function is
+    /// executed.
+    fn visit(&self, document: &DOMDocument);
+}
+
+impl RefCounter for cef_domvisitor_t {
+    type Wrapper = RefCounted<Self, Box<dyn DOMVisitor>>;
+    fn set_base(&mut self, base: cef_base_ref_counted_t) {
+        self.base = base;
+    }
+}
+
+pub(crate) struct DOMVisitorWrapper;
+
+impl DOMVisitorWrapper {
+    pub(crate) fn wrap(delegate: Box<dyn DOMVisitor>) -> *mut cef_domvisitor_t {
+        let mut rc = RefCounted::new(cef_domvisitor_t {
+            visit: Some(Self::visit),
+            ..Default::default()
+        }, delegate);
+        unsafe { &mut *rc }.get_cef()
+    }
+
+    extern "C" fn visit(self_: *mut cef_domvisitor_t, document: *mut cef_domdocument_t) {
+        let mut this = unsafe { <cef_domvisitor_t as RefCounter>::Wrapper::make_temp(self_) };
+        this.visit(&DOMDocument::from(document));
+        // we're done here!
+        <cef_domvisitor_t as RefCounter>::Wrapper::release(this.get_cef() as *mut cef_base_ref_counted_t);
     }
 }

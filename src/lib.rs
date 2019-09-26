@@ -26,11 +26,34 @@ mod render_process_handler;
 pub use render_process_handler::RenderProcessHandler;
 mod v8context;
 mod dom;
+pub use dom::{DOMDocument, DOMVisitor};
 mod process;
 mod request;
 pub use request::{Request, PostData, PostDataElement};
+mod urlrequest;
+pub use urlrequest::{URLRequest, URLRequestClient, AuthCallback};
+mod web_plugin;
+pub use web_plugin::WebPluginInfo;
+mod cookie;
+pub use cookie::Cookie;
+mod callback;
+pub use callback::Callback;
 
 mod command_line;
 pub use command_line::CommandLine;
 mod app;
 pub use app::{App, AppCallbacks};
+
+use num_enum::UnsafeFromPrimitive;
+
+/// Return value types.
+#[repr(i32)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+pub enum ReturnValue {
+    /// Cancel immediately.
+    Cancel = cef_sys::cef_return_value_t::RV_CANCEL as i32,
+    /// Continue immediately.
+    Continue = cef_sys::cef_return_value_t::RV_CONTINUE as i32,
+    /// Continue asynchronously (usually via a callback).
+    ContinueAsync = cef_sys::cef_return_value_t::RV_CONTINUE_ASYNC as i32,
+}

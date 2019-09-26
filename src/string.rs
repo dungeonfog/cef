@@ -109,7 +109,7 @@ impl RefCounter for cef_string_visitor_t {
     }
 }
 
-pub(crate) struct StringVisitorWrapper(Box<dyn StringVisitor>);
+pub(crate) struct StringVisitorWrapper();
 
 impl StringVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn StringVisitor>) -> *mut cef_string_visitor_t {
