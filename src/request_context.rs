@@ -162,10 +162,15 @@ impl RequestContext {
     pub fn global() -> Self {
         Self(unsafe { cef_request_context_get_global_context() })
     }
-    // Creates a new context object that shares storage with `other` and uses an
-    // optional `handler`.
+    /// Creates a new context object that shares storage with `other` and uses an
+    /// optional `handler`.
     pub fn new_shared(other: &RequestContext, handler: Option<Box<dyn RequestContextHandler>>) -> Self {
-        unimplemented!()
+        let handler_ptr = if let Some(handler) = handler {
+            RequestContextHandlerWrapper::wrap(handler)
+        } else {
+            null_mut()
+        };
+        Self(unsafe { cef_create_context_shared(other.0, handler_ptr) })
     }
 }
 
