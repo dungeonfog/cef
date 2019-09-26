@@ -1,4 +1,4 @@
-use cef_sys::{_cef_process_message_t, cef_process_id_t, cef_string_userfree_utf16_free};
+use cef_sys::{cef_process_message_t, cef_process_id_t, cef_string_userfree_utf16_free};
 use num_enum::UnsafeFromPrimitive;
 
 use crate::{
@@ -13,7 +13,7 @@ pub enum ProcessId {
     Renderer = cef_process_id_t::PID_RENDERER as i32,
 }
 
-pub struct ProcessMessage(*mut _cef_process_message_t);
+pub struct ProcessMessage(*mut cef_process_message_t);
 
 impl ProcessMessage {
     pub fn is_valid(&self) -> bool {
@@ -47,8 +47,8 @@ impl Clone for ProcessMessage {
     }
 }
 
-impl From<*mut _cef_process_message_t> for ProcessMessage {
-    fn from(msg: *mut _cef_process_message_t) -> Self {
+impl From<*mut cef_process_message_t> for ProcessMessage {
+    fn from(msg: *mut cef_process_message_t) -> Self {
         unsafe { ((*msg).base.add_ref.unwrap())(&mut (*msg).base); }
         Self(msg)
     }

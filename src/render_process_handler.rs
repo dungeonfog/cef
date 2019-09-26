@@ -1,4 +1,4 @@
-use cef_sys::{cef_render_process_handler_t, cef_list_value_t, cef_browser_t, cef_frame_t, cef_dictionary_value_t, cef_load_handler_t, _cef_v8context_t, _cef_domnode_t, _cef_v8exception_t, _cef_v8stack_trace_t, cef_process_id_t, _cef_process_message_t, cef_base_ref_counted_t};
+use cef_sys::{cef_render_process_handler_t, cef_list_value_t, cef_browser_t, cef_frame_t, cef_dictionary_value_t, cef_load_handler_t, cef_v8context_t, cef_domnode_t, cef_v8exception_t, cef_v8stack_trace_t, cef_process_id_t, cef_process_message_t, cef_base_ref_counted_t};
 use std::{
     collections::HashMap,
     sync::Arc,
@@ -130,22 +130,22 @@ impl RenderProcessHandlerWrapper {
         }
     }
 
-    extern "C" fn context_created(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut _cef_v8context_t) {
+    extern "C" fn context_created(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut cef_v8context_t) {
         let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         (*this).delegate.on_context_created(&Browser::from(browser), &Frame::from(frame), &V8Context::from(context));
     }
 
-    extern "C" fn context_released(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut _cef_v8context_t) {
+    extern "C" fn context_released(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut cef_v8context_t) {
         let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         (*this).delegate.on_context_created(&Browser::from(browser), &Frame::from(frame), &V8Context::from(context));
     }
 
-    extern "C" fn uncaught_exception(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut _cef_v8context_t, exception: *mut _cef_v8exception_t, stack_trace: *mut _cef_v8stack_trace_t) {
+    extern "C" fn uncaught_exception(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut cef_v8context_t, exception: *mut cef_v8exception_t, stack_trace: *mut cef_v8stack_trace_t) {
         let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         (*this).delegate.on_uncaught_exception(&Browser::from(browser), &Frame::from(frame), &V8Context::from(context), &V8Exception::from(exception), &V8StackTrace::from(stack_trace));
     }
 
-    extern "C" fn focused_node_changed(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, node: *mut _cef_domnode_t) {
+    extern "C" fn focused_node_changed(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, node: *mut cef_domnode_t) {
         let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         match DOMNode::try_from(node) {
             Ok(domnode) => (*this).delegate.on_focused_node_changed(&Browser::from(browser), &Frame::from(frame), Some(&domnode)),
@@ -153,7 +153,7 @@ impl RenderProcessHandlerWrapper {
         };
     }
 
-    extern "C" fn process_message_received(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, source_process: cef_process_id_t, message: *mut _cef_process_message_t) -> std::os::raw::c_int {
+    extern "C" fn process_message_received(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, source_process: cef_process_id_t, message: *mut cef_process_message_t) -> std::os::raw::c_int {
         let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         (*this).delegate.on_process_message_received(&Browser::from(browser), &Frame::from(frame), unsafe { ProcessId::from_unchecked(source_process as i32) }, &ProcessMessage::from(message)) as std::os::raw::c_int
     }

@@ -92,7 +92,7 @@ impl BrowserProcessHandlerWrapper {
         // TODO: copy stuff back from ei to extra_info
     }
     #[cfg(target_os = "linux")]
-    extern "C" fn get_print_handler(self_: *mut cef_browser_process_handler_t) -> *mut _cef_print_handler_t {
+    extern "C" fn get_print_handler(self_: *mut cef_browser_process_handler_t) -> *mut cef_print_handler_t {
         let mut this = unsafe { <cef_browser_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         if let Some(handler) = this.delegate.get_print_handler() {
             let wrapper = PrintHandlerWrapper::new(handler);
