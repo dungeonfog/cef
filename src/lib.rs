@@ -1,6 +1,8 @@
 #![allow(unused)]
 mod ptr_hash;
 mod string;
+pub use string::StringVisitor;
+mod multimap;
 mod refcounted;
 mod values;
 pub use values::StoredValue;
@@ -25,8 +27,10 @@ pub use render_process_handler::RenderProcessHandler;
 mod v8context;
 mod dom;
 mod process;
+mod request;
+pub use request::{Request, PostData, PostDataElement};
 
 mod command_line;
 pub use command_line::CommandLine;
 mod app;
-pub use app::{App, AppRef, AppCallbacks};
+pub use app::{App, AppCallbacks};

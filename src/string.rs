@@ -1,4 +1,8 @@
-use cef_sys::{cef_string_t, cef_string_utf8_to_utf16, cef_string_list_t, cef_string_list_alloc, cef_string_list_size, cef_string_list_value, cef_string_list_free};
+use cef_sys::{cef_base_ref_counted_t, cef_string_t, cef_string_utf8_to_utf16, cef_string_list_t, cef_string_list_alloc, cef_string_list_size, cef_string_list_value, cef_string_list_free, cef_string_visitor_t};
+
+use crate::{
+    refcounted::{RefCounted, RefCounter},
+};
 
 #[derive(Default)]
 pub(crate) struct CefString(cef_string_t);
@@ -32,6 +36,12 @@ impl Drop for CefString {
 impl std::convert::AsRef<cef_string_t> for CefString {
     fn as_ref(&self) -> &cef_string_t {
         &self.0
+    }
+}
+
+impl From<cef_string_t> for CefString {
+    fn from(source: cef_string_t) -> Self {
+        CefString(source)
     }
 }
 
@@ -84,4 +94,38 @@ pub(crate) fn from_string_list(list: cef_string_list_t) -> Vec<String> {
         }
         item.into()
     }).collect()
+}
+
+/// Implement this trait to receive string values asynchronously.
+pub trait StringVisitor: Send + Sync {
+    /// Method that will be executed.
+    fn visit(&self, string: &str);
+}
+
+impl RefCounter for cef_string_visitor_t {
+    type Wrapper = RefCounted<Self, Box<dyn StringVisitor>>;
+    fn set_base(&mut self, base: cef_base_ref_counted_t) {
+        self.base = base;
+    }
+}
+
+pub(crate) struct StringVisitorWrapper(Box<dyn StringVisitor>);
+
+impl StringVisitorWrapper {
+    pub(crate) fn wrap(delegate: Box<dyn StringVisitor>) -> *mut cef_string_visitor_t {
+        let mut rc = RefCounted::new(cef_string_visitor_t {
+            visit: Some(Self::visit),
+            ..Default::default()
+        }, delegate);
+        unsafe { &mut *rc }.get_cef()
+    }
+
+    extern "C" fn visit(self_: *mut cef_string_visitor_t, string: *const cef_string_t) {
+        let mut this = unsafe { <cef_string_visitor_t as RefCounter>::Wrapper::make_temp(self_) };
+        if let Some(string) = CefString::copy_raw_to_string(string) {
+            this.visit(&string);
+        }
+        // we're done here!
+        <cef_string_visitor_t as RefCounter>::Wrapper::release(this.get_cef() as *mut cef_base_ref_counted_t);
+    }
 }

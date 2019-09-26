@@ -13,6 +13,9 @@ pub(crate) trait RefCounter {
     fn set_base(&mut self, base: cef_base_ref_counted_t);
 }
 
+// The code for RefCounted<C,R> assumes that it can cast *mut cef_base_ref_counted_t to *mut C to *mut RefCounted<C,R>
+// this is true as long as everything is #[repr(C)] and the corresponding structs are the first in the list.
+// It might sound like a hack, but I think that CEF assumes that you do it like this. It's a C API after all.
 #[repr(C)]
 pub(crate) struct RefCounted<C: RefCounter + Sized, R> {
     cefobj: C,

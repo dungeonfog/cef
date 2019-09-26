@@ -3,10 +3,9 @@ use std::{
     ptr::null_mut,
     mem::ManuallyDrop,
 };
-use cef_sys::{cef_app_t, cef_base_ref_counted_t, cef_resource_bundle_handler_t, cef_render_process_handler_t};
+use cef_sys::{cef_app_t, cef_base_ref_counted_t, cef_resource_bundle_handler_t, cef_render_process_handler_t, cef_browser_process_handler_t};
 
 use crate::{
-    reference,
     refcounted::{RefCounted, RefCounter},
     string::CefString,
     ptr_hash::Hashed,
@@ -48,43 +47,47 @@ pub trait AppCallbacks {
     fn get_render_process_handler(&self) -> Option<Box<dyn RenderProcessHandler>> { None }
 }
 
-pub struct App {
+pub struct AppWrapper {
     delegate: Box<dyn AppCallbacks>,
     resource_bundle_handler: *mut <cef_resource_bundle_handler_t as RefCounter>::Wrapper,
+    browser_process_handler: *mut <cef_browser_process_handler_t as RefCounter>::Wrapper,
     render_process_handler: *mut <cef_render_process_handler_t as RefCounter>::Wrapper,
 }
 
 /// Opaque reference to CEF's app struct
-pub struct AppRef(*mut cef_app_t);
+pub struct App(*mut cef_app_t);
 
-unsafe impl Sync for App {}
-unsafe impl Send for App {}
+unsafe impl Sync for AppWrapper {}
+unsafe impl Send for AppWrapper {}
 
 impl RefCounter for cef_app_t {
-    type Wrapper = RefCounted<cef_app_t, App>;
+    type Wrapper = RefCounted<cef_app_t, AppWrapper>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
 }
 
 impl App {
-    pub fn new(delegate: Box<dyn AppCallbacks>) -> AppRef {
+    pub fn new(delegate: Box<dyn AppCallbacks>) -> Self {
         let rc = RefCounted::new(cef_app_t {
-            on_before_command_line_processing: Some(Self::on_before_command_line_processing),
-            on_register_custom_schemes: Some(Self::on_register_custom_schemes),
-            get_browser_process_handler: Some(Self::get_browser_process_handler),
-            get_resource_bundle_handler: Some(Self::get_resource_bundle_handler),
-            get_render_process_handler: Some(Self::get_render_process_handler),
+            on_before_command_line_processing: Some(AppWrapper::on_before_command_line_processing),
+            on_register_custom_schemes:        Some(AppWrapper::on_register_custom_schemes),
+            get_browser_process_handler:       Some(AppWrapper::get_browser_process_handler),
+            get_resource_bundle_handler:       Some(AppWrapper::get_resource_bundle_handler),
+            get_render_process_handler:        Some(AppWrapper::get_render_process_handler),
             ..Default::default()
-        }, Self {
+        }, AppWrapper {
             delegate,
             resource_bundle_handler: null_mut(),
+            browser_process_handler: null_mut(),
             render_process_handler: null_mut(),
         });
         let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(rc as *mut _) };
-        AppRef(this.get_cef())
+        Self(this.get_cef())
     }
+}
 
+impl AppWrapper {
     extern "C" fn on_before_command_line_processing(self_: *mut cef_sys::cef_app_t, process_type: *const cef_sys::cef_string_t, command_line: *mut cef_sys::cef_command_line_t) {
         let this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
         (**this).delegate.on_before_command_line_processing(CefString::copy_raw_to_string(process_type).as_ref().map(|s| &**s), &CommandLine::from(command_line));
@@ -108,7 +111,18 @@ impl App {
         }
     }
     extern "C" fn get_browser_process_handler(self_: *mut cef_sys::cef_app_t) -> *mut cef_sys::cef_browser_process_handler_t {
-        null_mut()
+        let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
+        if let Some(handler) = this.delegate.get_browser_process_handler() {
+            let wrapper = BrowserProcessHandlerWrapper::new(handler);
+            this.browser_process_handler = wrapper;
+            wrapper as *mut cef_browser_process_handler_t
+        } else {
+            if !this.browser_process_handler.is_null() {
+                <cef_browser_process_handler_t as RefCounter>::Wrapper::release((*this).browser_process_handler as *mut cef_base_ref_counted_t);
+                this.browser_process_handler = null_mut();
+            }
+            null_mut()
+        }
     }
     extern "C" fn get_render_process_handler(self_: *mut cef_sys::cef_app_t) -> *mut cef_render_process_handler_t {
         let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
@@ -122,6 +136,17 @@ impl App {
                 this.render_process_handler = null_mut();
             }
             null_mut()
+        }
+    }
+}
+
+impl Drop for AppWrapper {
+    fn drop(&mut self) {
+        if !self.browser_process_handler.is_null() {
+            <cef_browser_process_handler_t as RefCounter>::Wrapper::release(self.browser_process_handler as *mut cef_base_ref_counted_t);
+        }
+        if !self.render_process_handler.is_null() {
+            <cef_render_process_handler_t as RefCounter>::Wrapper::release(self.render_process_handler as *mut cef_base_ref_counted_t);
         }
     }
 }
