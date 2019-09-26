@@ -799,3 +799,35 @@ impl Drop for ListValue {
         unsafe { (self.as_ref().base.release.unwrap())(&mut (*self.0).base); }
     }
 }
+
+/// Structure representing a rectangle.
+#[derive(Clone, Debug)]
+pub struct Rect {
+    x: i32,
+    y: i32,
+    width: i32,
+    height: i32,
+}
+
+/// Structure representing a size.
+#[derive(Clone, Debug)]
+pub struct Size {
+    width: i32,
+    height: i32,
+}
+
+/// Structure representing a range.
+#[derive(Clone, Debug)]
+pub struct Size {
+    from: i32,
+    to: i32,
+}
+
+/// Structure representing insets.
+#[derive(Clone, Debug)]
+pub struct Size {
+    top: i32,
+    left: i32,
+    bottom: i32,
+    right: i32,
+}
