@@ -12,6 +12,8 @@ use crate::{
     ReturnValue,
     cookie::Cookie,
     callback::Callback,
+    resource_request::{ResourceRequestHandler},
+    request_context::RequestContext,
 };
 
 /// Flags that represent [URLRequest] status.
@@ -195,10 +197,10 @@ impl RefCounter for cef_urlrequest_client_t {
     }
 }
 
-struct URLRequestClientWrapper();
+pub(crate) struct URLRequestClientWrapper();
 
 impl URLRequestClientWrapper {
-    fn wrap(client: Box<dyn URLRequestClient>) -> *mut <cef_urlrequest_client_t as RefCounter>::Wrapper {
+    pub(crate) fn wrap(client: Box<dyn URLRequestClient>) -> *mut <cef_urlrequest_client_t as RefCounter>::Wrapper {
         RefCounted::new(cef_urlrequest_client_t {
             on_request_complete: Some(Self::request_complete),
             on_upload_progress: Some(Self::upload_progress),
@@ -238,152 +240,7 @@ pub struct Response(*mut cef_response_t);
 unsafe impl Send for Response {}
 unsafe impl Sync for Response {}
 
-/// Implement this structure to provide handler implementations. The handler
-/// instance will not be released until all objects related to the context have
-/// been destroyed.
-pub trait RequestContextHandler: Send + Sync {
-    // Called on the browser process UI thread immediately after the request
-    // context has been initialized.
-    fn on_request_context_initialized(&self, request_context: &RequestContext) {}
-    /// Called on multiple browser process threads before a plugin instance is
-    /// loaded. `mime_type` is the mime type of the plugin that will be loaded.
-    /// `plugin_url` is the content URL that the plugin will load and may be None.
-    /// `is_main_frame` will be true if the plugin is being loaded in the main
-    /// (top-level) frame, `top_origin_url` is the URL for the top-level frame that
-    /// contains the plugin when loading a specific plugin instance or None when
-    /// building the initial list of enabled plugins for 'navigator.plugins'
-    /// JavaScript state. `plugin_info` includes additional information about the
-    /// plugin that will be loaded. `plugin_policy` is the recommended policy.
-    /// Modify `plugin_policy` and return true to change the policy. Return
-    /// false to use the recommended policy. The default plugin policy can be
-    /// set at runtime using the `--plugin-policy=[allow|detect|block]` command-
-    /// line flag. Decisions to mark a plugin as disabled by setting
-    /// `plugin_policy` to PLUGIN_POLICY_DISABLED may be cached when
-    /// `top_origin_url` is None. To purge the plugin list cache and potentially
-    /// trigger new calls to this function call
-    /// [RequestContext::purge_plugin_list_cache].
-    fn on_before_plugin_load(&self, mime_type: &str, plugin_url: Option<&str>, is_main_frame: bool, top_origin_url: Option<&str>, plugin_info: &WebPluginInfo) -> bool { false }
-    // Called on the browser process IO thread before a resource request is
-    // initiated. The `browser` and `frame` values represent the source of the
-    // request, and may be None for requests originating from service workers or
-    // [URLRequest]. `request` represents the request contents and cannot be
-    // modified in this callback. `is_navigation` will be true if the resource
-    // request is a navigation. `is_download` will be true if the resource
-    // request is a download. `request_initiator` is the origin (scheme + domain)
-    // of the page that initiated the request. Set `disable_default_handling` to
-    // true to disable default handling of the request, in which case it will
-    // need to be handled via [ResourceRequestHandler::get_resource_handler]
-    // or it will be canceled. To allow the resource load to proceed with default
-    // handling return None. To specify a handler for the resource return a
-    // [ResourceRequestHandler] object. This function will not be called if
-    // the client associated with `browser` returns a non-None value from
-    // [RequestHandler::get_resource_request_handler] for the same request
-    // (identified by [Request::get_identifier]).
-    fn get_resource_request_handler(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Box<dyn ResourceRequestHandler>> { None }
-}
-
-/// A request context provides request handling for a set of related browser or
-/// URL request objects. A request context can be specified when creating a new
-/// browser via the [BrowserHost] static factory functions or when creating
-/// a new URL request via the [URLRequest] static factory functions. Browser
-/// objects with different request contexts will never be hosted in the same
-/// render process. Browser objects with the same request context may or may not
-/// be hosted in the same render process depending on the process model. Browser
-/// objects created indirectly via the JavaScript window.open function or
-/// targeted links will share the same render process and the same request
-/// context as the source browser. When running in single-process mode there is
-/// only a single render process (the main process) and so all browsers created
-/// in single-process mode will share the same request context. This will be the
-/// first request context passed into a [BrowserHost] static factory
-/// function and all other request context objects will be ignored.
-pub struct RequestContext(*mut cef_request_context_t);
-
-impl RequestContext {
-    pub fn global() -> Self {
-        unimplemented!()
-    }
-    pub fn new(handler: Box<dyn RequestContextHandler>) -> Self {
-        unimplemented!()
-    }
-}
-
 pub struct RequestCallback(*mut cef_request_callback_t);
-
-/// Implement this trait to handle events related to browser requests. The
-/// functions of this trait will be called on the IO thread unless otherwise
-/// indicated.
-pub trait ResourceRequestHandler: Sync + Send {
-    /// Called on the IO thread before a resource request is loaded. The `browser`
-    /// and `frame` values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest]. To
-    /// optionally filter cookies for the request return a
-    /// [CookieAccessFilter] object.
-    fn get_cookie_access_filter(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request) -> Option<Box<dyn CookieAccessFilter>> { None }
-    /// Called on the IO thread before a resource request is loaded. The `browser`
-    /// and `frame` values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest]. To redirect
-    /// or change the resource load optionally modify `request`. Modification of
-    /// the request URL will be treated as a redirect. Return RV_CONTINUE to
-    /// continue the request immediately. Return RV_CONTINUE_ASYNC and call
-    /// [RequestCallback::cont] at a later time to continue or cancel the
-    /// request asynchronously. Return RV_CANCEL to cancel the request immediately.
-    fn on_before_resource_load(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, callback: RequestCallback) -> ReturnValue { ReturnValue::Cancel }
-    /// Called on the IO thread before a resource is loaded. The `browser` and
-    /// `frame` values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest]. To allow the
-    /// resource to load using the default network loader return None. To specify a
-    /// handler for the resource return a [ResourceHandler] object.
-    fn get_resource_handler(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request) -> Option<Box<dyn ResourceHandler>> { None }
-    /// Called on the IO thread when a resource load is redirected. The `browser`
-    /// and `frame|`values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest]. The
-    /// `request` parameter will contain the old URL and other request-related
-    /// information. The `response` parameter will contain the response that
-    /// resulted in the redirect. The `new_url` parameter will contain the new URL
-    /// and can be changed if desired.
-    fn on_resource_redirect(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, response: &Response, new_url: &str) {}
-    /// Called on the IO thread when a resource response is received. The `browser`
-    /// and `frame` values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest]. To allow the
-    /// resource load to proceed without modification return false. To redirect
-    /// or retry the resource load optionally modify `request` and return true.
-    /// Modification of the request URL will be treated as a redirect. Requests
-    /// handled using the default network loader cannot be redirected in this
-    /// callback. The `response` object cannot be modified in this callback.
-    ///
-    /// WARNING: Redirecting using this function is deprecated. Use
-    /// OnBeforeResourceLoad or GetResourceHandler to perform redirects.
-    fn on_resource_response(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &mut Request, response: &Response) -> bool { false }
-    /// Called on the IO thread to optionally filter resource response content. The
-    /// `browser` and `frame` values represent the source of the request, and may
-    /// be None for requests originating from service workers or [URLRequest].
-    fn get_resource_response_filter(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, response: &Response) -> Option<Box<dyn ResponseFilter>> { None }
-    /// Called on the IO thread when a resource load has completed. The `browser`
-    /// and `frame` values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest].
-    /// `status` indicates the load completion
-    /// status. `received_content_length` is the number of response bytes actually
-    /// read. This function will be called for all requests, including requests
-    /// that are aborted due to CEF shutdown or destruction of the associated
-    /// browser. In cases where the associated browser is destroyed this callback
-    /// may arrive after the [LifeSpanHandler::on_before_close] callback for
-    /// that browser. The [Frame::is_valid] function can be used to test for
-    /// this situation, and care should be taken not to call `browser` or `frame`
-    /// functions that modify state (like LoadURL, SendProcessMessage, etc.) if the
-    /// frame is invalid.
-    fn on_resource_load_complete(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, response: &Response, status: URLRequestStatus, received_content_length: i64) {}
-    /// Called on the IO thread to handle requests for URLs with an unknown
-    /// protocol component. The `browser` and `frame` values represent the source
-    /// of the request, and may be None for requests originating from service
-    /// workers or [URLRequest].
-    /// Set `allow_os_execution` to true to attempt execution via the
-    /// registered OS protocol handler, if any.
-    ///
-    /// SECURITY WARNING: YOU SHOULD USE
-    /// THIS METHOD TO ENFORCE RESTRICTIONS BASED ON SCHEME, HOST OR OTHER URL
-    /// ANALYSIS BEFORE ALLOWING OS EXECUTION.
-    fn on_protocol_execution(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, response: &Response, allow_os_execution: &mut bool) {}
-}
 
 /// Implement this trait to filter cookies that may be sent or received from
 /// resource requests. The functions of this trait will be called on the IO

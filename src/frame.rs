@@ -3,7 +3,7 @@ use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
 use crate::{
     string::{CefString, StringVisitor, StringVisitorWrapper},
     request::Request,
-    urlrequest::{URLRequest, URLRequestClient},
+    urlrequest::{URLRequest, URLRequestClient, URLRequestClientWrapper},
     browser::Browser,
     v8context::V8Context,
     dom::{DOMVisitor, DOMVisitorWrapper},
@@ -264,6 +264,8 @@ impl Frame {
     /// The `request` object will be marked as read-only after calling this
     /// function.
     pub fn create_urlrequest(&self, request: &mut Request, client: Box<dyn URLRequestClient>) -> URLRequest {
-        unimplemented!();
+        let wrapper = URLRequestClientWrapper::wrap(client);
+        let urlrequest = unsafe { (&*self.0).create_urlrequest.unwrap()(self.0, request.as_ptr(), (*wrapper).get_cef()) };
+        URLRequest::from(urlrequest)
     }
 }

@@ -32,12 +32,16 @@ mod request;
 pub use request::{Request, PostData, PostDataElement};
 mod urlrequest;
 pub use urlrequest::{URLRequest, URLRequestClient, AuthCallback};
+mod request_context;
+pub use request_context::{RequestContextHandler, RequestContext, RequestContextBuilder};
 mod web_plugin;
 pub use web_plugin::WebPluginInfo;
 mod cookie;
 pub use cookie::Cookie;
 mod callback;
 pub use callback::Callback;
+mod resource_request;
+pub use resource_request::ResourceRequestHandler;
 
 mod command_line;
 pub use command_line::CommandLine;
