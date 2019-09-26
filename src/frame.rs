@@ -1,5 +1,10 @@
 use cef_sys::{cef_frame_t};
 
+
+/// Structure used to represent a frame in the browser window. When used in the
+/// browser process the functions of this structure may be called on any thread
+/// unless otherwise indicated in the comments. When used in the render process
+/// the functions of this structure may only be called on the main thread.
 pub struct Frame(*mut cef_frame_t);
 
 impl std::convert::AsRef<cef_frame_t> for Frame {

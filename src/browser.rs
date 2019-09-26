@@ -6,6 +6,10 @@ use crate::{
     string::{CefString, CefStringList},
 };
 
+/// Structure used to represent a browser window. When used in the browser
+/// process the functions of this structure may be called on any thread unless
+/// otherwise indicated in the comments. When used in the render process the
+/// functions of this structure may only be called on the main thread.
 #[derive(Eq)]
 pub struct Browser(*mut cef_browser_t);
 

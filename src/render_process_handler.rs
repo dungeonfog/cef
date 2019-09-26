@@ -56,8 +56,8 @@ pub trait RenderProcessHandler: Send + Sync {
     /// this function represents a snapshot of the DOM at the time this function is
     /// executed.
     fn on_focused_node_changed(&self, browser: &Browser, frame: &Frame, node: Option<&DOMNode>) {}
-    // Called when a new message is received from a different process. Return true
-    // if the message was handled or false otherwise.
+    /// Called when a new message is received from a different process. Return true
+    /// if the message was handled or false otherwise.
     fn on_process_message_received(&self, browser: &Browser, frame: &Frame, source_process: ProcessId, message: &ProcessMessage) -> bool { false }
 }
 

@@ -46,11 +46,11 @@ impl ScaleFactor {
     }
 }
 
-// Trait used for retrieving resources from the resource bundle (*.pak)
-// files loaded by CEF during startup or via the cef_resource_bundle_handler
-// returned from cef_app_t::GetResourceBundleHandler. See CefSettings for
-// additional options related to resource bundle loading. The functions of this
-// structure may be called on any thread unless otherwise indicated.
+/// Trait used for retrieving resources from the resource bundle (*.pak)
+/// files loaded by CEF during startup or via the cef_resource_bundle_handler
+/// returned from cef_app_t::GetResourceBundleHandler. See CefSettings for
+/// additional options related to resource bundle loading. The functions of this
+/// structure may be called on any thread unless otherwise indicated.
 pub trait ResourceBundleHandler: Send + Sync {
     /// Called to retrieve a localized translation for the specified |string_id|.
     /// To provide the translation return the translation string.

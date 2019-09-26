@@ -6,6 +6,9 @@ use crate::{
     // print_handler::PrintHandler,
 };
 
+/// Trait used to implement browser process callbacks. The functions of this
+/// trait will be called on the browser process main thread unless otherwise
+/// indicated.
 pub trait BrowserProcessHandler: Sync + Send {
     /// Called on the browser process UI thread immediately after the CEF context
     /// has been initialized.
@@ -26,14 +29,14 @@ pub trait BrowserProcessHandler: Sync + Send {
     #[cfg(target_os = "linux")]
     fn get_print_handler(&self) -> Option<Box<dyn PrintHandler>> { None }
     /// Called from any thread when work has been scheduled for the browser process
-    /// main (UI) thread. This callback is used in combination with CefSettings.
-    /// external_message_pump and cef_do_message_loop_work() in cases where the CEF
+    /// main (UI) thread. This callback is used in combination with [CefSettings].
+    /// external_message_pump and [cef_do_message_loop_work()] in cases where the CEF
     /// message loop must be integrated into an existing application message loop
     /// (see additional comments and warnings on CefDoMessageLoopWork). This
-    /// callback should schedule a cef_do_message_loop_work() call to happen on the
-    /// main (UI) thread. |delay_ms| is the requested delay in milliseconds. If
-    /// |delay_ms| is <= 0 then the call should happen reasonably soon. If
-    /// |delay_ms| is > 0 then the call should be scheduled to happen after the
+    /// callback should schedule a [cef_do_message_loop_work()] call to happen on the
+    /// main (UI) thread. `delay_ms` is the requested delay in milliseconds. If
+    /// `delay_ms` is <= 0 then the call should happen reasonably soon. If
+    /// `delay_ms` is > 0 then the call should be scheduled to happen after the
     /// specified delay and any currently pending scheduled call should be
     /// cancelled.
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {}

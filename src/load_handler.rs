@@ -734,9 +734,6 @@ pub enum ErrorCode {
     /// The server sent an FTP directory listing in a format we do not understand.
     UnrecognizedFtpDirectoryListingFormat = cef_errorcode_t::ERR_UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT as i32,
 
-    /// Obsolete.  Was only logged in NetLog when an HTTP/2 pushed stream expired.
-    /// InvalidSpdyStream = cef_errorcode_t::ERR_INVALID_SPDY_STREAM as i32,
-
     /// There are no supported proxies in the provided list.
     NoSupportedProxies = cef_errorcode_t::ERR_NO_SUPPORTED_PROXIES as i32,
 
@@ -1051,8 +1048,8 @@ pub trait LoadHandler: Send + Sync {
     /// Called when the loading state has changed. This callback will be executed
     /// twice -- once when loading is initiated either programmatically or by user
     /// action, and once when loading is terminated due to completion, cancellation
-    /// of failure. It will be called before any calls to [on_load_start] and after all
-    /// calls to [on_load_error] and/or [on_load_end].
+    /// of failure. It will be called before any calls to [LoadHandler::on_load_start] and after all
+    /// calls to [LoadHandler::on_load_error] and/or [LoadHandler::on_load_end].
     fn on_loading_state_change(&self, browser: &Browser, is_loading: bool, can_go_back: bool, can_go_forward: bool) {}
     /// Called after a navigation has been committed and before the browser begins
     /// loading contents in the frame. Call
@@ -1063,18 +1060,18 @@ pub trait LoadHandler: Send + Sync {
     /// loading after the main frame load has ended. This function will not be
     /// called for same page navigations (fragments, history state, etc.) or for
     /// navigations that fail or are canceled before commit. For notification of
-    /// overall browser load status use [on_loading_state_change] instead.
+    /// overall browser load status use [LoadHandler::on_loading_state_change] instead.
     fn on_load_start(&self, browser: &Browser, frame: &Frame, transition_type: TransitionType) {}
     /// Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
     /// main frame. Multiple frames may be loading at the same time. Sub-frames may
     /// start or continue loading after the main frame load has ended. This
     /// function will not be called for same page navigations (fragments, history
     /// state, etc.) or for navigations that fail or are canceled before commit.
-    /// For notification of overall browser load status use [on_loading_state_change]
+    /// For notification of overall browser load status use [LoadHandler::on_loading_state_change]
     /// instead.
     fn on_load_end(&self, browser: &Browser, frame: &Frame, http_status_code: i32) {}
     /// Called when a navigation fails or is canceled. This function may be called
-    /// by itself if before commit or in combination with [on_load_start]/[on_load_end] if
+    /// by itself if before commit or in combination with [LoadHandler::on_load_start]/[LoadHandler::on_load_end] if
     /// after commit. `error_code` is the error code number, `error_text` is the
     /// error text and `failed_url` is the URL that failed to load. See
     /// net\base\net_error_list.h for complete descriptions of the error codes.

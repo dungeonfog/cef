@@ -289,8 +289,8 @@ unsafe impl Sync for BinaryValue {}
 unsafe impl Send for BinaryValue {}
 
 impl BinaryValue {
-    // Creates a new object that is not owned by any other object. The specified
-    // `data` will be copied.
+    /// Creates a new object that is not owned by any other object. The specified
+    /// `data` will be copied.
     pub(crate) fn new(data: &[u8]) -> Self {
         Self(unsafe { cef_binary_value_create(data.as_ptr() as *const std::os::raw::c_void, data.len()) }, 0)
     }
@@ -310,7 +310,7 @@ impl BinaryValue {
     pub(crate) fn is_same(&self, that: &BinaryValue) -> bool {
         self.as_ref().is_same.and_then(|is_same| Some(unsafe { is_same(self.0, that.0) != 0 })).unwrap_or(false)
     }
-    // Returns the data size.
+    /// Returns the data size.
     pub(crate) fn len(&self) -> usize {
         self.as_ref().get_size.and_then(|get_size| Some(unsafe { get_size(self.0) })).unwrap_or(0)
     }
