@@ -235,8 +235,8 @@ impl Frame {
         }
         V8Context::from(context)
     }
-    // Visit the DOM document. This function can only be called from the render
-    // process.
+    /// Visit the DOM document. This function can only be called from the render
+    /// process.
     pub fn visit_dom(&self, visitor: Box<dyn DOMVisitor>) {
         if let Some(visit_dom) = self.as_ref().visit_dom {
             let visitor = DOMVisitorWrapper::wrap(visitor);
