@@ -39,7 +39,7 @@ impl DOMNode {
     pub fn is_text(&self) -> bool {
         unimplemented!()
     }
-    // Returns true if this is an element node.
+    /// Returns true if this is an element node.
     pub fn is_element(&self) -> bool {
         unimplemented!()
     }
@@ -100,7 +100,7 @@ impl DOMNode {
         unimplemented!()
     }
 
-    // The following functions are valid only for element nodes.
+    /// The following functions are valid only for element nodes.
 
     /// Returns the tag name of this element.
     pub fn get_element_tag_name(&self) -> Option<String> {
@@ -138,8 +138,8 @@ impl DOMNode {
 }
 
 impl PartialEq for DOMNode {
-    // Returns true if this object is pointing to the same handle as `that`
-    // object.
+    /// Returns true if this object is pointing to the same handle as `that`
+    /// object.
     fn eq(&self, that: &Self) -> bool {
         unimplemented!()
     }

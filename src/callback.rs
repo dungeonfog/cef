@@ -1,11 +1,14 @@
 use cef_sys::{cef_callback_t};
 
+/// Generic callback structure used for asynchronous continuation.
 pub struct Callback(*mut cef_callback_t);
 
 impl Callback {
+    /// Continue processing.
     pub fn cont(&self) {
         unsafe { (&*self.0).cont.unwrap()(self.0); }
     }
+    /// Cancel processing.
     pub fn cancel(&self) {
         unsafe { (&*self.0).cancel.unwrap()(self.0); }
     }

@@ -26,8 +26,8 @@ pub enum PluginPolicy {
 /// instance will not be released until all objects related to the context have
 /// been destroyed.
 pub trait RequestContextHandler: Send + Sync {
-    // Called on the browser process UI thread immediately after the request
-    // context has been initialized.
+    /// Called on the browser process UI thread immediately after the request
+    /// context has been initialized.
     fn on_request_context_initialized(&self, request_context: &RequestContext) {}
     /// Called on multiple browser process threads before a plugin instance is
     /// loaded. `mime_type` is the mime type of the plugin that will be loaded.
@@ -47,22 +47,22 @@ pub trait RequestContextHandler: Send + Sync {
     /// trigger new calls to this function call
     /// [RequestContext::purge_plugin_list_cache].
     fn on_before_plugin_load(&self, mime_type: &str, plugin_url: Option<&str>, is_main_frame: bool, top_origin_url: Option<&str>, plugin_info: &WebPluginInfo, plugin_policy: PluginPolicy) -> Option<PluginPolicy> { None }
-    // Called on the browser process IO thread before a resource request is
-    // initiated. The `browser` and `frame` values represent the source of the
-    // request, and may be None for requests originating from service workers or
-    // [URLRequest]. `request` represents the request contents and cannot be
-    // modified in this callback. `is_navigation` will be true if the resource
-    // request is a navigation. `is_download` will be true if the resource
-    // request is a download. `request_initiator` is the origin (scheme + domain)
-    // of the page that initiated the request. Set `disable_default_handling` to
-    // true to disable default handling of the request, in which case it will
-    // need to be handled via [ResourceRequestHandler::get_resource_handler]
-    // or it will be canceled. To allow the resource load to proceed with default
-    // handling return None. To specify a handler for the resource return a
-    // [ResourceRequestHandler] object. This function will not be called if
-    // the client associated with `browser` returns a non-None value from
-    // [RequestHandler::get_resource_request_handler] for the same request
-    // (identified by [Request::get_identifier]).
+    /// Called on the browser process IO thread before a resource request is
+    /// initiated. The `browser` and `frame` values represent the source of the
+    /// request, and may be None for requests originating from service workers or
+    /// [URLRequest]. `request` represents the request contents and cannot be
+    /// modified in this callback. `is_navigation` will be true if the resource
+    /// request is a navigation. `is_download` will be true if the resource
+    /// request is a download. `request_initiator` is the origin (scheme + domain)
+    /// of the page that initiated the request. Set `disable_default_handling` to
+    /// true to disable default handling of the request, in which case it will
+    /// need to be handled via [ResourceRequestHandler::get_resource_handler]
+    /// or it will be canceled. To allow the resource load to proceed with default
+    /// handling return None. To specify a handler for the resource return a
+    /// [ResourceRequestHandler] object. This function will not be called if
+    /// the client associated with `browser` returns a non-None value from
+    /// [RequestHandler::get_resource_request_handler] for the same request
+    /// (identified by [Request::get_identifier]).
     fn get_resource_request_handler(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Box<dyn ResourceRequestHandler>> { None }
 }
 
