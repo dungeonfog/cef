@@ -48,6 +48,19 @@ pub use command_line::CommandLine;
 mod app;
 pub use app::{App, AppCallbacks};
 
+#[cfg(target_os = "windows")]
+mod sandbox;
+#[cfg(target_os = "windows")]
+pub use sandbox::SandboxInfo;
+mod main_args;
+pub use main_args::MainArgs;
+mod settings;
+pub use settings::Settings;
+mod color;
+pub use color::Color;
+mod key_event;
+pub use key_event::{KeyEventType, KeyEvent};
+
 use num_enum::UnsafeFromPrimitive;
 
 /// Return value types.

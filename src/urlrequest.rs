@@ -1,4 +1,4 @@
-use cef_sys::{cef_urlrequest_t, cef_urlrequest_create, cef_urlrequest_client_t, cef_auth_callback_t, cef_urlrequest_status_t, cef_base_ref_counted_t, cef_response_t, cef_request_context_t, cef_string_t, cef_response_filter_status_t, cef_request_callback_t};
+use cef_sys::{cef_urlrequest_t, cef_urlrequest_create, cef_urlrequest_client_t, cef_auth_callback_t, cef_urlrequest_status_t, cef_base_ref_counted_t, cef_response_t, cef_request_context_t, cef_string_t, cef_response_filter_status_t, cef_request_callback_t, cef_cookie_access_filter_t, cef_browser_t, cef_frame_t, cef_cookie_t, cef_request_t, cef_resource_handler_t, cef_resource_skip_callback_t, cef_resource_read_callback_t, cef_callback_t};
 use num_enum::UnsafeFromPrimitive;
 use std::ptr::null_mut;
 
@@ -254,7 +254,40 @@ impl Drop for Response {
     }
 }
 
+/// Callback structure used for asynchronous continuation of url requests.
 pub struct RequestCallback(*mut cef_request_callback_t);
+
+unsafe impl Send for RequestCallback {}
+unsafe impl Sync for RequestCallback {}
+
+impl RequestCallback {
+    /// Continue the url request. If `allow` is true the request will be
+    /// continued. Otherwise, the request will be canceled.
+    pub fn cont(&self, allow: bool) {
+        unsafe { self.0.as_ref().unwrap().cont.unwrap()(self.0, allow as i32); }
+    }
+    /// Cancel the url request.
+    pub fn cancel(&self) {
+        unsafe { self.0.as_ref().unwrap().cancel.unwrap()(self.0); }
+    }
+}
+
+impl From<*mut cef_request_callback_t> for RequestCallback {
+    fn from(cb: *mut cef_request_callback_t) -> Self {
+        unsafe {
+            ((*cb).base.add_ref.unwrap())(&mut (*cb).base);
+        }
+        Self(cb)
+    }
+}
+
+impl Drop for RequestCallback {
+    fn drop(&mut self) {
+        unsafe {
+            unsafe { &*self.0 }.base.release.unwrap()(self.0 as *mut cef_base_ref_counted_t);
+        }
+    }
+}
 
 /// Implement this trait to filter cookies that may be sent or received from
 /// resource requests. The functions of this trait will be called on the IO
@@ -264,14 +297,48 @@ pub trait CookieAccessFilter: Sync + Send {
     /// and `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest].
     /// Return true if the specified  cookie can be sent with the request or false otherwise.
-    fn can_send_cookie(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, cookie: &Cookie) -> bool { false }
+    fn can_send_cookie(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, cookie: Cookie) -> bool { false }
     /// Called on the IO thread after a resource response is received. The
     /// `browser` and `frame` values represent the source of the request, and may
     /// be None for requests originating from service workers or [URLRequest].
     /// Return true if the
     /// specified cookie returned with the response can be saved or false
     /// otherwise.
-    fn can_save_cookie(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, response: &Response, cookie: &Cookie) -> bool { false }
+    fn can_save_cookie(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, response: &Response, cookie: Cookie) -> bool { false }
+}
+
+pub(crate) struct CookieAccessFilterWrapper();
+
+impl RefCounter for cef_cookie_access_filter_t {
+    type Wrapper = RefCounted<Self, Box<dyn CookieAccessFilter>>;
+    fn set_base(&mut self, base: cef_base_ref_counted_t) {
+        self.base = base;
+    }
+}
+
+impl CookieAccessFilterWrapper {
+    pub(crate) fn wrap(filter: Box<dyn CookieAccessFilter>) -> *mut cef_cookie_access_filter_t {
+        let rc = RefCounted::new(cef_cookie_access_filter_t {
+            can_send_cookie: Some(Self::can_send_cookie),
+            can_save_cookie: Some(Self::can_save_cookie),
+            ..Default::default()
+        }, filter);
+        unsafe { &mut *rc }.get_cef()
+    }
+
+    extern "C" fn can_send_cookie(self_: *mut cef_cookie_access_filter_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, cookie: *const cef_cookie_t) -> std::os::raw::c_int {
+        let this = unsafe { <cef_cookie_access_filter_t as RefCounter>::Wrapper::make_temp(self_) };
+        let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _))).as_ref();
+        let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _))).as_ref();
+        this.can_send_cookie(browser, frame, &Request::from(request), Cookie::from(cookie)) as std::os::raw::c_int
+    }
+
+    extern "C" fn can_save_cookie(self_: *mut cef_cookie_access_filter_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, response: *mut cef_response_t, cookie: *const cef_cookie_t) -> std::os::raw::c_int {
+        let this = unsafe { <cef_cookie_access_filter_t as RefCounter>::Wrapper::make_temp(self_) };
+        let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _))).as_ref();
+        let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _))).as_ref();
+        this.can_save_cookie(browser, frame, &Request::from(request), &Response::from(response), Cookie::from(cookie)) as std::os::raw::c_int
+    }
 }
 
 #[repr(i32)]
@@ -365,4 +432,42 @@ pub trait ResourceHandler: Send + Sync {
     fn read(&self, data_out: &mut [u8], bytes_read: &mut i32, callback: Callback) -> bool { false }
     /// Request processing has been canceled.
     fn cancel(&self) {}
+}
+
+pub(crate) struct ResourceHandlerWrapper();
+
+impl RefCounter for cef_resource_handler_t {
+    type Wrapper = RefCounted<Self, Box<dyn ResourceHandler>>;
+    fn set_base(&mut self, base: cef_base_ref_counted_t) {
+        self.base = base;
+    }
+}
+
+impl ResourceHandlerWrapper {
+    pub(crate) fn wrap(handler: Box<dyn ResourceHandler>) -> *mut cef_resource_handler_t {
+         let rc = RefCounted::new(cef_resource_handler_t {
+             open: Some(Self::open),
+             get_response_headers: Some(Self::get_response_headers),
+             skip: Some(Self::skip),
+             read: Some(Self::read),
+             cancel: Some(Self::cancel),
+            ..Default::default()
+        }, handler);
+        unsafe { rc.as_mut() }.unwrap().get_cef()
+   }
+   extern "C" fn open(self_: *mut cef_resource_handler_t, request: *mut cef_request_t, handle_request: *mut std::os::raw::c_int, callback: *mut cef_callback_t) -> std::os::raw::c_int {
+       unimplemented!()
+   }
+   extern "C" fn get_response_headers(self_: *mut cef_resource_handler_t, response: *mut cef_response_t, response_length: *mut i64, redirectUrl: *mut cef_string_t) {
+       unimplemented!()
+   }
+   extern "C" fn skip(self_: *mut cef_resource_handler_t, bytes_to_skip: i64, bytes_skipped: *mut i64, callback: *mut cef_resource_skip_callback_t) -> std::os::raw::c_int {
+       unimplemented!()
+   }
+   extern "C" fn read(self_: *mut cef_resource_handler_t, data_out: *mut std::os::raw::c_void, bytes_to_read: std::os::raw::c_int, bytes_read: *mut std::os::raw::c_int, callback: *mut cef_resource_read_callback_t) -> std::os::raw::c_int {
+       unimplemented!()
+   }
+   extern "C" fn cancel(self_: *mut cef_resource_handler_t) {
+       unimplemented!()
+   }
 }
