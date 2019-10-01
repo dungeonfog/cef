@@ -73,7 +73,7 @@ impl RefCounter for cef_app_t {
 }
 
 impl App {
-    pub fn new(delegate: Box<dyn AppCallbacks>) -> Self {
+    pub fn new<T: AppCallbacks + 'static>(delegate: T) -> Self {
         let rc = RefCounted::new(cef_app_t {
             base: unsafe { std::mem::zeroed() },
             on_before_command_line_processing: Some(AppWrapper::on_before_command_line_processing),
@@ -82,7 +82,7 @@ impl App {
             get_resource_bundle_handler:       Some(AppWrapper::get_resource_bundle_handler),
             get_render_process_handler:        Some(AppWrapper::get_render_process_handler),
         }, AppWrapper {
-            delegate,
+            delegate: Box::new(delegate),
             resource_bundle_handler: null_mut(),
             browser_process_handler: null_mut(),
             render_process_handler: null_mut(),
