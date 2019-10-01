@@ -73,7 +73,6 @@ impl Value {
     pub(crate) fn get_type(&self) -> ValueType {
         self.as_ref().get_type.and_then(|get_type| {
             Some(match unsafe { get_type(self.0) } {
-                cef_value_type_t::VTYPE_INVALID => ValueType::Invalid,
                 cef_value_type_t::VTYPE_NULL => ValueType::Null,
                 cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
                 cef_value_type_t::VTYPE_INT => ValueType::Int,
@@ -82,6 +81,7 @@ impl Value {
                 cef_value_type_t::VTYPE_BINARY => ValueType::Binary,
                 cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
                 cef_value_type_t::VTYPE_LIST => ValueType::List,
+                _ => ValueType::Invalid,
             })
         }).unwrap_or(ValueType::Invalid)
     }
@@ -430,7 +430,6 @@ impl DictionaryValue {
     /// Returns the value type for the specified key.
     pub(crate) fn get_type(&self, key: &str) -> ValueType {
         self.as_ref().get_type.and_then(|get_type| Some(match unsafe { get_type(self.0, CefString::new(key).as_ref()) } {
-            cef_value_type_t::VTYPE_INVALID => ValueType::Invalid,
             cef_value_type_t::VTYPE_NULL => ValueType::Null,
             cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
             cef_value_type_t::VTYPE_INT => ValueType::Int,
@@ -439,6 +438,7 @@ impl DictionaryValue {
             cef_value_type_t::VTYPE_BINARY => ValueType::Binary,
             cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
             cef_value_type_t::VTYPE_LIST => ValueType::List,
+            _ => ValueType::Invalid,
         })).unwrap_or(ValueType::Invalid)
     }
     /// Returns the value at the specified key. For simple types the returned value
@@ -642,7 +642,6 @@ impl ListValue {
     pub(crate) fn get_type(&self, index: usize) -> ValueType {
         self.as_ref().get_type.and_then(|get_type| {
             Some(match unsafe { get_type(self.0, index) } {
-                cef_value_type_t::VTYPE_INVALID => ValueType::Invalid,
                 cef_value_type_t::VTYPE_NULL => ValueType::Null,
                 cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
                 cef_value_type_t::VTYPE_INT => ValueType::Int,
@@ -651,6 +650,7 @@ impl ListValue {
                 cef_value_type_t::VTYPE_BINARY => ValueType::Binary,
                 cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
                 cef_value_type_t::VTYPE_LIST => ValueType::List,
+                _ => ValueType::Invalid,
             })
         }).unwrap_or(ValueType::Invalid)
     }
@@ -798,6 +798,13 @@ impl Drop for ListValue {
     fn drop(&mut self) {
         unsafe { (self.as_ref().base.release.unwrap())(&mut (*self.0).base); }
     }
+}
+
+/// Structure representing a point.
+#[derive(Clone, Debug)]
+pub struct Point {
+    x: i32,
+    y: i32,
 }
 
 /// Structure representing a rectangle.

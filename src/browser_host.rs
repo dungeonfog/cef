@@ -1,11 +1,19 @@
-use cef_sys::{cef_browser_host_t, cef_paint_element_type_t};
+use cef_sys::{cef_browser_host_t, cef_paint_element_type_t, HINSTANCE};
 use num_enum::UnsafeFromPrimitive;
 
 use crate::{
-    browser::Browser,
+    browser::{Browser, BrowserSettings},
     client::Client,
     request_context::RequestContext,
-    key_event::KeyEvent,
+    events::{KeyEvent, MouseEvent, MouseButtonType, TouchEvent},
+    drag::{DragOperation, DragData},
+    file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
+    values::{Range, Point},
+    image::Image,
+    printing::PDFPrintSettings,
+    window::WindowInfo,
+    ime::CompositionUnderline,
+    navigation::NavigationEntry,
 };
 
 /// Paint element types.
@@ -15,6 +23,13 @@ pub enum PaintElementType {
     View = cef_paint_element_type_t::PET_VIEW as i32,
     Popup = cef_paint_element_type_t::PET_POPUP as i32,
 }
+
+#[cfg(target_os = "windows")]
+pub type WindowHandle = HINSTANCE;
+#[cfg(target_os = "linux")]
+pub type WindowHandle = u64;
+#[cfg(target_os = "macos")]
+pub type WindowHandle = *mut std::ffi::c_void; // Actually NSView*
 
 /// Structure used to represent the browser process aspects of a browser window.
 /// The functions of this structure can only be called in the browser process.
@@ -101,7 +116,13 @@ impl BrowserHost {
     /// selected by default. `callback` will be executed after the dialog is
     /// dismissed or immediately if another dialog is already pending. The dialog
     /// will be initiated asynchronously on the UI thread.
-    pub fn run_file_dialog(&self, mode: FileDialogMode, title: Option<&str>, default_file_path: Option<&str>, accept_filters: &[&str], selected_accept_filter: i32, callback: Box<dyn RunFileDialogCallback>) {
+    ///
+    /// On the `callback`, the first parameter is the 0-based index of the value
+    /// selected from `accept_filters`. The second parameter will be a single value
+    /// or a list of values depending on the dialog mode. If the selection was
+    /// cancelled it will be None.
+    pub fn run_file_dialog<F: FnOnce(usize, Option<Vec<String>>)>(&self, mode: FileDialogMode, title: Option<&str>, default_file_path: Option<&str>, accept_filters: &[&str], selected_accept_filter: i32, callback: F) {
+        // RunFileDialogCallbackWrapper!
         unimplemented!()
     }
     /// Download the file at `url` using [DownloadHandler].
@@ -118,7 +139,11 @@ impl BrowserHost {
     /// to `max_image_size` and is the only result. A `max_image_size` of 0 means
     /// unlimited. If `bypass_cache` is true then `image_url` is requested from
     /// the server even if it is present in the browser cache.
-    pub fn download_image(&self, image_url: &str, is_favicon: bool, max_image_size: u32, bypass_cache: bool, callback: Box<dyn DownloadImageCallback>) {
+    ///
+    /// On the callback, the first parameter is the URL that was downloaded, the
+    /// second parameter is the resulting HTTP status code and the third is the
+    /// resulting image, possibly None if the download failed.
+    pub fn download_image<F: FnOnce(&str, u16, Option<Image>)>(&self, image_url: &str, is_favicon: bool, max_image_size: u32, bypass_cache: bool, callback: F) {
         unimplemented!()
     }
     /// Print the current browser contents.
@@ -129,7 +154,10 @@ impl BrowserHost {
     /// execute `callback` on completion. The caller is responsible for deleting
     /// `path` when done. For PDF printing to work on Linux you must implement the
     /// [PrintHandler::GetPdfPaperSize] function.
-    pub fn print_to_pdf(&self, path: &str, settings: PDFPrintSettings, callback: Box<dyn PDFPrintCallback>) {
+    ///
+    /// On the callback, the first parameter is the output path. The second parameter
+    /// will be true if the printing completed successfully or false otherwise.
+    pub fn print_to_pdf<F: FnOnce(&str, bool)>(&self, path: &str, settings: PDFPrintSettings, callback: F) {
         unimplemented!()
     }
     /// Search for `searchText`. `identifier` must be a unique ID and these IDs
@@ -171,7 +199,13 @@ impl BrowserHost {
     /// specified visitor. If `current_only` is true only the current
     /// navigation entry will be sent, otherwise all navigation entries will be
     /// sent.
-    pub fn get_navigation_entries(&self, visitor: Box<dyn NavigationEntryVisitor>, current_only: bool) {
+    /// 
+    /// The visitor will be called on the browser process UI thread.
+    /// The first parameter is the navigation entry at the position given in the
+    /// third parameter. The second parameter indicates whether it's the currently
+    /// loaded navigation entry and the fourth parameter is the total number of
+    /// entries. Return true to continue visiting entries or false to stop.
+    pub fn get_navigation_entries<F: Fn(&NavigationEntry, bool, usize, usize) -> bool>(&self, visitor: F, current_only: bool) {
         unimplemented!()
     }
     /// Set whether mouse cursor change is disabled.
@@ -220,7 +254,7 @@ impl BrowserHost {
     /// Invalidate the view. The browser will call [RenderHandler::on_paint]
     /// asynchronously. This function is only used when window rendering is
     /// disabled.
-    pub fn invalidate(&mut self, type: PaintElementType) {
+    pub fn invalidate(&mut self, element_type: PaintElementType) {
         unimplemented!()
     }
     /// Issue a BeginFrame request to Chromium.  Only valid when
@@ -234,7 +268,7 @@ impl BrowserHost {
     }
     /// Send a mouse click event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view.
-    pub fn send_mouse_click_event(&mut self, event: &MouseEvent, type: MouseButtonType, mouse_up: bool, click_count: i32) {
+    pub fn send_mouse_click_event(&mut self, event: &MouseEvent, button_type: MouseButtonType, mouse_up: bool, click_count: i32) {
         unimplemented!()
     }
     /// Send a mouse move event to the browser. The `x` and `y` coordinates are
@@ -304,11 +338,88 @@ impl BrowserHost {
     ///   C. insertText of NSTextInput is called (on Mac).
     ///
     /// This function is only used when window rendering is disabled.
-    pub fn ime_set_composition(&mut self, text: &str, underlines_count: usize, underlines: &CompositionUnderline, replacement_range: Range, selectionRange: Range) {
+    pub fn ime_set_composition(&mut self, text: &str, underlines_count: usize, underlines: &CompositionUnderline, replacement_range: Range, selection_range: Range) {
         unimplemented!()
     }
     
-
+    /// Completes the existing composition by optionally inserting the specified
+    /// `text` into the composition node. `replacement_range` is an optional range
+    /// of the existing text that will be replaced. `relative_cursor_pos` is where
+    /// the cursor will be positioned relative to the current cursor position. See
+    /// comments on [BrowserHost::ime_set_composition] for usage. The `replacement_range` and
+    /// `relative_cursor_pos` values are only used on OS X. This function is only
+    /// used when window rendering is disabled.
+    pub fn ime_commit_text(&mut self, text: Option<&str>, replacement_range: Option<Range>, relative_cursor_pos: i32) {
+        unimplemented!()
+    }
+    /// Completes the existing composition by applying the current composition node
+    /// contents. If `keep_selection` is false the current selection, if any,
+    /// will be discarded. See comments on [BrowserHost::ime_set_composition] for usage. This
+    /// function is only used when window rendering is disabled.
+    pub fn ime_finish_composing_text(&mut self, keep_selection: bool) {
+        unimplemented!()
+    }
+    /// Cancels the existing composition and discards the composition node contents
+    /// without applying them. See comments on ImeSetComposition for usage. This
+    /// function is only used when window rendering is disabled.
+    pub fn ime_cancel_composition(&mut self) {
+        unimplemented!()
+    }
+    /// Call this function when the user drags the mouse into the web view (before
+    /// calling [BrowserHost::drag_target_drag_over]/[BrowserHost::drag_target_leave]/[BrowserHost::drag_target_drop]). `drag_data`
+    /// should not contain file contents as this type of data is not allowed to be
+    /// dragged into the web view. File contents can be removed using
+    /// [DragData::reset_file_contents] (for example, if `drag_data` comes from
+    /// [RenderHandler::start_dragging]). This function is only used when
+    /// window rendering is disabled.
+    pub fn drag_target_drag_enter(&mut self, drag_data: &DragData, event: &MouseEvent, allowed_ops: &[DragOperation]) {
+        unimplemented!()
+    }
+    /// Call this function each time the mouse is moved across the web view during
+    /// a drag operation (after calling [BrowserHost::drag_target_drag_enter] and before calling
+    /// [BrowserHost::drag_target_drag_leave]/[BrowserHost::drag_target_drop]). This function is only used when window
+    /// rendering is disabled.
+    pub fn drag_target_drag_over(&mut self, event: &MouseEvent, allowed_ops: &[DragOperation]) {
+        unimplemented!()
+    }
+    /// Call this function when the user drags the mouse out of the web view (after
+    /// calling [BrowserHost::drag_target_drag_enter]). This function is only used when window
+    /// rendering is disabled.
+    pub fn drag_target_drag_leave(&mut self) {
+        unimplemented!()
+    }
+    /// Call this function when the user completes the drag operation by dropping
+    /// the object onto the web view (after calling [BrowserHost::drag_target_drag_enter]). The
+    /// object being dropped is `drag_data`, given as an argument to the previous
+    /// [BrowserHost::drag_target_drag_enter] call. This function is only used when window rendering
+    /// is disabled.
+    pub fn drag_target_drop(&mut self, event: &MouseEvent) {
+        unimplemented!()
+    }
+    /// Call this function when the drag operation started by a
+    /// [RenderHandler::start_dragging] call has ended either in a drop or by
+    /// being cancelled. `x` and `y` are mouse coordinates relative to the upper-
+    /// left corner of the view. If the web view is both the drag source and the
+    /// drag target then all drag_target_* functions should be called before
+    /// drag_source_* methods. This function is only used when window rendering is
+    /// disabled.
+    pub fn drag_source_ended_at(&mut self, x: i32, y: i32, op: &[DragOperation]) {
+        unimplemented!()
+    }
+    /// Call this function when the drag operation started by a
+    /// [RenderHandler::start_dragging] call has completed. This function may
+    /// be called immediately without first calling [BrowserHost::drag_source_ended_at] to cancel a
+    /// drag operation. If the web view is both the drag source and the drag target
+    /// then all drag_target_* functions should be called before drag_source_* methods.
+    /// This function is only used when window rendering is disabled.
+    pub fn drag_source_system_drag_ended(&mut self) {
+        unimplemented!()
+    }
+    /// Returns the current visible navigation entry for this browser. This
+    /// function can only be called on the UI thread.
+    pub fn get_visible_navigation_entry(&self) -> NavigationEntry {
+        unimplemented!()
+    }
     // TODO: continue
 }
 

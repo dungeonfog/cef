@@ -75,12 +75,12 @@ impl RefCounter for cef_app_t {
 impl App {
     pub fn new(delegate: Box<dyn AppCallbacks>) -> Self {
         let rc = RefCounted::new(cef_app_t {
+            base: unsafe { std::mem::zeroed() },
             on_before_command_line_processing: Some(AppWrapper::on_before_command_line_processing),
             on_register_custom_schemes:        Some(AppWrapper::on_register_custom_schemes),
             get_browser_process_handler:       Some(AppWrapper::get_browser_process_handler),
             get_resource_bundle_handler:       Some(AppWrapper::get_resource_bundle_handler),
             get_render_process_handler:        Some(AppWrapper::get_render_process_handler),
-            ..Default::default()
         }, AppWrapper {
             delegate,
             resource_bundle_handler: null_mut(),
@@ -107,7 +107,7 @@ impl App {
     /// the process exit code. The `application` parameter may be None. The
     /// `windows_sandbox_info` parameter may be None (see [SandboxInfo] for details).
     #[cfg(target_os = "windows")]
-    pub fn execute_process(args: &MainArgs, application: Option<&App>, windows_sandbox_info: Option<&SandboxInfo>) -> i32 {
+    pub fn execute_process(mut args: &MainArgs, application: Option<&App>, windows_sandbox_info: Option<&SandboxInfo>) -> i32 {
         unsafe {
             cef_execute_process(args.get(),
                 application.and_then(|app| Some(app.0)).unwrap_or_else(null_mut),

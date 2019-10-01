@@ -81,10 +81,10 @@ impl RefCounter for cef_request_context_handler_t {
 impl RequestContextHandlerWrapper {
     pub(crate) fn wrap(delegate: Box<dyn RequestContextHandler>) -> *mut cef_request_context_handler_t {
         let mut rc = RefCounted::new(cef_request_context_handler_t {
+            base: unsafe { std::mem::zeroed() },
             on_request_context_initialized: Some(Self::request_context_initialized),
             on_before_plugin_load: Some(Self::before_plugin_load),
             get_resource_request_handler: Some(Self::get_resource_request_handler),
-            ..Default::default()
         }, Self {
             delegate,
             resource_request_handler: None,
@@ -95,16 +95,16 @@ impl RequestContextHandlerWrapper {
         let this = unsafe { <cef_request_context_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         this.delegate.on_request_context_initialized(&RequestContext(request_context));
     }
-    extern "C" fn before_plugin_load(self_: *mut cef_request_context_handler_t, mime_type: *const cef_string_t, plugin_url: *const cef_string_t, is_main_frame: std::os::raw::c_int, top_origin_url: *const cef_string_t, plugin_info: *mut cef_web_plugin_info_t, plugin_policy: *mut cef_plugin_policy_t) -> std::os::raw::c_int {
+    extern "C" fn before_plugin_load(self_: *mut cef_request_context_handler_t, mime_type: *const cef_string_t, plugin_url: *const cef_string_t, is_main_frame: std::os::raw::c_int, top_origin_url: *const cef_string_t, plugin_info: *mut cef_web_plugin_info_t, plugin_policy: *mut cef_plugin_policy_t::Type) -> std::os::raw::c_int {
         let this = unsafe { <cef_request_context_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         if let Some(policy) = this.delegate.on_before_plugin_load(&CefString::copy_raw_to_string(mime_type).unwrap(),
             CefString::copy_raw_to_string(plugin_url).as_ref().and_then(|s| Some(s.as_str())),
             is_main_frame != 0,
             CefString::copy_raw_to_string(top_origin_url).as_ref().and_then(|s| Some(s.as_str())),
             &WebPluginInfo::from(plugin_info),
-            unsafe { PluginPolicy::from_unchecked(plugin_policy as i32) },
+            unsafe { PluginPolicy::from_unchecked(*plugin_policy) },
         ) {
-            unsafe { (*plugin_policy) = std::mem::transmute(policy) };
+            unsafe { (*plugin_policy) = policy as cef_plugin_policy_t::Type };
             1
         } else {
             0
@@ -200,7 +200,12 @@ impl RequestContextBuilder {
     fn get_settings(&mut self) -> &mut cef_request_context_settings_t {
         self.0.get_or_insert_with(|| cef_request_context_settings_t {
             size: std::mem::size_of::<cef_request_context_settings_t>(),
-            ..Default::default()
+            cache_path: unsafe { std::mem::zeroed() },
+            persist_session_cookies: 0,
+            persist_user_preferences: 0,
+            ignore_certificate_errors: 0,
+            enable_net_security_expiration: 0,
+            accept_language_list: unsafe { std::mem::zeroed() },
         })
     }
 

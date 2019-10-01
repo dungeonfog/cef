@@ -25,11 +25,11 @@ impl From<*const cef_cookie_t> for Cookie {
         let value = CefString::copy_raw_to_string(&cookie.value);
         let domain = CefString::copy_raw_to_string(&cookie.domain);
         let path = CefString::copy_raw_to_string(&cookie.path);
-        let creation = 0.0;
+        let mut creation = 0.0;
         unsafe { cef_time_to_doublet(&cookie.creation, &mut creation) };
-        let last_access = 0.0;
+        let mut last_access = 0.0;
         unsafe { cef_time_to_doublet(&cookie.last_access, &mut last_access) };
-        let expires = 0.0;
+        let mut expires = 0.0;
         if cookie.has_expires != 0 {
             unsafe { cef_time_to_doublet(&cookie.expires, &mut expires) };
         }

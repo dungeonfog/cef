@@ -1,4 +1,5 @@
 #![allow(unused)]
+#![feature(fn_traits)]
 mod ptr_hash;
 mod string;
 pub use string::StringVisitor;
@@ -6,8 +7,6 @@ mod multimap;
 mod refcounted;
 mod values;
 pub use values::StoredValue;
-mod ids;
-pub use ids::{PackResource, PackString};
 mod scheme_registrar;
 pub use scheme_registrar::{SchemeOptions, SchemeRegistrar};
 mod resource_bundle_handler;
@@ -15,9 +14,9 @@ pub use resource_bundle_handler::{ScaleFactor, ResourceBundleHandler};
 mod browser_process_handler;
 pub use browser_process_handler::BrowserProcessHandler;
 mod browser;
-pub use browser::Browser;
+pub use browser::{Browser, BrowserSettings};
 mod browser_host;
-pub use browser_host::BrowserHost;
+pub use browser_host::{BrowserHost, WindowHandle};
 mod frame;
 pub use frame::Frame;
 mod load_handler;
@@ -42,6 +41,10 @@ mod callback;
 pub use callback::Callback;
 mod resource_request;
 pub use resource_request::ResourceRequestHandler;
+mod client;
+pub use client::Client;
+mod image;
+pub use image::Image;
 
 mod command_line;
 pub use command_line::CommandLine;
@@ -58,10 +61,20 @@ mod settings;
 pub use settings::Settings;
 mod color;
 pub use color::Color;
-mod key_event;
-pub use key_event::{KeyEventType, KeyEvent};
-
+mod events;
+pub use events::{KeyEventType, KeyEvent, MouseEvent, MouseButtonType, TouchEvent, PointerType, TouchEventType};
+mod drag;
+pub use drag::{DragOperation, DragData};
+mod file_dialog;
+mod printing;
+pub use printing::PDFPrintSettings;
+mod window;
+pub use window::WindowInfo;
 use num_enum::UnsafeFromPrimitive;
+mod ime;
+pub use ime::{CompositionUnderline};
+mod navigation;
+pub use navigation::{NavigationEntry};
 
 /// Return value types.
 #[repr(i32)]

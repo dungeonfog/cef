@@ -4,12 +4,11 @@ use crate::{
     refcounted::{RefCounted, RefCounter},
 };
 
-#[derive(Default)]
 pub(crate) struct CefString(cef_string_t);
 
 impl CefString {
     pub fn new(source: &str) -> Self {
-        let mut instance = cef_string_t::default();
+        let mut instance = unsafe { std::mem::zeroed() };
         let len = source.len();
         unsafe {
             cef_string_utf8_to_utf16(source.as_ptr() as *const std::os::raw::c_char, len, &mut instance);
@@ -22,6 +21,12 @@ impl CefString {
         } else {
             Some(String::from_utf16_lossy(unsafe { std::slice::from_raw_parts((*source).str, (*source).length) }))
         }
+    }
+}
+
+impl Default for CefString {
+    fn default() -> Self {
+        CefString(unsafe { std::mem::zeroed() })
     }
 }
 
@@ -114,8 +119,8 @@ pub(crate) struct StringVisitorWrapper();
 impl StringVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn StringVisitor>) -> *mut cef_string_visitor_t {
         let mut rc = RefCounted::new(cef_string_visitor_t {
+            base: unsafe { std::mem::zeroed() },
             visit: Some(Self::visit),
-            ..Default::default()
         }, delegate);
         unsafe { &mut *rc }.get_cef()
     }

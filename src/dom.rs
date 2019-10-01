@@ -200,8 +200,8 @@ pub(crate) struct DOMVisitorWrapper;
 impl DOMVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn DOMVisitor>) -> *mut cef_domvisitor_t {
         let mut rc = RefCounted::new(cef_domvisitor_t {
+            base: unsafe { std::mem::zeroed() },
             visit: Some(Self::visit),
-            ..Default::default()
         }, delegate);
         unsafe { &mut *rc }.get_cef()
     }

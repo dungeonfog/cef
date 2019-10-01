@@ -39,7 +39,7 @@ impl MultiMap {
     }
     /// Return the value_index-th value with the specified key.
     pub(crate) fn enumerate(&self, key: &str, value_index: usize) -> Result<String, ()> {
-        let mut result = cef_string_t::default();
+        let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_enumerate(self.0, CefString::new(key).as_ref(), value_index, &mut result) == 1 } {
             Ok(CefString::from(result).into())
         } else {
@@ -48,7 +48,7 @@ impl MultiMap {
     }
     /// Return the key at the specified zero-based string multimap index.
     pub(crate) fn get_key(&self, index: usize) -> Result<String, ()> {
-        let mut result = cef_string_t::default();
+        let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_key(self.0, index, &mut result) == 1 } {
             Ok(CefString::from(result).into())
         } else {
@@ -57,7 +57,7 @@ impl MultiMap {
     }
     /// Return the value at the specified zero-based string multimap index.
     pub(crate) fn get_value(&self, index: usize) -> Result<String, ()> {
-        let mut result = cef_string_t::default();
+        let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_value(self.0, index, &mut result) == 1 } {
             Ok(CefString::from(result).into())
         } else {

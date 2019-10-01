@@ -63,13 +63,15 @@ impl RefCounter for cef_browser_process_handler_t {
 impl BrowserProcessHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn BrowserProcessHandler>) -> *mut <cef_browser_process_handler_t as RefCounter>::Wrapper {
         RefCounted::new(cef_browser_process_handler_t {
+            base: unsafe { std::mem::zeroed() },
             on_context_initialized: Some(Self::context_initialized),
             on_before_child_process_launch: Some(Self::before_child_process_launch),
             on_render_process_thread_created: Some(Self::render_process_thread_created),
             #[cfg(target_os = "linux")]
             get_print_handler: Some(Self::get_print_handler),
+            #[cfg(not(target_os = "linux"))]
+            get_print_handler: None,
             on_schedule_message_pump_work: Some(Self::schedule_message_pump_work),
-            ..Default::default()
         }, Self {
             delegate,
             #[cfg(target_os = "linux")]

@@ -7,7 +7,7 @@ pub struct Color(u32);
 
 impl Color {
     /// Return a [Color] value with the specified component values in range 0.0 to 1.0.
-    pub fn rgba(red: f32, green: f32, blue: f32, alpha: f32) {
+    pub fn rgba(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self(((alpha * 255.0) as u32).wrapping_shl(24) |
             ((red * 255.0) as u32).wrapping_shl(16) |
             ((green * 255.0) as u32).wrapping_shl(8) |

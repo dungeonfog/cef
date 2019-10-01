@@ -143,3 +143,5 @@ impl PartialEq for Browser {
         unsafe { (self.as_ref().is_same.unwrap())(self.0, that.0) != 0 }
     }
 }
+
+pub struct BrowserSettings();

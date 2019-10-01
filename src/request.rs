@@ -50,8 +50,8 @@ pub enum ReferrerPolicy {
    NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as i32,
 }
 
-impl Into<cef_referrer_policy_t> for ReferrerPolicy {
-    fn into(self) -> cef_referrer_policy_t {
+impl Into<cef_referrer_policy_t::Type> for ReferrerPolicy {
+    fn into(self) -> cef_referrer_policy_t::Type {
         unsafe { std::mem::transmute(self as i32) }
     }
 }
@@ -398,7 +398,7 @@ impl Request {
     /// process and only applies to requests that represent a main frame or sub-
     /// frame navigation.
     pub fn get_transition_type(&self) -> TransitionType {
-        TransitionType::try_from(unsafe {(&*self.0).get_transition_type.unwrap()(self.0) as i32 }).unwrap()
+        TransitionType::try_from(unsafe {(&*self.0).get_transition_type.unwrap()(self.0).0 }).unwrap()
     }
     /// Returns the globally unique identifier for this request or 0 if not
     /// specified. Can be used by [ResourceRequestHandler] implementations in
