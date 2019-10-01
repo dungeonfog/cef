@@ -165,12 +165,14 @@ impl CommandLine {
     }
 }
 
+#[doc(hidden)]
 impl std::convert::AsRef<cef_command_line_t> for CommandLine {
     fn as_ref(&self) -> &cef_command_line_t {
         unsafe { self.0.as_ref().unwrap() }
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_command_line_t> for CommandLine {
     fn from(cmd: *mut cef_command_line_t) -> Self {
         unsafe { ((*cmd).base.add_ref.unwrap())(&mut (*cmd).base); }

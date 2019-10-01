@@ -31,6 +31,7 @@ impl WebPluginInfo {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_web_plugin_info_t> for WebPluginInfo {
     fn from(info: *mut cef_web_plugin_info_t) -> Self {
         let mut name = unsafe { (*info).get_name.unwrap()(info) };

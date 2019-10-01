@@ -85,12 +85,14 @@ impl Drop for MultiMap {
     }
 }
 
+#[doc(hidden)]
 impl From<cef_string_multimap_t> for MultiMap {
     fn from(map: cef_string_multimap_t) -> Self {
         Self(map)
     }
 }
 
+#[doc(hidden)]
 impl From<&HashMap<String, Vec<String>>> for MultiMap {
     fn from(map: &HashMap<String, Vec<String>>) -> Self {
         let mut result = MultiMap::new();

@@ -50,6 +50,7 @@ impl Clone for ProcessMessage {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_process_message_t> for ProcessMessage {
     fn from(msg: *mut cef_process_message_t) -> Self {
         unsafe { ((*msg).base.add_ref.unwrap())(&mut (*msg).base); }

@@ -18,12 +18,14 @@ pub struct Frame(*mut cef_frame_t);
 unsafe impl Send for Frame {}
 unsafe impl Sync for Frame {}
 
+#[doc(hidden)]
 impl std::convert::AsRef<cef_frame_t> for Frame {
     fn as_ref(&self) -> &cef_frame_t {
         unsafe { self.0.as_ref().unwrap() }
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_frame_t> for Frame {
     fn from(frame: *mut cef_frame_t) -> Self {
         unsafe { ((*frame).base.add_ref.unwrap())(&mut (*frame).base); }

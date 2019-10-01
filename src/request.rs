@@ -410,6 +410,7 @@ impl Request {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_request_t> for Request {
     fn from(request: *mut cef_request_t) -> Self {
         unsafe {
@@ -509,6 +510,7 @@ impl PostData {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_post_data_t> for PostData {
     fn from(post_data: *mut cef_post_data_t) -> Self {
         unsafe {
@@ -615,6 +617,7 @@ impl PostDataElement {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_post_data_element_t> for PostDataElement {
     fn from(element: *mut cef_post_data_element_t) -> Self {
         unsafe {

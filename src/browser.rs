@@ -118,12 +118,14 @@ impl Browser {
     }
 }
 
+#[doc(hidden)]
 impl std::convert::AsRef<cef_browser_t> for Browser {
     fn as_ref(&self) -> &cef_browser_t {
         unsafe { self.0.as_ref().unwrap() }
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_browser_t> for Browser {
     fn from(browser: *mut cef_browser_t) -> Self {
         unsafe { ((*browser).base.add_ref.unwrap())(&mut (*browser).base); }

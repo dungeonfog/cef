@@ -166,6 +166,7 @@ impl Drop for DOMNode {
 
 pub struct DOMDocument(*mut cef_domdocument_t);
 
+#[doc(hidden)]
 impl From<*mut cef_domdocument_t> for DOMDocument {
     fn from(document: *mut cef_domdocument_t) -> Self {
         unsafe { ((*document).base.add_ref.unwrap())(&mut (*document).base); }

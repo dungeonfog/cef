@@ -14,6 +14,7 @@ impl Callback {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_callback_t> for Callback {
     fn from(cb: *mut cef_callback_t) -> Self {
         unsafe { ((*cb).base.add_ref.unwrap())(&mut (*cb).base); }

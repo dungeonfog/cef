@@ -95,6 +95,7 @@ impl URLRequest {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_urlrequest_t> for URLRequest {
     fn from(req: *mut cef_urlrequest_t) -> Self {
         unsafe {
@@ -144,6 +145,7 @@ impl Drop for AuthCallback {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_auth_callback_t> for AuthCallback {
     fn from(cb: *mut cef_auth_callback_t) -> Self {
         unsafe {
@@ -237,6 +239,7 @@ pub struct Response(*mut cef_response_t);
 unsafe impl Send for Response {}
 unsafe impl Sync for Response {}
 
+#[doc(hidden)]
 impl From<*mut cef_response_t> for Response {
     fn from(response: *mut cef_response_t) -> Self {
         unsafe {
@@ -272,6 +275,7 @@ impl RequestCallback {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_request_callback_t> for RequestCallback {
     fn from(cb: *mut cef_request_callback_t) -> Self {
         unsafe {

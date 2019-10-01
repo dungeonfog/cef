@@ -63,6 +63,7 @@ pub enum SchemeOptions {
     FetchEnabled,
 }
 
+#[doc(hidden)]
 impl Into<cef_scheme_options_t::Type> for SchemeOptions {
     fn into(self) -> cef_scheme_options_t::Type {
         match self {
@@ -93,6 +94,7 @@ impl SchemeRegistrar {
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_scheme_registrar_t> for SchemeRegistrar {
     fn from(obj: *mut cef_scheme_registrar_t) -> Self {
         Self(obj)

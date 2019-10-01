@@ -443,12 +443,14 @@ impl BrowserHost {
     // TODO: continue
 }
 
+#[doc(hidden)]
 impl std::convert::AsRef<cef_browser_host_t> for BrowserHost {
     fn as_ref(&self) -> &cef_browser_host_t {
         unsafe { self.0.as_ref().unwrap() }
     }
 }
 
+#[doc(hidden)]
 impl From<*mut cef_browser_host_t> for BrowserHost {
     fn from(browser_host: *mut cef_browser_host_t) -> Self {
         unsafe { ((*browser_host).base.add_ref.unwrap())(&mut (*browser_host).base); }

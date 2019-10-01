@@ -5,6 +5,7 @@ pub struct V8Context(*mut cef_v8context_t);
 impl V8Context {
 }
 
+#[doc(hidden)]
 impl From<*mut cef_v8context_t> for V8Context {
     fn from(context: *mut cef_v8context_t) -> Self {
         unsafe { ((*context).base.add_ref.unwrap())(&mut (*context).base); }
@@ -28,6 +29,7 @@ impl V8Exception {
 
 }
 
+#[doc(hidden)]
 impl From<*mut cef_v8exception_t> for V8Exception {
     fn from(exception: *mut cef_v8exception_t) -> Self {
         unsafe { ((*exception).base.add_ref.unwrap())(&mut (*exception).base); }
@@ -43,6 +45,7 @@ impl Drop for V8Exception {
 
 pub struct V8StackTrace(*mut cef_v8stack_trace_t);
 
+#[doc(hidden)]
 impl From<*mut cef_v8stack_trace_t> for V8StackTrace {
     fn from(trace: *mut cef_v8stack_trace_t) -> Self {
         unsafe { ((*trace).base.add_ref.unwrap())(&mut (*trace).base); }

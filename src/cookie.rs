@@ -33,6 +33,7 @@ pub struct Cookie {
     pub expires: Option<SystemTime>,
 }
 
+#[doc(hidden)]
 impl From<*const cef_cookie_t> for Cookie {
     fn from(cookie: *const cef_cookie_t) -> Self {
         let cookie = unsafe { cookie.as_ref() }.unwrap();
