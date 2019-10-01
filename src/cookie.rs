@@ -5,16 +5,31 @@ use crate::{
     string::CefString,
 };
 
+/// Cookie information.
 #[derive(Clone, Debug)]
 pub struct Cookie {
+    /// The cookie name.
     pub name: String,
+    /// The cookie value.
     pub value: String,
+    /// If `domain` is empty a host cookie will be created instead of a domain
+    /// cookie. Domain cookies are stored with a leading "." and are visible to
+    /// sub-domains whereas host cookies are not.
     pub domain: String,
+    // If `path` is non-empty only URLs at or below the path will get the cookie
+    // value.
     pub path: String,
+    /// If `secure` is true the cookie will only be sent for HTTPS requests.
     pub secure: bool,
+    /// If `httponly` is true the cookie will only be sent for HTTP requests.
     pub httponly: bool,
+    /// The cookie creation date. This is automatically populated by the system on
+    /// cookie creation.
     pub creation: SystemTime,
+    /// The cookie last access date. This is automatically populated by the system
+    /// on access.
     pub last_access: SystemTime,
+    /// The cookie expiration date.
     pub expires: Option<SystemTime>,
 }
 

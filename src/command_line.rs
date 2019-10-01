@@ -9,7 +9,10 @@ use std::{
     ffi::CString,
 };
 
-use crate::string::{CefString, CefStringList};
+use crate::{
+    string::{CefString, CefStringList},
+    app::App,
+};
 
 /// Structure used to create and/or parse command line arguments. Arguments with
 /// `--`, `-` and, on Windows, `/` prefixes are considered switches. Switches
@@ -18,7 +21,7 @@ use crate::string::{CefString, CefStringList};
 /// `-switch=value`). An argument of `--` will terminate switch parsing with all
 /// subsequent tokens, regardless of prefix, being interpreted as non-switch
 /// arguments. Switch names are considered case-insensitive. This structure can
-/// be used before `cef_initialize()` is called.
+/// be used before [App::initialize] is called.
 pub struct CommandLine(*mut cef_command_line_t);
 
 impl CommandLine {

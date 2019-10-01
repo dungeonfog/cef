@@ -1043,6 +1043,9 @@ pub enum ErrorCode {
     DnsHttpFailed = cef_errorcode_t::ERR_DNS_HTTP_FAILED,
 }
 
+/// Implement this trait to handle events related to browser load status. The
+/// functions of this trait will be called on the browser process UI thread
+/// or render process main thread ([ProcessId::Renderer]).
 pub trait LoadHandler: Send + Sync {
     /// Called when the loading state has changed. This callback will be executed
     /// twice -- once when loading is initiated either programmatically or by user

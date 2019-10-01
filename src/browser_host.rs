@@ -19,6 +19,7 @@ use crate::{
     window::WindowInfo,
     ime::CompositionUnderline,
     navigation::NavigationEntry,
+    render_process_handler::RenderProcessHandler,
 };
 
 /// Paint element types.
@@ -75,7 +76,7 @@ impl BrowserHost {
     /// Helper for closing a browser. Call this function from the top-level window
     /// close handler. Internally this calls CloseBrowser(false) if the close
     /// has not yet been initiated. This function returns false while the close
-    /// is pending and true after the close has completed. See [close_browser()]
+    /// is pending and true after the close has completed. See [close_browser]
     /// and [LifeSpanHandler::do_close] documentation for additional usage
     /// information. This function must be called on the browser process UI thread.
     pub fn try_close_browser(&self) -> bool {
@@ -128,7 +129,7 @@ impl BrowserHost {
     /// is the path with optional directory and/or file name component that will be
     /// initially selected in the dialog. `accept_filters` are used to restrict the
     /// selectable file types and may any combination of (a) valid lower-cased MIME
-    /// types (e.g. "text/*" or "image/*"), (b) individual file extensions (e.g.
+    /// types (e.g. "text/*" or "image/\*"), (b) individual file extensions (e.g.
     /// ".txt" or ".png"), or (c) combined description and file extension delimited
     /// using "|" and ";" (e.g. "Image Types|.png;.gif;.jpg").
     /// `selected_accept_filter` is the 0-based index of the filter that will be

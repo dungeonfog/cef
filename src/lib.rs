@@ -27,6 +27,7 @@ mod v8context;
 mod dom;
 pub use dom::{DOMDocument, DOMVisitor};
 mod process;
+pub use process::{ProcessMessage, ProcessId};
 mod request;
 pub use request::{Request, PostData, PostDataElement};
 mod urlrequest;

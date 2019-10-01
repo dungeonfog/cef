@@ -17,12 +17,16 @@ use crate::{
     values::{ListValue, DictionaryValue},
     refcounted::{RefCounted, RefCounter},
     ptr_hash::Hashed,
+    browser_process_handler::BrowserProcessHandler,
 };
 
+/// Trait used to implement render process callbacks. The functions of this
+/// trait will be called on the render process main thread ([ProcessId::Renderer])
+/// unless otherwise indicated.
 pub trait RenderProcessHandler: Send + Sync {
     /// Called after the render process main thread has been created. `extra_info`
     /// is originating from
-    /// [BrowserProcessHandler::on_render_process_thread_created()].
+    /// [BrowserProcessHandler::on_render_process_thread_created].
     fn on_render_thread_created(&self, extra_info: &Vec<StoredValue>) {}
     /// Called after WebKit has been initialized.
     fn on_web_kit_initialized(&self) {}

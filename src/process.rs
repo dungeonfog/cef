@@ -6,10 +6,13 @@ use crate::{
     string::CefString,
 };
 
+/// Existing process IDs.
 #[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ProcessId {
+    /// Browser process.
     Browser = cef_process_id_t::PID_BROWSER as i32,
+    /// Renderer process.
     Renderer = cef_process_id_t::PID_RENDERER as i32,
 }
 
