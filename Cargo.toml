@@ -3,7 +3,11 @@ name = "cef"
 version = "0.1.0"
 authors = ["Andreas Monitzer <andreas@monitzer.com>"]
 edition = "2018"
+build = "build.rs"
 
 [dependencies]
 cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
 num_enum = "0.4"
+
+[target.'cfg(windows)'.dev-dependencies]
+winapi = { version = "0.3", features = ["winuser", "libloaderapi", "winver", "ole2", "oleauto", "setupapi", "powerbase", "shellapi", "timeapi", "dbghelp"] }
