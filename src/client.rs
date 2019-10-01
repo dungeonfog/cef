@@ -1,6 +1,7 @@
-use cef_sys::{cef_client_t};
+use cef_sys::{cef_client_t, cef_base_ref_counted_t};
 
 use crate::{
+    refcounted::{RefCounter, RefCounted},
     browser::Browser,
     frame::Frame,
     process::ProcessId,
@@ -43,4 +44,27 @@ pub trait Client {
     // // Called when a new message is received from a different process. Return true
     // // if the message was handled or false otherwise.
     // fn on_process_message_received(&self, browser: &Browser, frame: &Frame, process_id: ProcessId, message: &ProcessMessage) -> bool { false }
+}
+
+pub(crate) struct ClientWrapper {
+    delegate: Box<dyn Client>,
+}
+
+impl RefCounter for cef_client_t {
+    type Wrapper = RefCounted<Self, ClientWrapper>;
+    fn set_base(&mut self, base: cef_base_ref_counted_t) {
+        self.base = base;
+    }
+}
+
+impl ClientWrapper {
+    pub(crate) fn wrap<C: Client + 'static>(delegate: C) -> *mut cef_client_t {
+        let mut rc = RefCounted::new(cef_client_t {
+            base: unsafe { std::mem::zeroed() },
+            ..unsafe { std::mem::zeroed() }
+        }, Self {
+            delegate: Box::new(delegate),
+        });
+        unsafe { &mut *rc }.get_cef()
+    }
 }

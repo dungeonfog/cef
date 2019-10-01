@@ -256,15 +256,7 @@ impl TryFrom<StoredValue> for Value {
             StoredValue::Double(f) => value.set_double(f),
             StoredValue::String(s) => value.set_string(&s),
             StoredValue::Binary(b) => value.set_binary(&BinaryValue::new(&b)),
-            StoredValue::Dictionary(d) => value.set_dictionary(&{
-                let mut dictionary = DictionaryValue::new();
-                for (key, value) in d {
-                    if let Ok(value) = Value::try_from(value) {
-                        dictionary.insert(&key, value);
-                    }
-                }
-                dictionary
-            }),
+            StoredValue::Dictionary(d) => value.set_dictionary(&DictionaryValue::from(&d)),
             StoredValue::List(l) => value.set_list(&{
                 let mut list = ListValue::new();
                 let v: Vec<Value> = l.into_iter().map(Value::try_from).filter_map(Result::ok).collect();
@@ -377,6 +369,9 @@ unsafe impl Send for DictionaryValue {}
 impl DictionaryValue {
     pub(crate) fn new() -> Self {
         Self(unsafe { cef_dictionary_value_create() })
+    }
+    pub(crate) fn get_mut(&mut self) -> *mut cef_dictionary_value_t {
+        self.0
     }
     /// Returns true if this object is valid. This object may become invalid if
     /// the underlying data is owned by another object (e.g. list or dictionary)
@@ -567,6 +562,18 @@ impl Into<HashMap<String, StoredValue>> for DictionaryValue {
             let value = self.get_value(&key).into();
             (key, value)
         }).collect()
+    }
+}
+
+impl From<&HashMap<String, StoredValue>> for DictionaryValue {
+    fn from(map: &HashMap<String, StoredValue>) -> Self {
+        let mut result = Self::new();
+        for (key, value) in map {
+            if let Ok(value) = Value::try_from(value.clone()) {
+                result.insert(key, value);
+            }
+        }
+        result
     }
 }
 

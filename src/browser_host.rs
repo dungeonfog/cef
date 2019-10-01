@@ -1,14 +1,19 @@
-use cef_sys::{cef_browser_host_t, cef_paint_element_type_t, HINSTANCE};
+use cef_sys::{cef_browser_host_t, cef_paint_element_type_t, HINSTANCE, cef_browser_host_create_browser};
 use num_enum::UnsafeFromPrimitive;
+use std::{
+    collections::HashMap,
+    ptr::null_mut,
+};
 
 use crate::{
+    string::CefString,
     browser::{Browser, BrowserSettings},
-    client::Client,
+    client::{Client, ClientWrapper},
     request_context::RequestContext,
     events::{KeyEvent, MouseEvent, MouseButtonType, TouchEvent},
     drag::{DragOperation, DragData},
     file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
-    values::{Range, Point},
+    values::{Range, Point, DictionaryValue, StoredValue},
     image::Image,
     printing::PDFPrintSettings,
     window::WindowInfo,
@@ -38,6 +43,20 @@ pub type WindowHandle = *mut std::ffi::c_void; // Actually NSView*
 pub struct BrowserHost(*mut cef_browser_host_t);
 
 impl BrowserHost {
+    /// Create a new browser window using the window parameters specified by
+    /// `window_info`. All values will be copied internally and the actual window will
+    /// be created on the UI thread. If `request_context` is None the global request
+    /// context will be used. This function can be called on any browser process
+    /// thread and will not block. The optional `extra_info` parameter provides an
+    /// opportunity to specify extra information specific to the created browser that
+    /// will be passed to [RenderProcessHandler::on_browser_created] in the
+    /// render process.
+    pub fn create_browser<C: Client + 'static>(window_info: &WindowInfo, client: C, url: &str, settings: &BrowserSettings, extra_info: Option<&HashMap<String, StoredValue>>, request_context: Option<&RequestContext>) -> bool {
+        let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
+        let client = ClientWrapper::wrap(client);
+
+        unsafe { cef_browser_host_create_browser(window_info.get(), client, CefString::new(url).as_ref(), settings.get(), extra_info.and_then(|mut ei| Some(ei.get_mut())).unwrap_or_else(null_mut), request_context.and_then(|rc| Some(rc.as_ptr())).unwrap_or_else(null_mut)) != 0 }
+    }
     /// Returns the hosted browser object.
     pub fn get_browser(&self) -> Browser {
         unimplemented!()
