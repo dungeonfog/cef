@@ -16,8 +16,8 @@ pub struct Cookie {
     /// cookie. Domain cookies are stored with a leading "." and are visible to
     /// sub-domains whereas host cookies are not.
     pub domain: String,
-    // If `path` is non-empty only URLs at or below the path will get the cookie
-    // value.
+    /// If `path` is non-empty only URLs at or below the path will get the cookie
+    /// value.
     pub path: String,
     /// If `secure` is true the cookie will only be sent for HTTPS requests.
     pub secure: bool,
