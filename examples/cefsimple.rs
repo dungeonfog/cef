@@ -15,7 +15,7 @@ pub struct Client();
 impl cef::Client for Client {}
 
 fn main() {
-    let mut app = cef::App::new(AppCallbacks());
+    let app = cef::App::new(AppCallbacks());
     #[cfg(windows)]
     cef::App::enable_highdpi_support();
     let args = cef::MainArgs::new(unsafe { GetModuleHandleA(std::ptr::null()) } as std::os::windows::raw::HANDLE);
