@@ -21,8 +21,7 @@ impl SandboxInfo {
     /// multiple of this object and to drop the object immediately after passing
     /// into the [App::execute_process] and/or [App::initialize] functions.
     pub fn new() -> Self {
-        unimplemented!()
-        // Self(unsafe { cef_sandbox_info_create() })
+        Self(unsafe { cef_sandbox_info_create() })
     }
     pub(crate) fn get(&self) -> *mut std::os::raw::c_void {
         self.0
@@ -32,6 +31,6 @@ impl SandboxInfo {
 impl Drop for SandboxInfo {
     /// Destroy the specified sandbox information object.
     fn drop(&mut self) {
-        // unsafe { cef_sandbox_info_destroy(self.0); }
+        unsafe { cef_sandbox_info_destroy(self.0); }
     }
 }
