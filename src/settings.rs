@@ -348,7 +348,7 @@ impl Settings {
 impl Drop for Settings {
     fn drop(&mut self) {
         let settings = &self.0;
-        for ref cefstr in &[
+        for cefstr in &[
             &settings.browser_subprocess_path,
             &settings.framework_dir_path,
             &settings.main_bundle_path,
@@ -365,8 +365,8 @@ impl Drop for Settings {
             &settings.accept_language_list,
             &settings.application_client_id_for_file_scanning,
         ] {
-            if let Some(dtor) = (*cefstr).dtor {
-                unsafe { dtor((*cefstr).str); }
+            if let Some(dtor) = cefstr.dtor {
+                unsafe { dtor(cefstr.str); }
             }
         }
     }
