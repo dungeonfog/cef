@@ -1,4 +1,5 @@
-use cef_sys::{HINSTANCE, cef_main_args_t};
+use cef_sys::cef_main_args_t;
+use winapi::shared::minwindef::HINSTANCE;
 use std::ffi::CString;
 
 /// Structure representing CefExecuteProcess arguments.

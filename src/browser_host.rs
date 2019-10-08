@@ -1,9 +1,10 @@
-use cef_sys::{cef_browser_host_t, cef_paint_element_type_t, HINSTANCE, cef_browser_host_create_browser};
+use cef_sys::{cef_browser_host_t, cef_paint_element_type_t, cef_browser_host_create_browser};
 use num_enum::UnsafeFromPrimitive;
 use std::{
     collections::HashMap,
     ptr::null_mut,
 };
+use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
     string::CefString,
@@ -219,7 +220,7 @@ impl BrowserHost {
     /// specified visitor. If `current_only` is true only the current
     /// navigation entry will be sent, otherwise all navigation entries will be
     /// sent.
-    /// 
+    ///
     /// The visitor will be called on the browser process UI thread.
     /// The first parameter is the navigation entry at the position given in the
     /// third parameter. The second parameter indicates whether it's the currently
@@ -361,7 +362,7 @@ impl BrowserHost {
     pub fn ime_set_composition(&mut self, text: &str, underlines_count: usize, underlines: &CompositionUnderline, replacement_range: Range, selection_range: Range) {
         unimplemented!()
     }
-    
+
     /// Completes the existing composition by optionally inserting the specified
     /// `text` into the composition node. `replacement_range` is an optional range
     /// of the existing text that will be replaced. `relative_cursor_pos` is where

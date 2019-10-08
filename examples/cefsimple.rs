@@ -18,7 +18,7 @@ fn main() {
     let app = cef::App::new(AppCallbacks());
     #[cfg(windows)]
     cef::App::enable_highdpi_support();
-    let args = cef::MainArgs::new(unsafe { GetModuleHandleA(std::ptr::null()) } as std::os::windows::raw::HANDLE);
+    let args = cef::MainArgs::new(unsafe { GetModuleHandleA(std::ptr::null()) });
     let result = cef::App::execute_process(&args, Some(&app), None);
     if result >= 0 {
         std::process::exit(result);

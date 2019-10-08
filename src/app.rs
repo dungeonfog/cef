@@ -3,7 +3,8 @@ use std::{
     ptr::null_mut,
     mem::ManuallyDrop,
 };
-use cef_sys::{cef_app_t, cef_base_ref_counted_t, cef_resource_bundle_handler_t, cef_render_process_handler_t, cef_browser_process_handler_t, cef_enable_highdpi_support, cef_execute_process, cef_initialize, cef_shutdown, cef_do_message_loop_work, cef_run_message_loop, cef_quit_message_loop, cef_set_osmodal_loop, HINSTANCE};
+use cef_sys::{cef_app_t, cef_base_ref_counted_t, cef_resource_bundle_handler_t, cef_render_process_handler_t, cef_browser_process_handler_t, cef_enable_highdpi_support, cef_execute_process, cef_initialize, cef_shutdown, cef_do_message_loop_work, cef_run_message_loop, cef_quit_message_loop, cef_set_osmodal_loop};
+use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
     refcounted::{RefCounted, RefCounter},
