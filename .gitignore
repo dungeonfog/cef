@@ -1,3 +1,5 @@
+GPUCache
+Resources
 /target
 **/*.rs.bk
 Cargo.lock

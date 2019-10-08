@@ -26,7 +26,8 @@ fn main() {
     let mut settings = cef::Settings::new();
     settings.set_log_severity(cef::LogSeverity::Verbose);
     settings.disable_sandbox();
-    settings.set_locales_dir_path("./locales");
+    let resources_folder = std::env::var("CEFSIMPLE_ABSOLUTE_RESOURCES_PATH").expect("CEFSIMPLE_ABSOLUTE_RESOURCES_PATH must be set to a valid CEF resources folder");
+    settings.set_resources_dir_path(&resources_folder);
 
     cef::App::initialize(&args, &settings, Some(&app), None);
 
