@@ -33,7 +33,7 @@ impl Default for CefString {
 impl Drop for CefString {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.dtor {
-            unsafe { dtor(&mut self.0 as *mut cef_string_t as *mut u16); }
+            unsafe { dtor(self.0.str); }
         }
     }
 }
