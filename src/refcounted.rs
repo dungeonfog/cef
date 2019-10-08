@@ -71,7 +71,7 @@ impl<C: RefCounter + Sized, R> RefCounted<C, R> {
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
         let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        if this.refcount.fetch_sub(1, Ordering::AcqRel) > 1 {
+        if this.refcount.fetch_sub(1, Ordering::AcqRel) < 1 {
             ManuallyDrop::into_inner(this);
             0
         } else { 1 }
