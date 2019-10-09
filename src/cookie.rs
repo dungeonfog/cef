@@ -1,9 +1,7 @@
 use cef_sys::{cef_cookie_t, cef_time_to_doublet};
-use std::time::{SystemTime, Duration};
+use std::time::{Duration, SystemTime};
 
-use crate::{
-    string::CefString,
-};
+use crate::string::CefString;
 
 /// Cookie information.
 #[derive(Clone, Debug)]
@@ -59,7 +57,11 @@ impl From<*const cef_cookie_t> for Cookie {
             httponly: cookie.httponly != 0,
             creation: SystemTime::UNIX_EPOCH + Duration::from_secs_f64(creation),
             last_access: SystemTime::UNIX_EPOCH + Duration::from_secs_f64(last_access),
-            expires: if cookie.has_expires != 0 { Some(SystemTime::UNIX_EPOCH + Duration::from_secs_f64(expires)) } else { None },
+            expires: if cookie.has_expires != 0 {
+                Some(SystemTime::UNIX_EPOCH + Duration::from_secs_f64(expires))
+            } else {
+                None
+            },
         }
     }
 }

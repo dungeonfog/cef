@@ -1,21 +1,12 @@
 use cef_sys::{
-    cef_string_multimap_t,
-    cef_string_multimap_alloc,
-    cef_string_multimap_size,
-    cef_string_multimap_find_count,
-    cef_string_multimap_enumerate,
-    cef_string_multimap_key,
-    cef_string_multimap_value,
-    cef_string_multimap_append,
-    cef_string_multimap_clear,
-    cef_string_multimap_free,
-    cef_string_t,
+    cef_string_multimap_alloc, cef_string_multimap_append, cef_string_multimap_clear,
+    cef_string_multimap_enumerate, cef_string_multimap_find_count, cef_string_multimap_free,
+    cef_string_multimap_key, cef_string_multimap_size, cef_string_multimap_t,
+    cef_string_multimap_value, cef_string_t,
 };
 use std::collections::HashMap;
 
-use crate::{
-    string::CefString,
-};
+use crate::string::CefString;
 
 /// CEF string multimaps are a set of key/value string pairs.
 /// More than one value can be assigned to a single key.
@@ -40,7 +31,14 @@ impl MultiMap {
     /// Return the value_index-th value with the specified key.
     pub(crate) fn enumerate(&self, key: &str, value_index: usize) -> Result<String, ()> {
         let mut result = unsafe { std::mem::zeroed() };
-        if unsafe { cef_string_multimap_enumerate(self.0, CefString::new(key).as_ref(), value_index, &mut result) == 1 } {
+        if unsafe {
+            cef_string_multimap_enumerate(
+                self.0,
+                CefString::new(key).as_ref(),
+                value_index,
+                &mut result,
+            ) == 1
+        } {
             Ok(CefString::from(result).into())
         } else {
             Err(())
@@ -66,7 +64,13 @@ impl MultiMap {
     }
     /// Append a new key/value pair at the end of the string multimap.
     pub(crate) fn append(&mut self, key: &str, value: &str) -> Result<(), ()> {
-        if unsafe { cef_string_multimap_append(self.0, CefString::new(key).as_ref(), CefString::new(value).as_ref()) == 1 } {
+        if unsafe {
+            cef_string_multimap_append(
+                self.0,
+                CefString::new(key).as_ref(),
+                CefString::new(value).as_ref(),
+            ) == 1
+        } {
             Ok(())
         } else {
             Err(())
@@ -74,14 +78,18 @@ impl MultiMap {
     }
     /// Clear the string multimap.
     pub(crate) fn clear(&mut self) {
-        unsafe { cef_string_multimap_clear(self.0); }
+        unsafe {
+            cef_string_multimap_clear(self.0);
+        }
     }
 }
 
 impl Drop for MultiMap {
     /// Free the string multimap.
     fn drop(&mut self) {
-        unsafe { cef_string_multimap_free(self.0); }
+        unsafe {
+            cef_string_multimap_free(self.0);
+        }
     }
 }
 
@@ -111,7 +119,9 @@ impl Into<HashMap<String, Vec<String>>> for MultiMap {
     fn into(self) -> HashMap<String, Vec<String>> {
         let mut result = HashMap::new();
         for idx in 0..self.len() {
-            if let (Ok(key), Ok(value)) = (unsafe { self.get_key(idx) }, unsafe { self.get_value(idx) }) {
+            if let (Ok(key), Ok(value)) =
+                (unsafe { self.get_key(idx) }, unsafe { self.get_value(idx) })
+            {
                 result.entry(key).or_insert_with(|| Vec::new()).push(value);
             }
         }

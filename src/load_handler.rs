@@ -1,16 +1,15 @@
-use cef_sys::{cef_load_handler_t, cef_transition_type_t, cef_errorcode_t, cef_browser_t, cef_frame_t, cef_string_t, cef_base_ref_counted_t};
-use num_enum::UnsafeFromPrimitive;
-use std::{
-    collections::HashSet,
-    convert::TryFrom,
-    sync::Arc,
+use cef_sys::{
+    cef_base_ref_counted_t, cef_browser_t, cef_errorcode_t, cef_frame_t, cef_load_handler_t,
+    cef_string_t, cef_transition_type_t,
 };
+use num_enum::UnsafeFromPrimitive;
+use std::{collections::HashSet, convert::TryFrom, sync::Arc};
 
 use crate::{
     browser::Browser,
     frame::Frame,
-    refcounted::{RefCounted, RefCounter},
     ptr_hash::Hashed,
+    refcounted::{RefCounted, RefCounter},
     string::CefString,
 };
 
@@ -97,12 +96,14 @@ impl TryFrom<i32> for TransitionType {
             flags.insert(TransitionTypeQualifiers::ServerRedirectFlag);
         }
         match value & cef_transition_type_t::TT_SOURCE_MASK.0 {
-            x if x == cef_transition_type_t::TT_LINK.0            => Ok(Self::Link(flags)),
-            x if x == cef_transition_type_t::TT_EXPLICIT.0        => Ok(Self::Explicit(flags)),
-            x if x == cef_transition_type_t::TT_AUTO_SUBFRAME.0   => Ok(Self::AutoSubframe(flags)),
-            x if x == cef_transition_type_t::TT_MANUAL_SUBFRAME.0 => Ok(Self::ManualSubframe(flags)),
-            x if x == cef_transition_type_t::TT_FORM_SUBMIT.0     => Ok(Self::FormSubmit(flags)),
-            x if x == cef_transition_type_t::TT_RELOAD.0          => Ok(Self::Reload(flags)),
+            x if x == cef_transition_type_t::TT_LINK.0 => Ok(Self::Link(flags)),
+            x if x == cef_transition_type_t::TT_EXPLICIT.0 => Ok(Self::Explicit(flags)),
+            x if x == cef_transition_type_t::TT_AUTO_SUBFRAME.0 => Ok(Self::AutoSubframe(flags)),
+            x if x == cef_transition_type_t::TT_MANUAL_SUBFRAME.0 => {
+                Ok(Self::ManualSubframe(flags))
+            }
+            x if x == cef_transition_type_t::TT_FORM_SUBMIT.0 => Ok(Self::FormSubmit(flags)),
+            x if x == cef_transition_type_t::TT_RELOAD.0 => Ok(Self::Reload(flags)),
             _ => Err(()),
         }
     }
@@ -115,27 +116,27 @@ impl Into<i32> for TransitionType {
             Self::Link(flags) => {
                 value = cef_transition_type_t::TT_LINK;
                 flags
-            },
+            }
             Self::Explicit(flags) => {
                 value = cef_transition_type_t::TT_EXPLICIT;
                 flags
-            },
+            }
             Self::AutoSubframe(flags) => {
                 value = cef_transition_type_t::TT_AUTO_SUBFRAME;
                 flags
-            },
+            }
             Self::ManualSubframe(flags) => {
                 value = cef_transition_type_t::TT_MANUAL_SUBFRAME;
                 flags
-            },
+            }
             Self::FormSubmit(flags) => {
                 value = cef_transition_type_t::TT_FORM_SUBMIT;
                 flags
-            },
+            }
             Self::Reload(flags) => {
                 value = cef_transition_type_t::TT_RELOAD;
                 flags
-            },
+            }
         };
         value.0 | flags.into_iter().fold(0, |flags, flag| flags | flag as i32)
     }
@@ -379,7 +380,8 @@ pub enum ErrorCode {
     PreconnectMaxSocketLimit = cef_errorcode_t::ERR_PRECONNECT_MAX_SOCKET_LIMIT,
 
     /// The permission to use the SSL client certificate's private key was denied.
-    SslClientAuthPrivateKeyAccessDenied = cef_errorcode_t::ERR_SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED,
+    SslClientAuthPrivateKeyAccessDenied =
+        cef_errorcode_t::ERR_SSL_CLIENT_AUTH_PRIVATE_KEY_ACCESS_DENIED,
 
     /// The SSL client certificate has no private key.
     SslClientAuthCertNoPrivateKey = cef_errorcode_t::ERR_SSL_CLIENT_AUTH_CERT_NO_PRIVATE_KEY,
@@ -442,7 +444,8 @@ pub enum ErrorCode {
 
     /// Server requested one type of cert, then requested a different type while the
     /// first was still being generated.
-    OriginBoundCertGenerationTypeMismatch = cef_errorcode_t::ERR_ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH,
+    OriginBoundCertGenerationTypeMismatch =
+        cef_errorcode_t::ERR_ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH,
 
     /// An SSL peer sent us a fatal decrypt_error alert. This typically occurs when
     /// a peer could not correctly verify a signature (in CertificateVerify or
@@ -469,7 +472,8 @@ pub enum ErrorCode {
 
     /// Failed to set the socket's receive buffer size as requested, despite success
     /// return code from setsockopt.
-    SocketReceiveBufferSizeUnchangeable = cef_errorcode_t::ERR_SOCKET_RECEIVE_BUFFER_SIZE_UNCHANGEABLE,
+    SocketReceiveBufferSizeUnchangeable =
+        cef_errorcode_t::ERR_SOCKET_RECEIVE_BUFFER_SIZE_UNCHANGEABLE,
 
     /// Failed to set the socket's send buffer size as requested, despite success
     /// return code from setsockopt.
@@ -501,7 +505,8 @@ pub enum ErrorCode {
     /// before the AuthController was used to generate credentials. The caller should
     /// reuse the controller with a new connection. This error is only used
     /// internally by the network stack.
-    UnableToReuseConnectionForProxyAuth = cef_errorcode_t::ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH,
+    UnableToReuseConnectionForProxyAuth =
+        cef_errorcode_t::ERR_UNABLE_TO_REUSE_CONNECTION_FOR_PROXY_AUTH,
 
     /// Certificate Transparency: Failed to parse the received consistency proof.
     CtConsistencyProofParsingFailed = cef_errorcode_t::ERR_CT_CONSISTENCY_PROOF_PARSING_FAILED,
@@ -731,7 +736,8 @@ pub enum ErrorCode {
     EncodingConversionFailed = cef_errorcode_t::ERR_ENCODING_CONVERSION_FAILED,
 
     /// The server sent an FTP directory listing in a format we do not understand.
-    UnrecognizedFtpDirectoryListingFormat = cef_errorcode_t::ERR_UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT,
+    UnrecognizedFtpDirectoryListingFormat =
+        cef_errorcode_t::ERR_UNRECOGNIZED_FTP_DIRECTORY_LISTING_FORMAT,
 
     /// There are no supported proxies in the provided list.
     NoSupportedProxies = cef_errorcode_t::ERR_NO_SUPPORTED_PROXIES,
@@ -766,7 +772,8 @@ pub enum ErrorCode {
     ResponseBodyTooBigToDrain = cef_errorcode_t::ERR_RESPONSE_BODY_TOO_BIG_TO_DRAIN,
 
     /// The HTTP response contained multiple distinct Content-Length headers.
-    ResponseHeadersMultipleContentLength = cef_errorcode_t::ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH,
+    ResponseHeadersMultipleContentLength =
+        cef_errorcode_t::ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH,
 
     /// SPDY Headers have been received, but not all of them - status or version
     /// headers are missing, so we're expecting additional frames to complete them.
@@ -778,7 +785,8 @@ pub enum ErrorCode {
     PACNotInDHCP = cef_errorcode_t::ERR_PAC_NOT_IN_DHCP,
 
     /// The HTTP response contained multiple Content-Disposition headers.
-    ResponseHeadersMultipleContentDisposition = cef_errorcode_t::ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION,
+    ResponseHeadersMultipleContentDisposition =
+        cef_errorcode_t::ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_DISPOSITION,
 
     /// The HTTP response contained multiple Location headers.
     ResponseHeadersMultipleLocation = cef_errorcode_t::ERR_RESPONSE_HEADERS_MULTIPLE_LOCATION,
@@ -824,7 +832,8 @@ pub enum ErrorCode {
     SpdyCompressionError = cef_errorcode_t::ERR_SPDY_COMPRESSION_ERROR,
 
     /// Proxy Auth Requested without a valid Client Socket Handle.
-    ProxyAuthRequestedWithNoConnection = cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
+    ProxyAuthRequestedWithNoConnection =
+        cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
 
     /// HTTP_1_1_REQUIRED error code received on HTTP/2 session.
     Http11Required = cef_errorcode_t::ERR_HTTP_1_1_REQUIRED,
@@ -852,7 +861,8 @@ pub enum ErrorCode {
 
     /// A pushed stream was claimed and later reset by the server. When this happens,
     /// the request should be retried.
-    SpdyClaimedPushedStreamResetByServer = cef_errorcode_t::ERR_SPDY_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER,
+    SpdyClaimedPushedStreamResetByServer =
+        cef_errorcode_t::ERR_SPDY_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER,
 
     /// An HTTP transaction was retried too many times due for authentication or
     /// invalid certificates. This may be due to a bug in the net stack that would
@@ -1052,7 +1062,14 @@ pub trait LoadHandler: Send + Sync {
     /// action, and once when loading is terminated due to completion, cancellation
     /// of failure. It will be called before any calls to [LoadHandler::on_load_start] and after all
     /// calls to [LoadHandler::on_load_error] and/or [LoadHandler::on_load_end].
-    fn on_loading_state_change(&self, browser: &Browser, is_loading: bool, can_go_back: bool, can_go_forward: bool) {}
+    fn on_loading_state_change(
+        &self,
+        browser: &Browser,
+        is_loading: bool,
+        can_go_back: bool,
+        can_go_forward: bool,
+    ) {
+    }
     /// Called after a navigation has been committed and before the browser begins
     /// loading contents in the frame. Call
     /// the [Frame::is_main()] function to check if `frame` is the main frame.
@@ -1077,7 +1094,15 @@ pub trait LoadHandler: Send + Sync {
     /// after commit. `error_code` is the error code number, `error_text` is the
     /// error text and `failed_url` is the URL that failed to load. See
     /// net\base\net_error_list.h for complete descriptions of the error codes.
-    fn on_load_error(&self, browser: &Browser, frame: &Frame, error_code: ErrorCode, error_text: &str, failed_url: &str) {}
+    fn on_load_error(
+        &self,
+        browser: &Browser,
+        frame: &Frame,
+        error_code: ErrorCode,
+        error_text: &str,
+        failed_url: &str,
+    ) {
+    }
 }
 
 pub(crate) struct LoadHandlerWrapper;
@@ -1090,32 +1115,77 @@ impl RefCounter for cef_load_handler_t {
 }
 
 impl LoadHandlerWrapper {
-    extern "C" fn loading_state_change(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, is_loading: std::os::raw::c_int, can_go_back: std::os::raw::c_int, can_go_forward: std::os::raw::c_int) {
+    extern "C" fn loading_state_change(
+        self_: *mut cef_load_handler_t,
+        browser: *mut cef_browser_t,
+        is_loading: std::os::raw::c_int,
+        can_go_back: std::os::raw::c_int,
+        can_go_forward: std::os::raw::c_int,
+    ) {
         let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-        (*this).on_loading_state_change(&Browser::from(browser), is_loading != 0, can_go_back != 0, can_go_forward != 0);
+        (*this).on_loading_state_change(
+            &Browser::from(browser),
+            is_loading != 0,
+            can_go_back != 0,
+            can_go_forward != 0,
+        );
     }
-    extern "C" fn load_start(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, transition_type: cef_transition_type_t) {
+    extern "C" fn load_start(
+        self_: *mut cef_load_handler_t,
+        browser: *mut cef_browser_t,
+        frame: *mut cef_frame_t,
+        transition_type: cef_transition_type_t,
+    ) {
         if let Ok(transition_type) = TransitionType::try_from(transition_type.0) {
             let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-            (*this).on_load_start(&Browser::from(browser), &Frame::from(frame), transition_type);
+            (*this).on_load_start(
+                &Browser::from(browser),
+                &Frame::from(frame),
+                transition_type,
+            );
         }
     }
-    extern "C" fn load_end(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, http_status_code: std::os::raw::c_int) {
+    extern "C" fn load_end(
+        self_: *mut cef_load_handler_t,
+        browser: *mut cef_browser_t,
+        frame: *mut cef_frame_t,
+        http_status_code: std::os::raw::c_int,
+    ) {
         let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-        (*this).on_load_end(&Browser::from(browser), &Frame::from(frame), http_status_code);
+        (*this).on_load_end(
+            &Browser::from(browser),
+            &Frame::from(frame),
+            http_status_code,
+        );
     }
-    extern "C" fn load_error(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, error_code: cef_errorcode_t::Type, error_text: *const cef_string_t, failed_url: *const cef_string_t) {
+    extern "C" fn load_error(
+        self_: *mut cef_load_handler_t,
+        browser: *mut cef_browser_t,
+        frame: *mut cef_frame_t,
+        error_code: cef_errorcode_t::Type,
+        error_text: *const cef_string_t,
+        failed_url: *const cef_string_t,
+    ) {
         let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-        (*this).on_load_error(&Browser::from(browser), &Frame::from(frame), unsafe { ErrorCode::from_unchecked(error_code) }, &CefString::copy_raw_to_string(error_text).unwrap(), &CefString::copy_raw_to_string(failed_url).unwrap());
+        (*this).on_load_error(
+            &Browser::from(browser),
+            &Frame::from(frame),
+            unsafe { ErrorCode::from_unchecked(error_code) },
+            &CefString::copy_raw_to_string(error_text).unwrap(),
+            &CefString::copy_raw_to_string(failed_url).unwrap(),
+        );
     }
 
-    pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut RefCounted::<cef_load_handler_t> {
-        RefCounted::new(cef_load_handler_t {
-            base: unsafe { std::mem::zeroed() },
-            on_loading_state_change: Some(Self::loading_state_change),
-            on_load_start: Some(Self::load_start),
-            on_load_end: Some(Self::load_end),
-            on_load_error: Some(Self::load_error),
-        }, handler)
+    pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut RefCounted<cef_load_handler_t> {
+        RefCounted::new(
+            cef_load_handler_t {
+                base: unsafe { std::mem::zeroed() },
+                on_loading_state_change: Some(Self::loading_state_change),
+                on_load_start: Some(Self::load_start),
+                on_load_end: Some(Self::load_end),
+                on_load_error: Some(Self::load_error),
+            },
+            handler,
+        )
     }
 }

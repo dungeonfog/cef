@@ -1,12 +1,12 @@
 use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
 
 use crate::{
-    string::{CefString, StringVisitor, StringVisitorWrapper},
-    request::Request,
-    urlrequest::{URLRequest, URLRequestClient, URLRequestClientWrapper},
     browser::Browser,
-    v8context::V8Context,
     dom::{DOMVisitor, DOMVisitorWrapper},
+    request::Request,
+    string::{CefString, StringVisitor, StringVisitorWrapper},
+    urlrequest::{URLRequest, URLRequestClient, URLRequestClientWrapper},
+    v8context::V8Context,
 };
 
 /// Structure used to represent a frame in the browser window. When used in the
@@ -28,62 +28,83 @@ impl std::convert::AsRef<cef_frame_t> for Frame {
 #[doc(hidden)]
 impl From<*mut cef_frame_t> for Frame {
     fn from(frame: *mut cef_frame_t) -> Self {
-        unsafe { ((*frame).base.add_ref.unwrap())(&mut (*frame).base); }
+        unsafe {
+            ((*frame).base.add_ref.unwrap())(&mut (*frame).base);
+        }
         Self(frame)
     }
 }
 
 impl Drop for Frame {
     fn drop(&mut self) {
-        unsafe { (self.as_ref().base.release.unwrap())(&mut (*self.0).base); }
+        unsafe {
+            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
+        }
     }
 }
 
 impl Frame {
     /// True if this object is currently attached to a valid frame.
     pub fn is_valid(&self) -> bool {
-        self.as_ref().is_valid.and_then(|is_valid| Some(unsafe { is_valid(self.0) } != 0)).unwrap_or(false)
+        self.as_ref()
+            .is_valid
+            .and_then(|is_valid| Some(unsafe { is_valid(self.0) } != 0))
+            .unwrap_or(false)
     }
     /// Execute undo in this frame.
     pub fn undo(&mut self) {
         if let Some(undo) = self.as_ref().undo {
-            unsafe { undo(self.0); }
+            unsafe {
+                undo(self.0);
+            }
         }
     }
     /// Execute redo in this frame.
     pub fn redo(&mut self) {
         if let Some(redo) = self.as_ref().redo {
-            unsafe { redo(self.0); }
+            unsafe {
+                redo(self.0);
+            }
         }
     }
     /// Execute cut in this frame.
     pub fn cut(&mut self) {
         if let Some(cut) = self.as_ref().cut {
-            unsafe { cut(self.0); }
+            unsafe {
+                cut(self.0);
+            }
         }
     }
     /// Execute copy in this frame.
     pub fn copy(&mut self) {
         if let Some(copy) = self.as_ref().copy {
-            unsafe { copy(self.0); }
+            unsafe {
+                copy(self.0);
+            }
         }
     }
     /// Execute paste in this frame.
     pub fn paste(&mut self) {
         if let Some(paste) = self.as_ref().paste {
-            unsafe { paste(self.0); }
+            unsafe {
+                paste(self.0);
+            }
         }
     }
     /// Execute delete in this frame.
     pub fn del(&mut self) {
         if let Some(del) = self.as_ref().del {
-            unsafe { del(self.0); }
+            unsafe {
+                del(self.0);
+            }
         }
     }
     /// Execute select all in this frame.
     pub fn select_all(&mut self) {
         if let Some(select_all) = self.as_ref().select_all {
-            unsafe { select_all(self.0); }
+            unsafe {
+                select_all(self.0);
+            }
         }
     }
     /// Save this frame's HTML source to a temporary file and open it in the
@@ -91,7 +112,9 @@ impl Frame {
     /// browser process.
     pub fn view_source(&self) {
         if let Some(view_source) = self.as_ref().view_source {
-            unsafe { view_source(self.0); }
+            unsafe {
+                view_source(self.0);
+            }
         }
     }
     /// Retrieve this frame's HTML source as a string sent to the specified
@@ -99,7 +122,9 @@ impl Frame {
     pub fn get_source(&self, visitor: Box<dyn StringVisitor>) {
         if let Some(get_source) = self.as_ref().get_source {
             let visitor = StringVisitorWrapper::wrap(visitor);
-            unsafe { get_source(self.0, visitor); }
+            unsafe {
+                get_source(self.0, visitor);
+            }
         }
     }
     /// Retrieve this frame's display text as a string sent to the specified
@@ -107,19 +132,25 @@ impl Frame {
     pub fn get_text(&self, visitor: Box<dyn StringVisitor>) {
         if let Some(get_text) = self.as_ref().get_text {
             let visitor = StringVisitorWrapper::wrap(visitor);
-            unsafe { get_text(self.0, visitor); }
+            unsafe {
+                get_text(self.0, visitor);
+            }
         }
     }
     /// Load the request represented by the |request| object.
     pub fn load_request(&mut self, request: &Request) {
         if let Some(load_request) = self.as_ref().load_request {
-            unsafe { load_request(self.0, request.as_ptr()); }
+            unsafe {
+                load_request(self.0, request.as_ptr());
+            }
         }
     }
     /// Load the specified `url`.
     pub fn load_url(&mut self, url: &str) {
         if let Some(load_url) = self.as_ref().load_url {
-            unsafe { load_url(self.0, CefString::new(url).as_ref()); }
+            unsafe {
+                load_url(self.0, CefString::new(url).as_ref());
+            }
         }
     }
     /// Load the contents of `string_val` with the specified dummy `url`. `url`
@@ -127,7 +158,13 @@ impl Frame {
     /// link clicks and web security restrictions may not behave as expected.
     pub fn load_string(&mut self, string_val: &str, url: &str) {
         if let Some(load_string) = self.as_ref().load_string {
-            unsafe { load_string(self.0, CefString::new(string_val).as_ref(), CefString::new(url).as_ref()); }
+            unsafe {
+                load_string(
+                    self.0,
+                    CefString::new(string_val).as_ref(),
+                    CefString::new(url).as_ref(),
+                );
+            }
         }
     }
     /// Execute a string of JavaScript code in this frame. The `script_url`
@@ -137,7 +174,14 @@ impl Frame {
     /// reporting.
     pub fn execute_java_script(&mut self, code: &str, script_url: &str, start_line: i32) {
         if let Some(execute_java_script) = self.as_ref().execute_java_script {
-            unsafe { execute_java_script(self.0, CefString::new(code).as_ref(), CefString::new(script_url).as_ref(), start_line); }
+            unsafe {
+                execute_java_script(
+                    self.0,
+                    CefString::new(code).as_ref(),
+                    CefString::new(script_url).as_ref(),
+                    start_line,
+                );
+            }
         }
     }
     /// Returns true if this is the main (top-level) frame.
@@ -265,8 +309,18 @@ impl Frame {
     ///
     /// The `request` object will be marked as read-only after calling this
     /// function.
-    pub fn create_urlrequest(&self, request: &mut Request, client: Box<dyn URLRequestClient>) -> URLRequest {
-        let urlrequest = unsafe { (&*self.0).create_urlrequest.unwrap()(self.0, request.as_ptr(), URLRequestClientWrapper::wrap(client)) };
+    pub fn create_urlrequest(
+        &self,
+        request: &mut Request,
+        client: Box<dyn URLRequestClient>,
+    ) -> URLRequest {
+        let urlrequest = unsafe {
+            (&*self.0).create_urlrequest.unwrap()(
+                self.0,
+                request.as_ptr(),
+                URLRequestClientWrapper::wrap(client),
+            )
+        };
         URLRequest::from(urlrequest)
     }
 }

@@ -1,20 +1,12 @@
 use cef_sys::{
-    cef_post_data_create, cef_post_data_element_create, cef_post_data_element_t, cef_post_data_t,
-    cef_referrer_policy_t, cef_request_create, cef_request_t, cef_resource_type_t,
-    cef_string_userfree_utf16_free, cef_postdataelement_type_t, cef_base_ref_counted_t,
+    cef_base_ref_counted_t, cef_post_data_create, cef_post_data_element_create,
+    cef_post_data_element_t, cef_post_data_t, cef_postdataelement_type_t, cef_referrer_policy_t,
+    cef_request_create, cef_request_t, cef_resource_type_t, cef_string_userfree_utf16_free,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{
-    collections::HashMap,
-    ptr::null_mut,
-    convert::TryFrom,
-};
+use std::{collections::HashMap, convert::TryFrom, ptr::null_mut};
 
-use crate::{
-    multimap::MultiMap,
-    string::CefString,
-    load_handler::TransitionType,
-};
+use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString};
 
 /// Policy for how the Referrer HTTP header value will be sent during navigation.
 /// if the `--no-referrers` command-line flag is specified then the policy value
@@ -26,28 +18,28 @@ pub enum ReferrerPolicy {
     
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
-   Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,
+    Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,
     /// A slight variant on CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE (Default):
     /// if the request destination is HTTP, an HTTPS referrer will be cleared. if
     /// the request's destination is cross-origin with the referrer (but does not
     /// downgrade), the referrer's granularity will be stripped down to an origin
     /// rather than a full URL. Same-origin requests will send the full referrer.
-   ReduceReferrerGranularityOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN as i32,
+    ReduceReferrerGranularityOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN as i32,
     /// Strip the referrer down to an origin when the origin of the referrer is
     /// different from the destination's origin.
-   OriginOnlyOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN as i32,
+    OriginOnlyOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN as i32,
     /// Never change the referrer.
-   NeverClearReferrer = cef_referrer_policy_t::REFERRER_POLICY_NEVER_CLEAR_REFERRER as i32,
+    NeverClearReferrer = cef_referrer_policy_t::REFERRER_POLICY_NEVER_CLEAR_REFERRER as i32,
     /// Strip the referrer down to the origin regardless of the redirect location.
-   Origin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN as i32,
+    Origin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN as i32,
     /// Clear the referrer when the request's referrer is cross-origin with the
     /// request's destination.
-   ClearReferrerOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN as i32,
+    ClearReferrerOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN as i32,
     /// Strip the referrer down to the origin, but clear it entirely if the
     /// referrer value is HTTPS and the destination is HTTP.
-   OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE as i32,
+    OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE as i32,
     /// Always clear the referrer regardless of the request destination.
-   NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as i32,
+    NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as i32,
 }
 
 impl Into<cef_referrer_policy_t::Type> for ReferrerPolicy {
@@ -164,7 +156,7 @@ pub enum ResourceType {
 pub enum PostDataElementType {
     Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY as i32,
     Bytes = cef_postdataelement_type_t::PDE_TYPE_BYTES as i32,
-    File  = cef_postdataelement_type_t::PDE_TYPE_FILE  as i32,
+    File = cef_postdataelement_type_t::PDE_TYPE_FILE as i32,
 }
 
 /// Structure used to represent a web request. The functions of this structure
@@ -266,9 +258,7 @@ impl Request {
         unsafe { &*self.0 }
             .get_referrer_policy
             .and_then(|get_referrer_policy| {
-                Some(unsafe { ReferrerPolicy::from_unchecked(
-                    get_referrer_policy(self.0) as i32
-                )})
+                Some(unsafe { ReferrerPolicy::from_unchecked(get_referrer_policy(self.0) as i32) })
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
@@ -342,7 +332,13 @@ impl Request {
             let header_map = MultiMap::from(&header_map);
 
             unsafe {
-                set(self.0, url.as_ref(), method.as_ref(), post_data.0, header_map.as_ptr());
+                set(
+                    self.0,
+                    url.as_ref(),
+                    method.as_ref(),
+                    post_data.0,
+                    header_map.as_ptr(),
+                );
             }
         }
     }
@@ -392,13 +388,16 @@ impl Request {
     /// Get the resource type for this request. Only available in the browser
     /// process.
     pub fn get_resource_type(&self) -> ResourceType {
-        unsafe { ResourceType::from_unchecked(((&*self.0).get_resource_type).unwrap()(self.0) as i32) }
+        unsafe {
+            ResourceType::from_unchecked(((&*self.0).get_resource_type).unwrap()(self.0) as i32)
+        }
     }
     /// Get the transition type for this request. Only available in the browser
     /// process and only applies to requests that represent a main frame or sub-
     /// frame navigation.
     pub fn get_transition_type(&self) -> TransitionType {
-        TransitionType::try_from(unsafe {(&*self.0).get_transition_type.unwrap()(self.0).0 }).unwrap()
+        TransitionType::try_from(unsafe { (&*self.0).get_transition_type.unwrap()(self.0).0 })
+            .unwrap()
     }
     /// Returns the globally unique identifier for this request or 0 if not
     /// specified. Can be used by [ResourceRequestHandler] implementations in
@@ -406,7 +405,9 @@ impl Request {
     pub fn get_identifier(&self) -> u64 {
         if let Some(get_identifier) = unsafe { &*self.0 }.get_identifier {
             unsafe { get_identifier(self.0) }
-        } else { 0 }
+        } else {
+            0
+        }
     }
 }
 
@@ -476,7 +477,9 @@ impl PostData {
         if count > 0 {
             if let Some(get_elements) = unsafe { &*self.0 }.get_elements {
                 let mut elements = vec![null_mut(); count];
-                unsafe { get_elements(self.0, &mut count, elements.as_mut_ptr()); }
+                unsafe {
+                    get_elements(self.0, &mut count, elements.as_mut_ptr());
+                }
                 elements.into_iter().map(PostDataElement::from).collect()
             } else {
                 Vec::new()
@@ -505,7 +508,9 @@ impl PostData {
     /// Remove all existing post data elements.
     pub fn remove_elements(&mut self) {
         if let Some(remove_elements) = unsafe { &*self.0 }.remove_elements {
-            unsafe { remove_elements(self.0); }
+            unsafe {
+                remove_elements(self.0);
+            }
         }
     }
 }
@@ -534,7 +539,6 @@ impl Drop for PostData {
     }
 }
 
-
 /// Structure used to represent a single element in the request post data. The
 /// functions of this structure may be called on any thread.
 pub struct PostDataElement(*mut cef_post_data_element_t);
@@ -558,20 +562,30 @@ impl PostDataElement {
     /// Remove all contents from the post data element.
     pub fn set_to_empty(&mut self) {
         if let Some(set_to_empty) = unsafe { &*self.0 }.set_to_empty {
-            unsafe { set_to_empty(self.0); }
+            unsafe {
+                set_to_empty(self.0);
+            }
         }
     }
     /// The post data element will represent a file.
     pub fn set_to_file(&mut self, file_name: &str) {
         if let Some(set_to_file) = unsafe { &*self.0 }.set_to_file {
-            unsafe { set_to_file(self.0, CefString::new(file_name).as_ref()); }
+            unsafe {
+                set_to_file(self.0, CefString::new(file_name).as_ref());
+            }
         }
     }
     /// The post data element will represent bytes.  The bytes passed in will be
     /// copied.
     pub fn set_to_bytes(&mut self, bytes: &[u8]) {
         if let Some(set_to_bytes) = unsafe { &*self.0 }.set_to_bytes {
-            unsafe { set_to_bytes(self.0, bytes.len(), bytes.as_ptr() as *const std::ffi::c_void); }
+            unsafe {
+                set_to_bytes(
+                    self.0,
+                    bytes.len(),
+                    bytes.as_ptr() as *const std::ffi::c_void,
+                );
+            }
         }
     }
     /// Return the type of this post data element.
@@ -586,7 +600,9 @@ impl PostDataElement {
     pub fn get_file(&self) -> String {
         let name = unsafe { (&*self.0).get_file.unwrap()(self.0) };
         if let Some(result) = CefString::copy_raw_to_string(name) {
-            unsafe { cef_string_userfree_utf16_free(name); }
+            unsafe {
+                cef_string_userfree_utf16_free(name);
+            }
             result
         } else {
             "".to_owned()
@@ -606,7 +622,9 @@ impl PostDataElement {
         if size > 0 {
             if let Some(get_bytes) = unsafe { &*self.0 }.get_bytes {
                 let mut buffer = vec![0; size];
-                unsafe { get_bytes(self.0, size, buffer.as_mut_ptr() as *mut std::ffi::c_void); }
+                unsafe {
+                    get_bytes(self.0, size, buffer.as_mut_ptr() as *mut std::ffi::c_void);
+                }
                 buffer.to_vec()
             } else {
                 Vec::new()

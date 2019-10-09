@@ -1,26 +1,23 @@
-use cef_sys::{cef_browser_host_t, cef_paint_element_type_t, cef_browser_host_create_browser};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_t, cef_paint_element_type_t};
 use num_enum::UnsafeFromPrimitive;
-use std::{
-    collections::HashMap,
-    ptr::null_mut,
-};
+use std::{collections::HashMap, ptr::null_mut};
 use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
-    string::CefString,
     browser::{Browser, BrowserSettings},
     client::{Client, ClientWrapper},
-    request_context::RequestContext,
-    events::{KeyEvent, MouseEvent, MouseButtonType, TouchEvent},
-    drag::{DragOperation, DragData},
+    drag::{DragData, DragOperation},
+    events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
     file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
-    values::{Range, Point, DictionaryValue, StoredValue},
     image::Image,
-    printing::PDFPrintSettings,
-    window::WindowInfo,
     ime::CompositionUnderline,
     navigation::NavigationEntry,
+    printing::PDFPrintSettings,
     render_process_handler::RenderProcessHandler,
+    request_context::RequestContext,
+    string::CefString,
+    values::{DictionaryValue, Point, Range, StoredValue},
+    window::WindowInfo,
 };
 
 /// Paint element types.
@@ -53,11 +50,31 @@ impl BrowserHost {
     /// opportunity to specify extra information specific to the created browser that
     /// will be passed to [RenderProcessHandler::on_browser_created] in the
     /// render process.
-    pub fn create_browser<C: Client + 'static>(window_info: &WindowInfo, client: C, url: &str, settings: &BrowserSettings, extra_info: Option<&HashMap<String, StoredValue>>, request_context: Option<&RequestContext>) -> bool {
+    pub fn create_browser<C: Client + 'static>(
+        window_info: &WindowInfo,
+        client: C,
+        url: &str,
+        settings: &BrowserSettings,
+        extra_info: Option<&HashMap<String, StoredValue>>,
+        request_context: Option<&RequestContext>,
+    ) -> bool {
         let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
         let client = ClientWrapper::wrap(client);
 
-        unsafe { cef_browser_host_create_browser(window_info.get(), client, CefString::new(url).as_ref(), settings.get(), extra_info.and_then(|mut ei| Some(ei.get_mut())).unwrap_or_else(null_mut), request_context.and_then(|rc| Some(rc.as_ptr())).unwrap_or_else(null_mut)) != 0 }
+        unsafe {
+            cef_browser_host_create_browser(
+                window_info.get(),
+                client,
+                CefString::new(url).as_ref(),
+                settings.get(),
+                extra_info
+                    .and_then(|mut ei| Some(ei.get_mut()))
+                    .unwrap_or_else(null_mut),
+                request_context
+                    .and_then(|rc| Some(rc.as_ptr()))
+                    .unwrap_or_else(null_mut),
+            ) != 0
+        }
     }
     /// Returns the hosted browser object.
     pub fn get_browser(&self) -> Browser {
@@ -142,7 +159,15 @@ impl BrowserHost {
     /// selected from `accept_filters`. The second parameter will be a single value
     /// or a list of values depending on the dialog mode. If the selection was
     /// cancelled it will be None.
-    pub fn run_file_dialog<F: FnOnce(usize, Option<Vec<String>>)>(&self, mode: FileDialogMode, title: Option<&str>, default_file_path: Option<&str>, accept_filters: &[&str], selected_accept_filter: i32, callback: F) {
+    pub fn run_file_dialog<F: FnOnce(usize, Option<Vec<String>>)>(
+        &self,
+        mode: FileDialogMode,
+        title: Option<&str>,
+        default_file_path: Option<&str>,
+        accept_filters: &[&str],
+        selected_accept_filter: i32,
+        callback: F,
+    ) {
         // RunFileDialogCallbackWrapper!
         unimplemented!()
     }
@@ -164,7 +189,14 @@ impl BrowserHost {
     /// On the callback, the first parameter is the URL that was downloaded, the
     /// second parameter is the resulting HTTP status code and the third is the
     /// resulting image, possibly None if the download failed.
-    pub fn download_image<F: FnOnce(&str, u16, Option<Image>)>(&self, image_url: &str, is_favicon: bool, max_image_size: u32, bypass_cache: bool, callback: F) {
+    pub fn download_image<F: FnOnce(&str, u16, Option<Image>)>(
+        &self,
+        image_url: &str,
+        is_favicon: bool,
+        max_image_size: u32,
+        bypass_cache: bool,
+        callback: F,
+    ) {
         unimplemented!()
     }
     /// Print the current browser contents.
@@ -178,7 +210,12 @@ impl BrowserHost {
     ///
     /// On the callback, the first parameter is the output path. The second parameter
     /// will be true if the printing completed successfully or false otherwise.
-    pub fn print_to_pdf<F: FnOnce(&str, bool)>(&self, path: &str, settings: PDFPrintSettings, callback: F) {
+    pub fn print_to_pdf<F: FnOnce(&str, bool)>(
+        &self,
+        path: &str,
+        settings: PDFPrintSettings,
+        callback: F,
+    ) {
         unimplemented!()
     }
     /// Search for `searchText`. `identifier` must be a unique ID and these IDs
@@ -190,7 +227,14 @@ impl BrowserHost {
     /// whether this is the first request or a follow-up. The [FindHandler]
     /// instance, if any, returned via [Client::get_find_handler] will be called
     /// to report find results.
-    pub fn find(&self, identifier: i32, search_text: &str, forward: bool, match_case: bool, find_next: bool) {
+    pub fn find(
+        &self,
+        identifier: i32,
+        search_text: &str,
+        forward: bool,
+        match_case: bool,
+        find_next: bool,
+    ) {
         unimplemented!()
     }
     /// Cancel all searches that are currently going on.
@@ -204,7 +248,13 @@ impl BrowserHost {
     /// is non-None then the element at the specified (x,y) location will be
     /// inspected. The `window_info` parameter will be ignored if this browser is
     /// wrapped in a [BrowserView].
-    pub fn show_dev_tools(&self, window_info: &WindowInfo, client: Option<Box<dyn Client>>, settings: Option<BrowserSettings>, inspect_element_at: Point) {
+    pub fn show_dev_tools(
+        &self,
+        window_info: &WindowInfo,
+        client: Option<Box<dyn Client>>,
+        settings: Option<BrowserSettings>,
+        inspect_element_at: Point,
+    ) {
         unimplemented!()
     }
     /// Explicitly close the associated DevTools browser, if any.
@@ -226,7 +276,11 @@ impl BrowserHost {
     /// third parameter. The second parameter indicates whether it's the currently
     /// loaded navigation entry and the fourth parameter is the total number of
     /// entries. Return true to continue visiting entries or false to stop.
-    pub fn get_navigation_entries<F: Fn(&NavigationEntry, bool, usize, usize) -> bool>(&self, visitor: F, current_only: bool) {
+    pub fn get_navigation_entries<F: Fn(&NavigationEntry, bool, usize, usize) -> bool>(
+        &self,
+        visitor: F,
+        current_only: bool,
+    ) {
         unimplemented!()
     }
     /// Set whether mouse cursor change is disabled.
@@ -289,7 +343,13 @@ impl BrowserHost {
     }
     /// Send a mouse click event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view.
-    pub fn send_mouse_click_event(&mut self, event: &MouseEvent, button_type: MouseButtonType, mouse_up: bool, click_count: i32) {
+    pub fn send_mouse_click_event(
+        &mut self,
+        event: &MouseEvent,
+        button_type: MouseButtonType,
+        mouse_up: bool,
+        click_count: i32,
+    ) {
         unimplemented!()
     }
     /// Send a mouse move event to the browser. The `x` and `y` coordinates are
@@ -359,7 +419,14 @@ impl BrowserHost {
     ///   C. insertText of NSTextInput is called (on Mac).
     ///
     /// This function is only used when window rendering is disabled.
-    pub fn ime_set_composition(&mut self, text: &str, underlines_count: usize, underlines: &CompositionUnderline, replacement_range: Range, selection_range: Range) {
+    pub fn ime_set_composition(
+        &mut self,
+        text: &str,
+        underlines_count: usize,
+        underlines: &CompositionUnderline,
+        replacement_range: Range,
+        selection_range: Range,
+    ) {
         unimplemented!()
     }
 
@@ -370,7 +437,12 @@ impl BrowserHost {
     /// comments on [BrowserHost::ime_set_composition] for usage. The `replacement_range` and
     /// `relative_cursor_pos` values are only used on OS X. This function is only
     /// used when window rendering is disabled.
-    pub fn ime_commit_text(&mut self, text: Option<&str>, replacement_range: Option<Range>, relative_cursor_pos: i32) {
+    pub fn ime_commit_text(
+        &mut self,
+        text: Option<&str>,
+        replacement_range: Option<Range>,
+        relative_cursor_pos: i32,
+    ) {
         unimplemented!()
     }
     /// Completes the existing composition by applying the current composition node
@@ -393,7 +465,12 @@ impl BrowserHost {
     /// [DragData::reset_file_contents] (for example, if `drag_data` comes from
     /// [RenderHandler::start_dragging]). This function is only used when
     /// window rendering is disabled.
-    pub fn drag_target_drag_enter(&mut self, drag_data: &DragData, event: &MouseEvent, allowed_ops: &[DragOperation]) {
+    pub fn drag_target_drag_enter(
+        &mut self,
+        drag_data: &DragData,
+        event: &MouseEvent,
+        allowed_ops: &[DragOperation],
+    ) {
         unimplemented!()
     }
     /// Call this function each time the mouse is moved across the web view during
@@ -454,13 +531,17 @@ impl std::convert::AsRef<cef_browser_host_t> for BrowserHost {
 #[doc(hidden)]
 impl From<*mut cef_browser_host_t> for BrowserHost {
     fn from(browser_host: *mut cef_browser_host_t) -> Self {
-        unsafe { ((*browser_host).base.add_ref.unwrap())(&mut (*browser_host).base); }
+        unsafe {
+            ((*browser_host).base.add_ref.unwrap())(&mut (*browser_host).base);
+        }
         Self(browser_host)
     }
 }
 
 impl Drop for BrowserHost {
     fn drop(&mut self) {
-        unsafe { (self.as_ref().base.release.unwrap())(&mut (*self.0).base); }
+        unsafe {
+            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
+        }
     }
 }

@@ -1,8 +1,10 @@
-use cef_sys::{cef_base_ref_counted_t, cef_string_t, cef_string_utf8_to_utf16, cef_string_list_t, cef_string_list_alloc, cef_string_list_size, cef_string_list_value, cef_string_list_free, cef_string_visitor_t};
-
-use crate::{
-    refcounted::{RefCounted, RefCounter},
+use cef_sys::{
+    cef_base_ref_counted_t, cef_string_list_alloc, cef_string_list_free, cef_string_list_size,
+    cef_string_list_t, cef_string_list_value, cef_string_t, cef_string_utf8_to_utf16,
+    cef_string_visitor_t,
 };
+
+use crate::refcounted::{RefCounted, RefCounter};
 
 pub(crate) struct CefString(cef_string_t);
 
@@ -11,7 +13,11 @@ impl CefString {
         let mut instance = unsafe { std::mem::zeroed() };
         let len = source.len();
         unsafe {
-            cef_string_utf8_to_utf16(source.as_ptr() as *const std::os::raw::c_char, len, &mut instance);
+            cef_string_utf8_to_utf16(
+                source.as_ptr() as *const std::os::raw::c_char,
+                len,
+                &mut instance,
+            );
         }
         CefString(instance)
     }
@@ -19,7 +25,9 @@ impl CefString {
         if source.is_null() {
             None
         } else {
-            Some(String::from_utf16_lossy(unsafe { std::slice::from_raw_parts((*source).str, (*source).length) }))
+            Some(String::from_utf16_lossy(unsafe {
+                std::slice::from_raw_parts((*source).str, (*source).length)
+            }))
         }
     }
 }
@@ -33,7 +41,9 @@ impl Default for CefString {
 impl Drop for CefString {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.dtor {
-            unsafe { dtor(self.0.str); }
+            unsafe {
+                dtor(self.0.str);
+            }
         }
     }
 }
@@ -66,7 +76,9 @@ impl Default for CefStringList {
 
 impl Drop for CefStringList {
     fn drop(&mut self) {
-        unsafe { cef_string_list_free(self.0); }
+        unsafe {
+            cef_string_list_free(self.0);
+        }
     }
 }
 
@@ -92,13 +104,19 @@ impl CefStringList {
 }
 
 pub(crate) fn from_string_list(list: cef_string_list_t) -> Vec<String> {
-    (0..unsafe { cef_string_list_size(list) }).map(|index| {
-        let item = CefString::default();
-        unsafe {
-            cef_string_list_value(list, index, item.as_ref() as *const cef_string_t as *mut cef_string_t);
-        }
-        item.into()
-    }).collect()
+    (0..unsafe { cef_string_list_size(list) })
+        .map(|index| {
+            let item = CefString::default();
+            unsafe {
+                cef_string_list_value(
+                    list,
+                    index,
+                    item.as_ref() as *const cef_string_t as *mut cef_string_t,
+                );
+            }
+            item.into()
+        })
+        .collect()
 }
 
 /// Implement this trait to receive string values asynchronously.
@@ -118,10 +136,13 @@ pub(crate) struct StringVisitorWrapper();
 
 impl StringVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn StringVisitor>) -> *mut cef_string_visitor_t {
-        let mut rc = RefCounted::new(cef_string_visitor_t {
-            base: unsafe { std::mem::zeroed() },
-            visit: Some(Self::visit),
-        }, delegate);
+        let mut rc = RefCounted::new(
+            cef_string_visitor_t {
+                base: unsafe { std::mem::zeroed() },
+                visit: Some(Self::visit),
+            },
+            delegate,
+        );
         unsafe { &mut *rc }.get_cef()
     }
 

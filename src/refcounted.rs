@@ -1,10 +1,10 @@
-use std::{
-    sync::atomic::{AtomicUsize, Ordering},
-    os::raw::c_int,
-    ops::{Deref, DerefMut},
-    mem::ManuallyDrop,
-};
 use cef_sys::cef_base_ref_counted_t;
+use std::{
+    mem::ManuallyDrop,
+    ops::{Deref, DerefMut},
+    os::raw::c_int,
+    sync::atomic::{AtomicUsize, Ordering},
+};
 
 use crate::ptr_hash::Hashed;
 
@@ -74,16 +74,26 @@ impl<C: RefCounter + Sized> RefCounted<C> {
         if this.refcount.fetch_sub(1, Ordering::AcqRel) < 1 {
             ManuallyDrop::into_inner(this);
             0
-        } else { 1 }
+        } else {
+            1
+        }
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
         let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
         let counter = this.refcount.load(Ordering::Acquire);
-        if counter == 1 { 1 } else { 0 }
+        if counter == 1 {
+            1
+        } else {
+            0
+        }
     }
     extern "C" fn has_at_least_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
         let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
         let counter = this.refcount.load(Ordering::Acquire);
-        if counter >= 1 { 1 } else { 0 }
+        if counter >= 1 {
+            1
+        } else {
+            0
+        }
     }
 }

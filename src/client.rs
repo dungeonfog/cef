@@ -1,10 +1,10 @@
-use cef_sys::{cef_client_t, cef_base_ref_counted_t};
+use cef_sys::{cef_base_ref_counted_t, cef_client_t};
 
 use crate::{
-    refcounted::{RefCounter, RefCounted},
     browser::Browser,
     frame::Frame,
     process::ProcessId,
+    refcounted::{RefCounted, RefCounter},
 };
 
 /// Implement this trait to provide handler implementations.
@@ -59,12 +59,15 @@ impl RefCounter for cef_client_t {
 
 impl ClientWrapper {
     pub(crate) fn wrap<C: Client + 'static>(delegate: C) -> *mut cef_client_t {
-        let mut rc = RefCounted::new(cef_client_t {
-            base: unsafe { std::mem::zeroed() },
-            ..unsafe { std::mem::zeroed() }
-        }, Self {
-            delegate: Box::new(delegate),
-        });
+        let mut rc = RefCounted::new(
+            cef_client_t {
+                base: unsafe { std::mem::zeroed() },
+                ..unsafe { std::mem::zeroed() }
+            },
+            Self {
+                delegate: Box::new(delegate),
+            },
+        );
         unsafe { &mut *rc }.get_cef()
     }
 }

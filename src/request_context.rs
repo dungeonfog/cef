@@ -1,15 +1,21 @@
-use cef_sys::{cef_base_ref_counted_t, cef_string_t, cef_request_context_t, cef_request_context_handler_t, cef_request_context_get_global_context, cef_request_context_create_context, cef_create_context_shared, cef_request_context_settings_t, cef_string_utf8_to_utf16, cef_web_plugin_info_t, cef_plugin_policy_t, cef_browser_t, cef_frame_t, cef_request_t, cef_resource_request_handler_t};
+use cef_sys::{
+    cef_base_ref_counted_t, cef_browser_t, cef_create_context_shared, cef_frame_t,
+    cef_plugin_policy_t, cef_request_context_create_context,
+    cef_request_context_get_global_context, cef_request_context_handler_t,
+    cef_request_context_settings_t, cef_request_context_t, cef_request_t,
+    cef_resource_request_handler_t, cef_string_t, cef_string_utf8_to_utf16, cef_web_plugin_info_t,
+};
 
-use std::ptr::{null, null_mut};
 use num_enum::UnsafeFromPrimitive;
+use std::ptr::{null, null_mut};
 
 use crate::{
-    refcounted::{RefCounted, RefCounter},
-    string::CefString,
     browser::Browser,
     frame::Frame,
+    refcounted::{RefCounted, RefCounter},
     request::Request,
     resource_request::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
+    string::CefString,
     web_plugin::WebPluginInfo,
 };
 
@@ -46,7 +52,17 @@ pub trait RequestContextHandler: Send + Sync {
     /// `top_origin_url` is None. To purge the plugin list cache and potentially
     /// trigger new calls to this function call
     /// [RequestContext::purge_plugin_list_cache].
-    fn on_before_plugin_load(&self, mime_type: &str, plugin_url: Option<&str>, is_main_frame: bool, top_origin_url: Option<&str>, plugin_info: &WebPluginInfo, plugin_policy: PluginPolicy) -> Option<PluginPolicy> { None }
+    fn on_before_plugin_load(
+        &self,
+        mime_type: &str,
+        plugin_url: Option<&str>,
+        is_main_frame: bool,
+        top_origin_url: Option<&str>,
+        plugin_info: &WebPluginInfo,
+        plugin_policy: PluginPolicy,
+    ) -> Option<PluginPolicy> {
+        None
+    }
     /// Called on the browser process IO thread before a resource request is
     /// initiated. The `browser` and `frame` values represent the source of the
     /// request, and may be None for requests originating from service workers or
@@ -63,7 +79,18 @@ pub trait RequestContextHandler: Send + Sync {
     /// the client associated with `browser` returns a non-None value from
     /// [RequestHandler::get_resource_request_handler] for the same request
     /// (identified by [Request::get_identifier]).
-    fn get_resource_request_handler(&self, browser: Option<&Browser>, frame: Option<&Frame>, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Box<dyn ResourceRequestHandler>> { None }
+    fn get_resource_request_handler(
+        &self,
+        browser: Option<&Browser>,
+        frame: Option<&Frame>,
+        request: &Request,
+        is_navigation: bool,
+        is_download: bool,
+        request_initiator: &str,
+        disable_default_handling: &mut bool,
+    ) -> Option<Box<dyn ResourceRequestHandler>> {
+        None
+    }
 }
 
 pub(crate) struct RequestContextHandlerWrapper {
@@ -79,28 +106,50 @@ impl RefCounter for cef_request_context_handler_t {
 }
 
 impl RequestContextHandlerWrapper {
-    pub(crate) fn wrap(delegate: Box<dyn RequestContextHandler>) -> *mut cef_request_context_handler_t {
-        let mut rc = RefCounted::new(cef_request_context_handler_t {
-            base: unsafe { std::mem::zeroed() },
-            on_request_context_initialized: Some(Self::request_context_initialized),
-            on_before_plugin_load: Some(Self::before_plugin_load),
-            get_resource_request_handler: Some(Self::get_resource_request_handler),
-        }, Self {
-            delegate,
-            resource_request_handler: None,
-        });
+    pub(crate) fn wrap(
+        delegate: Box<dyn RequestContextHandler>,
+    ) -> *mut cef_request_context_handler_t {
+        let mut rc = RefCounted::new(
+            cef_request_context_handler_t {
+                base: unsafe { std::mem::zeroed() },
+                on_request_context_initialized: Some(Self::request_context_initialized),
+                on_before_plugin_load: Some(Self::before_plugin_load),
+                get_resource_request_handler: Some(Self::get_resource_request_handler),
+            },
+            Self {
+                delegate,
+                resource_request_handler: None,
+            },
+        );
         unsafe { &mut *rc }.get_cef()
     }
-    extern "C" fn request_context_initialized(self_: *mut cef_request_context_handler_t, request_context: *mut cef_request_context_t) {
+    extern "C" fn request_context_initialized(
+        self_: *mut cef_request_context_handler_t,
+        request_context: *mut cef_request_context_t,
+    ) {
         let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
-        this.delegate.on_request_context_initialized(&RequestContext(request_context));
+        this.delegate
+            .on_request_context_initialized(&RequestContext(request_context));
     }
-    extern "C" fn before_plugin_load(self_: *mut cef_request_context_handler_t, mime_type: *const cef_string_t, plugin_url: *const cef_string_t, is_main_frame: std::os::raw::c_int, top_origin_url: *const cef_string_t, plugin_info: *mut cef_web_plugin_info_t, plugin_policy: *mut cef_plugin_policy_t::Type) -> std::os::raw::c_int {
+    extern "C" fn before_plugin_load(
+        self_: *mut cef_request_context_handler_t,
+        mime_type: *const cef_string_t,
+        plugin_url: *const cef_string_t,
+        is_main_frame: std::os::raw::c_int,
+        top_origin_url: *const cef_string_t,
+        plugin_info: *mut cef_web_plugin_info_t,
+        plugin_policy: *mut cef_plugin_policy_t::Type,
+    ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
-        if let Some(policy) = this.delegate.on_before_plugin_load(&CefString::copy_raw_to_string(mime_type).unwrap(),
-            CefString::copy_raw_to_string(plugin_url).as_ref().and_then(|s| Some(s.as_str())),
+        if let Some(policy) = this.delegate.on_before_plugin_load(
+            &CefString::copy_raw_to_string(mime_type).unwrap(),
+            CefString::copy_raw_to_string(plugin_url)
+                .as_ref()
+                .and_then(|s| Some(s.as_str())),
             is_main_frame != 0,
-            CefString::copy_raw_to_string(top_origin_url).as_ref().and_then(|s| Some(s.as_str())),
+            CefString::copy_raw_to_string(top_origin_url)
+                .as_ref()
+                .and_then(|s| Some(s.as_str())),
             &WebPluginInfo::from(plugin_info),
             unsafe { PluginPolicy::from_unchecked(*plugin_policy) },
         ) {
@@ -110,23 +159,46 @@ impl RequestContextHandlerWrapper {
             0
         }
     }
-    extern "C" fn get_resource_request_handler(self_: *mut cef_request_context_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, is_navigation: std::os::raw::c_int, is_download: std::os::raw::c_int, request_initiator: *const cef_string_t, disable_default_handling: *mut std::os::raw::c_int) -> *mut cef_resource_request_handler_t {
+    extern "C" fn get_resource_request_handler(
+        self_: *mut cef_request_context_handler_t,
+        browser: *mut cef_browser_t,
+        frame: *mut cef_frame_t,
+        request: *mut cef_request_t,
+        is_navigation: std::os::raw::c_int,
+        is_download: std::os::raw::c_int,
+        request_initiator: *const cef_string_t,
+        disable_default_handling: *mut std::os::raw::c_int,
+    ) -> *mut cef_resource_request_handler_t {
         let mut this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
         let mut local_disable_default_handling = false;
         if let Some(resource_request_handler) = this.delegate.get_resource_request_handler(
-            unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _))).as_ref(),
-            unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _))).as_ref(),
+            unsafe { browser.as_mut() }
+                .and_then(|browser| Some(Browser::from(browser as *mut _)))
+                .as_ref(),
+            unsafe { frame.as_mut() }
+                .and_then(|frame| Some(Frame::from(frame as *mut _)))
+                .as_ref(),
             &Request::from(request),
             is_navigation != 0,
             is_download != 0,
-            CefString::copy_raw_to_string(request_initiator).as_ref().and_then(|s| Some(s.as_str())).unwrap_or(""),
-            &mut local_disable_default_handling
+            CefString::copy_raw_to_string(request_initiator)
+                .as_ref()
+                .and_then(|s| Some(s.as_str()))
+                .unwrap_or(""),
+            &mut local_disable_default_handling,
         ) {
             if local_disable_default_handling {
                 unsafe { (*disable_default_handling) = 1 };
             }
-            if let Some(resource_request_handler) = this.resource_request_handler.replace(ResourceRequestHandlerWrapper::wrap(resource_request_handler)) {
-                RefCounted::<cef_resource_request_handler_t>::release(resource_request_handler as *mut cef_base_ref_counted_t);
+            if let Some(resource_request_handler) =
+                this.resource_request_handler
+                    .replace(ResourceRequestHandlerWrapper::wrap(
+                        resource_request_handler,
+                    ))
+            {
+                RefCounted::<cef_resource_request_handler_t>::release(
+                    resource_request_handler as *mut cef_base_ref_counted_t,
+                );
             }
             this.resource_request_handler.unwrap()
         } else {
@@ -134,7 +206,9 @@ impl RequestContextHandlerWrapper {
                 unsafe { (*disable_default_handling) = 1 };
             }
             if let Some(resource_request_handler) = this.resource_request_handler.take() {
-                RefCounted::<cef_resource_request_handler_t>::release(resource_request_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_resource_request_handler_t>::release(
+                    resource_request_handler as *mut cef_base_ref_counted_t,
+                );
             }
             null_mut() as *mut cef_resource_request_handler_t
         }
@@ -164,7 +238,10 @@ impl RequestContext {
     }
     /// Creates a new context object that shares storage with `other` and uses an
     /// optional `handler`.
-    pub fn new_shared(other: &RequestContext, handler: Option<Box<dyn RequestContextHandler>>) -> Self {
+    pub fn new_shared(
+        other: &RequestContext,
+        handler: Option<Box<dyn RequestContextHandler>>,
+    ) -> Self {
         let handler_ptr = if let Some(handler) = handler {
             RequestContextHandlerWrapper::wrap(handler)
         } else {
@@ -179,7 +256,10 @@ impl RequestContext {
 }
 
 /// Request context initialization settings.
-pub struct RequestContextBuilder(Option<cef_request_context_settings_t>, Option<Box<dyn RequestContextHandler>>);
+pub struct RequestContextBuilder(
+    Option<cef_request_context_settings_t>,
+    Option<Box<dyn RequestContextHandler>>,
+);
 
 impl RequestContextBuilder {
     pub fn new() -> Self {
@@ -188,25 +268,31 @@ impl RequestContextBuilder {
     /// Creates a new context object with the specified `settings` and optional
     /// `handler`.
     pub fn build(self) -> RequestContext {
-        let settings_ptr = self.0.and_then(|settings| Some(&settings as *const _)).unwrap_or_else(null);
+        let settings_ptr = self
+            .0
+            .and_then(|settings| Some(&settings as *const _))
+            .unwrap_or_else(null);
         let handler_ptr = if let Some(handler) = self.1 {
             RequestContextHandlerWrapper::wrap(handler)
         } else {
             null()
         };
-        RequestContext(unsafe { cef_request_context_create_context(settings_ptr, handler_ptr as *mut _) })
+        RequestContext(unsafe {
+            cef_request_context_create_context(settings_ptr, handler_ptr as *mut _)
+        })
     }
 
     fn get_settings(&mut self) -> &mut cef_request_context_settings_t {
-        self.0.get_or_insert_with(|| cef_request_context_settings_t {
-            size: std::mem::size_of::<cef_request_context_settings_t>(),
-            cache_path: unsafe { std::mem::zeroed() },
-            persist_session_cookies: 0,
-            persist_user_preferences: 0,
-            ignore_certificate_errors: 0,
-            enable_net_security_expiration: 0,
-            accept_language_list: unsafe { std::mem::zeroed() },
-        })
+        self.0
+            .get_or_insert_with(|| cef_request_context_settings_t {
+                size: std::mem::size_of::<cef_request_context_settings_t>(),
+                cache_path: unsafe { std::mem::zeroed() },
+                persist_session_cookies: 0,
+                persist_user_preferences: 0,
+                ignore_certificate_errors: 0,
+                enable_net_security_expiration: 0,
+                accept_language_list: unsafe { std::mem::zeroed() },
+            })
     }
 
     /// Optionally supply a handler to the request context. See [RequestContextHandler].
@@ -226,7 +312,13 @@ impl RequestContextBuilder {
     pub fn with_cache_path(mut self, path: &str) -> Self {
         let settings = self.get_settings();
         let len = path.len();
-        unsafe { cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, len, &mut settings.cache_path); }
+        unsafe {
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                len,
+                &mut settings.cache_path,
+            );
+        }
         self
     }
 
@@ -286,7 +378,13 @@ impl RequestContextBuilder {
     pub fn accept_language_list(mut self, list: &str) -> Self {
         let settings = self.get_settings();
         let len = list.len();
-        unsafe { cef_string_utf8_to_utf16(list.as_ptr() as *const std::os::raw::c_char, len, &mut settings.accept_language_list); }
+        unsafe {
+            cef_string_utf8_to_utf16(
+                list.as_ptr() as *const std::os::raw::c_char,
+                len,
+                &mut settings.accept_language_list,
+            );
+        }
         self
     }
 }

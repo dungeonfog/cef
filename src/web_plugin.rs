@@ -1,8 +1,6 @@
-use cef_sys::{cef_web_plugin_info_t, cef_string_userfree_utf16_free};
+use cef_sys::{cef_string_userfree_utf16_free, cef_web_plugin_info_t};
 
-use crate::{
-    string::CefString,
-};
+use crate::string::CefString;
 
 /// Information about a specific web plugin.
 pub struct WebPluginInfo {
@@ -39,12 +37,14 @@ impl From<*mut cef_web_plugin_info_t> for WebPluginInfo {
         let mut version = unsafe { (*info).get_version.unwrap()(info) };
         let mut description = unsafe { (*info).get_description.unwrap()(info) };
 
-        let result = unsafe { Self {
-            name: CefString::copy_raw_to_string(name).unwrap(),
-            path: CefString::copy_raw_to_string(path).unwrap(),
-            version: CefString::copy_raw_to_string(version).unwrap(),
-            description: CefString::copy_raw_to_string(description).unwrap(),
-        }};
+        let result = unsafe {
+            Self {
+                name: CefString::copy_raw_to_string(name).unwrap(),
+                path: CefString::copy_raw_to_string(path).unwrap(),
+                version: CefString::copy_raw_to_string(version).unwrap(),
+                description: CefString::copy_raw_to_string(description).unwrap(),
+            }
+        };
         unsafe {
             cef_string_userfree_utf16_free(name);
             cef_string_userfree_utf16_free(path);

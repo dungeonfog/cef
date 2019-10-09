@@ -1,9 +1,6 @@
-use cef_sys::{cef_settings_t, cef_string_utf8_to_utf16, cef_log_severity_t};
+use crate::{color::Color, string::CefString};
+use cef_sys::{cef_log_severity_t, cef_settings_t, cef_string_utf8_to_utf16};
 use num_enum::UnsafeFromPrimitive;
-use crate::{
-    string::CefString,
-    color::Color,
-};
 
 /// Log severity levels.
 #[repr(i32)]
@@ -85,7 +82,11 @@ impl Settings {
     /// switch.
     pub fn set_browser_subprocess_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.browser_subprocess_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.browser_subprocess_path,
+            );
         }
     }
     /// The path to the CEF framework directory on macOS. If this value is empty
@@ -95,7 +96,11 @@ impl Settings {
     #[cfg(target_os = "macos")]
     pub fn set_framework_dir_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.framework_dir_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.framework_dir_path,
+            );
         }
     }
     /// The path to the main bundle on macOS. If this value is empty then it
@@ -104,7 +109,11 @@ impl Settings {
     #[cfg(target_os = "macos")]
     pub fn set_main_bundle_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.main_bundle_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.main_bundle_path,
+            );
         }
     }
     /// Call to have the browser process message loop run in a separate
@@ -148,7 +157,11 @@ impl Settings {
     /// [RequestContextSettings::cache_path] value.
     pub fn set_cache_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.cache_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.cache_path,
+            );
         }
     }
     /// The root directory that all [Settings::set_cache_path] and
@@ -159,7 +172,11 @@ impl Settings {
     /// cache_path directory.
     pub fn set_root_cache_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.root_cache_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.root_cache_path,
+            );
         }
     }
     /// The location where user data such as spell checking dictionary files will
@@ -170,7 +187,11 @@ impl Settings {
     /// profile directory on Windows).
     pub fn set_user_data_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.user_data_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.user_data_path,
+            );
         }
     }
     /// To persist session cookies (cookies without an expiry date or validity
@@ -198,7 +219,11 @@ impl Settings {
     /// "user-agent" command-line switch.
     pub fn set_user_agent(&mut self, agent: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(agent.as_ptr() as *const std::os::raw::c_char, agent.len(), &mut self.0.user_agent);
+            cef_string_utf8_to_utf16(
+                agent.as_ptr() as *const std::os::raw::c_char,
+                agent.len(),
+                &mut self.0.user_agent,
+            );
         }
     }
     /// Value that will be inserted as the product portion of the default
@@ -207,7 +232,11 @@ impl Settings {
     /// using the "product-version" command-line switch.
     pub fn set_product_version(&mut self, version: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(version.as_ptr() as *const std::os::raw::c_char, version.len(), &mut self.0.product_version);
+            cef_string_utf8_to_utf16(
+                version.as_ptr() as *const std::os::raw::c_char,
+                version.len(),
+                &mut self.0.product_version,
+            );
         }
     }
     /// The locale string that will be passed to WebKit. If empty the default
@@ -217,7 +246,11 @@ impl Settings {
     /// command-line switch.
     pub fn set_locale(&mut self, locale: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(locale.as_ptr() as *const std::os::raw::c_char, locale.len(), &mut self.0.locale);
+            cef_string_utf8_to_utf16(
+                locale.as_ptr() as *const std::os::raw::c_char,
+                locale.len(),
+                &mut self.0.locale,
+            );
         }
     }
     /// The directory and file name to use for the debug log. If empty a default
@@ -228,7 +261,11 @@ impl Settings {
     /// "log-file" command-line switch.
     pub fn set_log_file(&mut self, file: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(file.as_ptr() as *const std::os::raw::c_char, file.len(), &mut self.0.log_file);
+            cef_string_utf8_to_utf16(
+                file.as_ptr() as *const std::os::raw::c_char,
+                file.len(),
+                &mut self.0.log_file,
+            );
         }
     }
     /// The log severity. Only messages of this severity level or higher will be
@@ -244,7 +281,11 @@ impl Settings {
     /// configurable using the "js-flags" command-line switch.
     pub fn set_javascript_flags(&mut self, flags: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(flags.as_ptr() as *const std::os::raw::c_char, flags.len(), &mut self.0.javascript_flags);
+            cef_string_utf8_to_utf16(
+                flags.as_ptr() as *const std::os::raw::c_char,
+                flags.len(),
+                &mut self.0.javascript_flags,
+            );
         }
     }
     /// The fully qualified path for the resources directory. If this value is
@@ -254,7 +295,11 @@ impl Settings {
     /// switch.
     pub fn set_resources_dir_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.resources_dir_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.resources_dir_path,
+            );
         }
     }
     /// The fully qualified path for the locales directory. If this value is empty
@@ -264,7 +309,11 @@ impl Settings {
     /// command-line switch.
     pub fn set_locales_dir_path(&mut self, path: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(path.as_ptr() as *const std::os::raw::c_char, path.len(), &mut self.0.locales_dir_path);
+            cef_string_utf8_to_utf16(
+                path.as_ptr() as *const std::os::raw::c_char,
+                path.len(),
+                &mut self.0.locales_dir_path,
+            );
         }
     }
     /// Call to disable loading of pack files for resources and locales.
@@ -331,7 +380,11 @@ impl Settings {
     /// [RequestContextSettings::accept_language_list] value.
     pub fn set_accept_language_list(&mut self, list: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(list.as_ptr() as *const std::os::raw::c_char, list.len(), &mut self.0.accept_language_list);
+            cef_string_utf8_to_utf16(
+                list.as_ptr() as *const std::os::raw::c_char,
+                list.len(),
+                &mut self.0.accept_language_list,
+            );
         }
     }
     /// GUID string used for identifying the application. This is passed to the
@@ -340,7 +393,11 @@ impl Settings {
     /// file when the GUID is empty.
     pub fn set_application_client_id_for_file_scanning(&mut self, guid: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(guid.as_ptr() as *const std::os::raw::c_char, guid.len(), &mut self.0.application_client_id_for_file_scanning);
+            cef_string_utf8_to_utf16(
+                guid.as_ptr() as *const std::os::raw::c_char,
+                guid.len(),
+                &mut self.0.application_client_id_for_file_scanning,
+            );
         }
     }
 }
@@ -366,7 +423,9 @@ impl Drop for Settings {
             &settings.application_client_id_for_file_scanning,
         ] {
             if let Some(dtor) = cefstr.dtor {
-                unsafe { dtor(cefstr.str); }
+                unsafe {
+                    dtor(cefstr.str);
+                }
             }
         }
     }

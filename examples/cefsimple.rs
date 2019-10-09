@@ -1,10 +1,8 @@
 #[cfg(windows)]
-use winapi::um::{libloaderapi::GetModuleHandleA, winuser::{
-    WS_OVERLAPPEDWINDOW,
-    WS_CLIPCHILDREN,
-    WS_CLIPSIBLINGS,
-    WS_VISIBLE,
-}};
+use winapi::um::{
+    libloaderapi::GetModuleHandleA,
+    winuser::{WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_OVERLAPPEDWINDOW, WS_VISIBLE},
+};
 
 pub struct AppCallbacks();
 
@@ -26,7 +24,8 @@ fn main() {
     let mut settings = cef::Settings::new();
     settings.set_log_severity(cef::LogSeverity::Verbose);
     settings.disable_sandbox();
-    let resources_folder = std::env::var("CEFSIMPLE_ABSOLUTE_RESOURCES_PATH").expect("CEFSIMPLE_ABSOLUTE_RESOURCES_PATH must be set to a valid CEF resources folder");
+    let resources_folder = std::env::var("CEFSIMPLE_ABSOLUTE_RESOURCES_PATH")
+        .expect("CEFSIMPLE_ABSOLUTE_RESOURCES_PATH must be set to a valid CEF resources folder");
     settings.set_resources_dir_path(&resources_folder);
 
     cef::App::initialize(&args, &settings, Some(&app), None);
@@ -39,7 +38,14 @@ fn main() {
 
     let client = Client();
 
-    cef::BrowserHost::create_browser(&window_info, client, "https://www.youtube.com", &browser_settings, None, None);
+    cef::BrowserHost::create_browser(
+        &window_info,
+        client,
+        "https://www.youtube.com",
+        &browser_settings,
+        None,
+        None,
+    );
 
     cef::App::run_message_loop();
 

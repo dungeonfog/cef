@@ -1,6 +1,6 @@
 use cef_sys::cef_main_args_t;
-use winapi::shared::minwindef::HINSTANCE;
 use std::ffi::CString;
+use winapi::shared::minwindef::HINSTANCE;
 
 /// Structure representing CefExecuteProcess arguments.
 pub struct MainArgs {
@@ -16,16 +16,17 @@ impl MainArgs {
     #[cfg(target_os = "windows")]
     pub fn new(instance: HINSTANCE) -> Self {
         Self {
-            cef: cef_main_args_t {
-                instance,
-            }
+            cef: cef_main_args_t { instance },
         }
     }
     /// Create the main arguments for Linux and Mac.
     /// `args` are the command line arguments. A good place to start is [std::env::args].
     #[cfg(not(target_os = "windows"))]
     pub fn new<I: IntoIterator<Item = String>>(args: I) {
-        let mut args: Vec<*mut c_char> = args.into_iter().map(|arg| CString::new(arg).unwrap().into_raw()).collect();
+        let mut args: Vec<*mut c_char> = args
+            .into_iter()
+            .map(|arg| CString::new(arg).unwrap().into_raw())
+            .collect();
         Self {
             cef: Box::into_raw(Box::new(cef_main_args_t {
                 argc: args.len() as i32,

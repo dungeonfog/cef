@@ -1,9 +1,8 @@
-use cef_sys::{cef_domnode_t, cef_domvisitor_t, cef_domdocument_t, cef_dom_node_type_t, cef_base_ref_counted_t};
-use std::{
-    convert::TryFrom,
-    collections::HashMap,
+use cef_sys::{
+    cef_base_ref_counted_t, cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t,
 };
 use num_enum::UnsafeFromPrimitive;
+use std::{collections::HashMap, convert::TryFrom};
 
 use crate::{
     refcounted::{RefCounted, RefCounter},
@@ -14,16 +13,16 @@ use crate::{
 #[repr(i32)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum DOMNodeType {
-    Unsupported            = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED as i32,
-    Element                = cef_dom_node_type_t::DOM_NODE_TYPE_ELEMENT as i32,
-    Attribute              = cef_dom_node_type_t::DOM_NODE_TYPE_ATTRIBUTE as i32,
-    Text                   = cef_dom_node_type_t::DOM_NODE_TYPE_TEXT as i32,
-    CDataSection           = cef_dom_node_type_t::DOM_NODE_TYPE_CDATA_SECTION as i32,
+    Unsupported = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED as i32,
+    Element = cef_dom_node_type_t::DOM_NODE_TYPE_ELEMENT as i32,
+    Attribute = cef_dom_node_type_t::DOM_NODE_TYPE_ATTRIBUTE as i32,
+    Text = cef_dom_node_type_t::DOM_NODE_TYPE_TEXT as i32,
+    CDataSection = cef_dom_node_type_t::DOM_NODE_TYPE_CDATA_SECTION as i32,
     ProcessingInstructions = cef_dom_node_type_t::DOM_NODE_TYPE_PROCESSING_INSTRUCTIONS as i32,
-    Comment                = cef_dom_node_type_t::DOM_NODE_TYPE_COMMENT as i32,
-    Document               = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT as i32,
-    DocumentType           = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_TYPE as i32,
-    DocumentFragment       = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as i32,
+    Comment = cef_dom_node_type_t::DOM_NODE_TYPE_COMMENT as i32,
+    Document = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT as i32,
+    DocumentType = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_TYPE as i32,
+    DocumentFragment = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as i32,
 }
 
 /// Structure used to represent a DOM node. The functions of this structure
@@ -152,7 +151,9 @@ impl TryFrom<*mut cef_domnode_t> for DOMNode {
         if node.is_null() {
             Err(())
         } else {
-            unsafe { ((*node).base.add_ref.unwrap())(&mut (*node).base); }
+            unsafe {
+                ((*node).base.add_ref.unwrap())(&mut (*node).base);
+            }
             Ok(Self(node))
         }
     }
@@ -160,7 +161,9 @@ impl TryFrom<*mut cef_domnode_t> for DOMNode {
 
 impl Drop for DOMNode {
     fn drop(&mut self) {
-        unsafe { ((*self.0).base.release.unwrap())(&mut (*self.0).base); }
+        unsafe {
+            ((*self.0).base.release.unwrap())(&mut (*self.0).base);
+        }
     }
 }
 
@@ -169,14 +172,18 @@ pub struct DOMDocument(*mut cef_domdocument_t);
 #[doc(hidden)]
 impl From<*mut cef_domdocument_t> for DOMDocument {
     fn from(document: *mut cef_domdocument_t) -> Self {
-        unsafe { ((*document).base.add_ref.unwrap())(&mut (*document).base); }
+        unsafe {
+            ((*document).base.add_ref.unwrap())(&mut (*document).base);
+        }
         Self(document)
     }
 }
 
 impl Drop for DOMDocument {
     fn drop(&mut self) {
-        unsafe { ((*self.0).base.release.unwrap())(&mut (*self.0).base); }
+        unsafe {
+            ((*self.0).base.release.unwrap())(&mut (*self.0).base);
+        }
     }
 }
 
@@ -200,10 +207,13 @@ pub(crate) struct DOMVisitorWrapper;
 
 impl DOMVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn DOMVisitor>) -> *mut cef_domvisitor_t {
-        let mut rc = RefCounted::new(cef_domvisitor_t {
-            base: unsafe { std::mem::zeroed() },
-            visit: Some(Self::visit),
-        }, delegate);
+        let mut rc = RefCounted::new(
+            cef_domvisitor_t {
+                base: unsafe { std::mem::zeroed() },
+                visit: Some(Self::visit),
+            },
+            delegate,
+        );
         unsafe { &mut *rc }.get_cef()
     }
 

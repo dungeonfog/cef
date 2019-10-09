@@ -1,4 +1,4 @@
-use cef_sys::{cef_scheme_registrar_t, cef_scheme_options_t};
+use cef_sys::{cef_scheme_options_t, cef_scheme_registrar_t};
 
 use crate::string::CefString;
 
@@ -67,13 +67,15 @@ pub enum SchemeOptions {
 impl Into<cef_scheme_options_t::Type> for SchemeOptions {
     fn into(self) -> cef_scheme_options_t::Type {
         match self {
-            SchemeOptions::Standard        => cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD,
-            SchemeOptions::Local           => cef_scheme_options_t::CEF_SCHEME_OPTION_LOCAL,
-            SchemeOptions::DisplayIsolated => cef_scheme_options_t::CEF_SCHEME_OPTION_DISPLAY_ISOLATED,
-            SchemeOptions::Secure          => cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE,
-            SchemeOptions::CORSEnabled     => cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED,
-            SchemeOptions::CSPBypassing    => cef_scheme_options_t::CEF_SCHEME_OPTION_CSP_BYPASSING,
-            SchemeOptions::FetchEnabled    => cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED,
+            SchemeOptions::Standard => cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD,
+            SchemeOptions::Local => cef_scheme_options_t::CEF_SCHEME_OPTION_LOCAL,
+            SchemeOptions::DisplayIsolated => {
+                cef_scheme_options_t::CEF_SCHEME_OPTION_DISPLAY_ISOLATED
+            }
+            SchemeOptions::Secure => cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE,
+            SchemeOptions::CORSEnabled => cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED,
+            SchemeOptions::CSPBypassing => cef_scheme_options_t::CEF_SCHEME_OPTION_CSP_BYPASSING,
+            SchemeOptions::FetchEnabled => cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED,
         }
     }
 }
@@ -89,8 +91,16 @@ impl SchemeRegistrar {
     /// per unique `scheme_name` value. If `scheme_name` is already registered or
     /// if an error occurs this function will return false.
     pub fn add_custom_scheme(&self, scheme_name: &str, options: &[SchemeOptions]) -> bool {
-        let options: std::os::raw::c_int = options.iter().fold(0, |flags, option| flags | (<SchemeOptions as Into<cef_scheme_options_t::Type>>::into(*option)));
-        unsafe { ((*self.0).add_custom_scheme.unwrap())(self.0, CefString::new(scheme_name).as_ref(), options) != 0 }
+        let options: std::os::raw::c_int = options.iter().fold(0, |flags, option| {
+            flags | (<SchemeOptions as Into<cef_scheme_options_t::Type>>::into(*option))
+        });
+        unsafe {
+            ((*self.0).add_custom_scheme.unwrap())(
+                self.0,
+                CefString::new(scheme_name).as_ref(),
+                options,
+            ) != 0
+        }
     }
 }
 

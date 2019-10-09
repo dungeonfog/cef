@@ -1,5 +1,5 @@
-use cef_sys::{cef_sandbox_info_create, cef_sandbox_info_destroy};
 use crate::App;
+use cef_sys::{cef_sandbox_info_create, cef_sandbox_info_destroy};
 
 /// The sandbox is used to restrict sub-processes (renderer, plugin, GPU, etc)
 /// from directly accessing system resources. This helps to protect the user
@@ -31,6 +31,8 @@ impl SandboxInfo {
 impl Drop for SandboxInfo {
     /// Destroy the specified sandbox information object.
     fn drop(&mut self) {
-        unsafe { cef_sandbox_info_destroy(self.0); }
+        unsafe {
+            cef_sandbox_info_destroy(self.0);
+        }
     }
 }

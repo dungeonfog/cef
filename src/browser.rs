@@ -1,10 +1,10 @@
-use cef_sys::{cef_browser_t, cef_browser_settings_t, cef_string_utf8_to_utf16, cef_state_t};
+use cef_sys::{cef_browser_settings_t, cef_browser_t, cef_state_t, cef_string_utf8_to_utf16};
 
 use crate::{
     browser_host::BrowserHost,
+    color::Color,
     frame::Frame,
     string::{CefString, CefStringList},
-    color::Color,
 };
 
 /// Structure used to represent a browser window. When used in the browser
@@ -29,7 +29,9 @@ impl Browser {
     }
     /// Navigate backwards.
     pub fn go_back(&mut self) {
-        unsafe { (self.as_ref().go_back.unwrap())(self.0); }
+        unsafe {
+            (self.as_ref().go_back.unwrap())(self.0);
+        }
     }
     /// Returns true if the browser can navigate forwards.
     pub fn can_go_forward(&self) -> bool {
@@ -37,7 +39,9 @@ impl Browser {
     }
     /// Navigate forwards.
     pub fn go_forward(&mut self) {
-        unsafe { (self.as_ref().go_forward.unwrap())(self.0); }
+        unsafe {
+            (self.as_ref().go_forward.unwrap())(self.0);
+        }
     }
     /// Returns true if the browser is currently loading.
     pub fn is_loading(&self) -> bool {
@@ -46,14 +50,20 @@ impl Browser {
     /// Reload the current page, optionally ignoring any cached data.
     pub fn reload(&mut self, ignore_cache: bool) {
         if ignore_cache {
-            unsafe { (self.as_ref().reload.unwrap())(self.0); }
+            unsafe {
+                (self.as_ref().reload.unwrap())(self.0);
+            }
         } else {
-            unsafe { (self.as_ref().reload_ignore_cache.unwrap())(self.0); }
+            unsafe {
+                (self.as_ref().reload_ignore_cache.unwrap())(self.0);
+            }
         }
     }
     /// Stop loading the page.
     pub fn stop_load(&mut self) {
-        unsafe { (self.as_ref().stop_load.unwrap())(self.0); }
+        unsafe {
+            (self.as_ref().stop_load.unwrap())(self.0);
+        }
     }
     /// Returns the globally unique identifier for this browser. This value is also
     /// used as the tabId for extension APIs.
@@ -92,7 +102,8 @@ impl Browser {
     }
     /// Returns the frame with the specified name, or None if not found.
     pub fn get_frame(&self, name: &str) -> Option<Frame> {
-        let frame = unsafe { (self.as_ref().get_frame.unwrap())(self.0, CefString::new(name).as_ref()) };
+        let frame =
+            unsafe { (self.as_ref().get_frame.unwrap())(self.0, CefString::new(name).as_ref()) };
         if frame.is_null() {
             None
         } else {
@@ -107,13 +118,17 @@ impl Browser {
     pub fn get_frame_identifiers(&self) -> Vec<i64> {
         let mut count = self.get_frame_count();
         let mut result = vec![0; count];
-        unsafe { (self.as_ref().get_frame_identifiers.unwrap())(self.0, &mut count, result.as_mut_ptr()); }
+        unsafe {
+            (self.as_ref().get_frame_identifiers.unwrap())(self.0, &mut count, result.as_mut_ptr());
+        }
         result
     }
     /// Returns the names of all existing frames.
     pub fn get_frame_names(&self) -> Vec<String> {
         let mut list = CefStringList::default();
-        unsafe { (self.as_ref().get_frame_names.unwrap())(self.0, list.get()); }
+        unsafe {
+            (self.as_ref().get_frame_names.unwrap())(self.0, list.get());
+        }
         list.into()
     }
 }
@@ -128,14 +143,18 @@ impl std::convert::AsRef<cef_browser_t> for Browser {
 #[doc(hidden)]
 impl From<*mut cef_browser_t> for Browser {
     fn from(browser: *mut cef_browser_t) -> Self {
-        unsafe { ((*browser).base.add_ref.unwrap())(&mut (*browser).base); }
+        unsafe {
+            ((*browser).base.add_ref.unwrap())(&mut (*browser).base);
+        }
         Self(browser)
     }
 }
 
 impl Drop for Browser {
     fn drop(&mut self) {
-        unsafe { (self.as_ref().base.release.unwrap())(&mut (*self.0).base); }
+        unsafe {
+            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
+        }
     }
 }
 
@@ -185,7 +204,7 @@ impl BrowserSettings {
     pub(crate) fn get(&self) -> *const cef_browser_settings_t {
         &self.0
     }
-    
+
     /// The maximum rate in frames per second (fps) that [RenderHandler::on_paint]
     /// will be called for a windowless browser. The actual fps may be lower if
     /// the browser cannot generate frames at the requested rate. The minimum
@@ -196,32 +215,56 @@ impl BrowserSettings {
     }
     pub fn set_standard_font_family(&mut self, family: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(family.as_ptr() as *const std::os::raw::c_char, family.len(), &mut self.0.standard_font_family);
+            cef_string_utf8_to_utf16(
+                family.as_ptr() as *const std::os::raw::c_char,
+                family.len(),
+                &mut self.0.standard_font_family,
+            );
         }
     }
     pub fn set_fixed_font_family(&mut self, family: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(family.as_ptr() as *const std::os::raw::c_char, family.len(), &mut self.0.fixed_font_family);
+            cef_string_utf8_to_utf16(
+                family.as_ptr() as *const std::os::raw::c_char,
+                family.len(),
+                &mut self.0.fixed_font_family,
+            );
         }
     }
     pub fn set_serif_font_family(&mut self, family: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(family.as_ptr() as *const std::os::raw::c_char, family.len(), &mut self.0.serif_font_family);
+            cef_string_utf8_to_utf16(
+                family.as_ptr() as *const std::os::raw::c_char,
+                family.len(),
+                &mut self.0.serif_font_family,
+            );
         }
     }
     pub fn set_sans_serif_font_family(&mut self, family: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(family.as_ptr() as *const std::os::raw::c_char, family.len(), &mut self.0.sans_serif_font_family);
+            cef_string_utf8_to_utf16(
+                family.as_ptr() as *const std::os::raw::c_char,
+                family.len(),
+                &mut self.0.sans_serif_font_family,
+            );
         }
     }
     pub fn set_cursive_font_family(&mut self, family: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(family.as_ptr() as *const std::os::raw::c_char, family.len(), &mut self.0.cursive_font_family);
+            cef_string_utf8_to_utf16(
+                family.as_ptr() as *const std::os::raw::c_char,
+                family.len(),
+                &mut self.0.cursive_font_family,
+            );
         }
     }
     pub fn set_fantasy_font_family(&mut self, family: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(family.as_ptr() as *const std::os::raw::c_char, family.len(), &mut self.0.fantasy_font_family);
+            cef_string_utf8_to_utf16(
+                family.as_ptr() as *const std::os::raw::c_char,
+                family.len(),
+                &mut self.0.fantasy_font_family,
+            );
         }
     }
     pub fn set_default_font_size(&mut self, size: i32) {
@@ -240,7 +283,11 @@ impl BrowserSettings {
     /// configurable using the "default-encoding" command-line switch.
     pub fn set_default_encoding(&mut self, encoding: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(encoding.as_ptr() as *const std::os::raw::c_char, encoding.len(), &mut self.0.default_encoding);
+            cef_string_utf8_to_utf16(
+                encoding.as_ptr() as *const std::os::raw::c_char,
+                encoding.len(),
+                &mut self.0.default_encoding,
+            );
         }
     }
     /// Controls the loading of fonts from remote sources. Also configurable using
@@ -355,7 +402,11 @@ impl BrowserSettings {
     /// not called then "en-US,en" will be used.
     pub fn set_accept_language_list(&mut self, list: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(list.as_ptr() as *const std::os::raw::c_char, list.len(), &mut self.0.accept_language_list);
+            cef_string_utf8_to_utf16(
+                list.as_ptr() as *const std::os::raw::c_char,
+                list.len(),
+                &mut self.0.accept_language_list,
+            );
         }
     }
 }
@@ -363,28 +414,44 @@ impl BrowserSettings {
 impl Drop for BrowserSettings {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.standard_font_family.dtor {
-            unsafe { dtor(self.0.standard_font_family.str); }
+            unsafe {
+                dtor(self.0.standard_font_family.str);
+            }
         }
         if let Some(dtor) = self.0.fixed_font_family.dtor {
-            unsafe { dtor(self.0.fixed_font_family.str); }
+            unsafe {
+                dtor(self.0.fixed_font_family.str);
+            }
         }
         if let Some(dtor) = self.0.serif_font_family.dtor {
-            unsafe { dtor(self.0.serif_font_family.str); }
+            unsafe {
+                dtor(self.0.serif_font_family.str);
+            }
         }
         if let Some(dtor) = self.0.sans_serif_font_family.dtor {
-            unsafe { dtor(self.0.sans_serif_font_family.str); }
+            unsafe {
+                dtor(self.0.sans_serif_font_family.str);
+            }
         }
         if let Some(dtor) = self.0.cursive_font_family.dtor {
-            unsafe { dtor(self.0.cursive_font_family.str); }
+            unsafe {
+                dtor(self.0.cursive_font_family.str);
+            }
         }
         if let Some(dtor) = self.0.fantasy_font_family.dtor {
-            unsafe { dtor(self.0.fantasy_font_family.str); }
+            unsafe {
+                dtor(self.0.fantasy_font_family.str);
+            }
         }
         if let Some(dtor) = self.0.default_encoding.dtor {
-            unsafe { dtor(self.0.default_encoding.str); }
+            unsafe {
+                dtor(self.0.default_encoding.str);
+            }
         }
         if let Some(dtor) = self.0.accept_language_list.dtor {
-            unsafe { dtor(self.0.accept_language_list.str); }
+            unsafe {
+                dtor(self.0.accept_language_list.str);
+            }
         }
     }
 }

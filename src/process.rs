@@ -1,9 +1,9 @@
-use cef_sys::{cef_process_message_t, cef_process_id_t, cef_string_userfree_utf16_free};
+use cef_sys::{cef_process_id_t, cef_process_message_t, cef_string_userfree_utf16_free};
 use num_enum::UnsafeFromPrimitive;
 
 use crate::{
-    values::{StoredValue, ListValue},
     string::CefString,
+    values::{ListValue, StoredValue},
 };
 
 /// Existing process IDs.
@@ -22,18 +22,24 @@ impl ProcessMessage {
     pub fn is_valid(&self) -> bool {
         if let Some(is_valid) = unsafe { (*self.0).is_valid } {
             unsafe { is_valid(self.0) != 0 }
-        } else { false }
+        } else {
+            false
+        }
     }
     pub fn is_read_only(&self) -> bool {
         if let Some(is_read_only) = unsafe { (*self.0).is_read_only } {
             unsafe { is_read_only(self.0) != 0 }
-        } else { true }
+        } else {
+            true
+        }
     }
     pub fn get_name(&self) -> Option<String> {
         if let Some(get_name) = unsafe { (*self.0).get_name } {
             let name = unsafe { get_name(self.0) };
             let s = CefString::copy_raw_to_string(name);
-            unsafe { cef_string_userfree_utf16_free(name); }
+            unsafe {
+                cef_string_userfree_utf16_free(name);
+            }
             s
         } else {
             None
@@ -53,13 +59,17 @@ impl Clone for ProcessMessage {
 #[doc(hidden)]
 impl From<*mut cef_process_message_t> for ProcessMessage {
     fn from(msg: *mut cef_process_message_t) -> Self {
-        unsafe { ((*msg).base.add_ref.unwrap())(&mut (*msg).base); }
+        unsafe {
+            ((*msg).base.add_ref.unwrap())(&mut (*msg).base);
+        }
         Self(msg)
     }
 }
 
 impl Drop for ProcessMessage {
     fn drop(&mut self) {
-        unsafe { ((*self.0).base.release.unwrap())(&mut (*self.0).base); }
+        unsafe {
+            ((*self.0).base.release.unwrap())(&mut (*self.0).base);
+        }
     }
 }

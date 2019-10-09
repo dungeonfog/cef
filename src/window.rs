@@ -1,4 +1,4 @@
-use cef_sys::{cef_window_info_t, cef_string_utf8_to_utf16};
+use cef_sys::{cef_string_utf8_to_utf16, cef_window_info_t};
 
 /// Structure representing window information.
 pub struct WindowInfo(cef_window_info_t);
@@ -19,7 +19,11 @@ impl WindowInfo {
     }
     pub fn set_window_name(&mut self, name: &str) {
         unsafe {
-            cef_string_utf8_to_utf16(name.as_ptr() as *const std::os::raw::c_char, name.len(), &mut self.0.window_name);
+            cef_string_utf8_to_utf16(
+                name.as_ptr() as *const std::os::raw::c_char,
+                name.len(),
+                &mut self.0.window_name,
+            );
         }
     }
     pub fn set_x(&mut self, x: i32) {
@@ -73,7 +77,9 @@ impl WindowInfo {
 impl Drop for WindowInfo {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.window_name.dtor {
-            unsafe { dtor(self.0.window_name.str); }
+            unsafe {
+                dtor(self.0.window_name.str);
+            }
         }
     }
 }

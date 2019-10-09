@@ -1,9 +1,6 @@
-use cef_sys::{cef_composition_underline_t, cef_range_t, cef_color_t};
+use cef_sys::{cef_color_t, cef_composition_underline_t, cef_range_t};
 
-use crate::{
-    color::Color,
-    values::Range,
-};
+use crate::{color::Color, values::Range};
 
 /// Structure representing IME composition underline information. This is a thin
 /// wrapper around Blink's WebCompositionUnderline class.

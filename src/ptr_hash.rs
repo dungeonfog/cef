@@ -1,8 +1,4 @@
-use std::{
-    ptr::hash,
-    hash::Hasher,
-    collections::hash_map::DefaultHasher,
-};
+use std::{collections::hash_map::DefaultHasher, hash::Hasher, ptr::hash};
 
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Hashed(u64);

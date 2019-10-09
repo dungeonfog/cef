@@ -1,4 +1,7 @@
-use cef_sys::{cef_key_event_t, cef_key_event_type_t, cef_event_flags_t, cef_mouse_button_type_t, cef_pointer_type_t, cef_touch_event_type_t};
+use cef_sys::{
+    cef_event_flags_t, cef_key_event_t, cef_key_event_type_t, cef_mouse_button_type_t,
+    cef_pointer_type_t, cef_touch_event_type_t,
+};
 use num_enum::UnsafeFromPrimitive;
 
 /// Key event types.
@@ -55,7 +58,9 @@ impl KeyEvent {
 
     /// Set bit flags describing any pressed modifier keys.
     pub fn set_modifiers(&mut self, modifiers: &[EventFlags]) {
-        self.0.modifiers = modifiers.iter().fold(0, |flags, flag| flags | (*flag as i32 as u32));
+        self.0.modifiers = modifiers
+            .iter()
+            .fold(0, |flags, flag| flags | (*flag as i32 as u32));
     }
     /// Bit flags describing any pressed modifier keys.
     pub fn modifiers(&self) -> Vec<EventFlags> {
@@ -72,7 +77,11 @@ impl KeyEvent {
             EventFlags::IsKeyPad,
             EventFlags::IsLeft,
             EventFlags::IsRight,
-        ].iter().filter(|flag| ((**flag) as u32 & self.0.modifiers) != 0).cloned().collect()
+        ]
+        .iter()
+        .filter(|flag| ((**flag) as u32 & self.0.modifiers) != 0)
+        .cloned()
+        .collect()
     }
 
     /// Set the Windows key code for the key event. This value is used by the DOM
@@ -89,7 +98,7 @@ impl KeyEvent {
     pub fn windows_key_code(&self) -> i32 {
         self.0.windows_key_code
     }
-    
+
     /// Set the actual key code genenerated by the platform.
     pub fn set_native_key_code(&mut self, code: i32) {
         self.0.native_key_code = code;
