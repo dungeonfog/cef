@@ -92,6 +92,113 @@ impl RefCounter for cef_resource_request_handler_t {
     }
 }
 
+trait FromCType<'a> {
+    type CType;
+    type Owned;
+    unsafe fn from_c_type(c_type: *mut Self::CType) -> Self::Owned;
+    fn borrow(b: &'a Self::Owned) -> Self;
+}
+
+impl<'a, T> FromCType<'a> for Option<&'a T>
+    where &'a T: FromCType<'a, Owned=T>
+{
+    type CType = <&'a T as FromCType<'a>>::CType;
+    type Owned = Option<<&'a T as FromCType<'a>>::Owned>;
+
+    unsafe fn from_c_type(c_type: *mut Self::CType) -> Self::Owned {
+        if c_type.is_null() {
+            None
+        } else {
+            Some(<&'a T as FromCType>::from_c_type(c_type))
+        }
+    }
+    fn borrow(b: &'a Self::Owned) -> Self {
+        b.as_ref()
+    }
+}
+
+impl<'a> FromCType<'a> for &'a Browser {
+    type CType = cef_browser_t;
+    type Owned = Browser;
+    unsafe fn from_c_type(c_type: *mut cef_browser_t) -> Self::Owned {
+        Self::Owned::from(c_type)
+    }
+    fn borrow(b: &'a Self::Owned) -> Self {
+        b
+    }
+}
+
+impl<'a> FromCType<'a> for &'a Frame {
+    type CType = cef_frame_t;
+    type Owned = Frame;
+    unsafe fn from_c_type(c_type: *mut cef_frame_t) -> Self::Owned {
+        Self::Owned::from(c_type)
+    }
+    fn borrow(b: &'a Self::Owned) -> Self {
+        b
+    }
+}
+
+impl<'a> FromCType<'a> for &'a Request {
+    type CType = cef_request_t;
+    type Owned = Request;
+    unsafe fn from_c_type(c_type: *mut cef_request_t) -> Self::Owned {
+        Self::Owned::from(c_type)
+    }
+    fn borrow(b: &'a Self::Owned) -> Self {
+        b
+    }
+}
+
+macro_rules! cef_callback_impl {
+    (impl $RefCounted:ty: $CType:ty {
+        $(fn $fn_name:ident(&mut $self:tt, $($field_name:ident: $field_ty:ty: $c_ty:ty),+) -> $ret:ty $body:block)+
+    }) => {
+        impl $RefCounted {
+            $(
+                extern "C" fn $fn_name(self_: *mut $CType, $($field_name: $c_ty),+) -> $ret {
+                    impl $RefCounted {
+                        #[inline(always)]
+                        fn inner(&mut $self, $($field_name: $field_ty),+) -> $ret $body
+                    }
+                    let mut this = unsafe { <$CType as RefCounter>::Wrapper::make_temp(self_) };
+                    $(
+                        let $field_name = unsafe{ <$field_ty as FromCType>::from_c_type($field_name) };
+                    )+
+                    $(
+                        let $field_name = <$field_ty as FromCType>::borrow(&$field_name);
+                    )+
+                    this.inner($($field_name),+)
+                }
+            )+
+        }
+    };
+}
+
+cef_callback_impl!{
+    impl ResourceRequestHandlerWrapper: cef_resource_request_handler_t {
+        fn get_cookie_access_filter(
+            &mut self,
+            browser: Option<&Browser>: *mut cef_browser_t,
+            frame  : Option<&Frame>  : *mut cef_frame_t,
+            request: &Request        : *mut cef_request_t,
+        ) -> *mut cef_cookie_access_filter_t
+        {
+            if let Some(filter) = self.delegate.get_cookie_access_filter(browser, frame, request) {
+                if let Some(old_filter) = self.cookie_access_filter.replace(CookieAccessFilterWrapper::wrap(filter)) {
+                    unsafe { ((&*old_filter).base.release.unwrap())(&mut (&mut *old_filter).base); }
+                }
+                self.cookie_access_filter.unwrap()
+            } else {
+                if let Some(old_filter) = self.cookie_access_filter.take() {
+                    unsafe { ((&*old_filter).base.release.unwrap())(&mut (&mut *old_filter).base); }
+                }
+                null_mut()
+            }
+        }
+    }
+}
+
 impl ResourceRequestHandlerWrapper {
     pub(crate) fn wrap(delegate: Box<dyn ResourceRequestHandler>) -> *mut cef_resource_request_handler_t {
         let mut rc = RefCounted::new(cef_resource_request_handler_t {
@@ -113,29 +220,12 @@ impl ResourceRequestHandlerWrapper {
         unsafe { &mut *rc }.get_cef()
     }
 
-    extern "C" fn get_cookie_access_filter(self_: *mut cef_resource_request_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t) -> *mut cef_cookie_access_filter_t {
-        let mut this = unsafe { <cef_resource_request_handler_t as RefCounter>::Wrapper::make_temp(self_) };
-        let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
-        let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _)));
-        if let Some(filter) = this.delegate.get_cookie_access_filter(browser.as_ref(), frame.as_ref(), &Request::from(request)) {
-            if let Some(old_filter) = this.cookie_access_filter.replace(CookieAccessFilterWrapper::wrap(filter)) {
-                unsafe { ((&*old_filter).base.release.unwrap())(&mut (&mut *old_filter).base); }
-            }
-            this.cookie_access_filter.unwrap()
-        } else {
-            if let Some(old_filter) = this.cookie_access_filter.take() {
-                unsafe { ((&*old_filter).base.release.unwrap())(&mut (&mut *old_filter).base); }
-            }
-            null_mut()
-        }
-    }
-
     extern "C" fn before_resource_load(self_: *mut cef_resource_request_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, callback: *mut cef_request_callback_t) -> cef_return_value_t::Type {
         let this = unsafe { <cef_resource_request_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
         let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _)));
         let result = this.delegate.on_before_resource_load(browser.as_ref(), frame.as_ref(), &Request::from(request), RequestCallback::from(callback)) as i32;
-        unsafe { result as cef_return_value_t::Type }
+        result as cef_return_value_t::Type
     }
 
     extern "C" fn get_resource_handler(self_: *mut cef_resource_request_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t) -> *mut cef_resource_handler_t {
@@ -190,7 +280,7 @@ impl ResourceRequestHandlerWrapper {
             null_mut()
         }
     }
-    
+
     extern "C" fn resource_load_complete(self_: *mut cef_resource_request_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, response: *mut cef_response_t, status: cef_urlrequest_status_t::Type, received_content_length: i64) {
         let this = unsafe { <cef_resource_request_handler_t as RefCounter>::Wrapper::make_temp(self_) };
         let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
