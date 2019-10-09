@@ -66,21 +66,21 @@ pub trait RenderProcessHandler: Send + Sync {
 
 pub(crate) struct RenderProcessHandlerWrapper {
     delegate: Box<dyn RenderProcessHandler>,
-    load_handler: *mut <cef_load_handler_t as RefCounter>::Wrapper,
+    load_handler: *mut RefCounted::<cef_load_handler_t>,
 }
 
 unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RefCounter for cef_render_process_handler_t {
-    type Wrapper = RefCounted<Self, RenderProcessHandlerWrapper>;
+    type Wrapper = RenderProcessHandlerWrapper;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
 }
 
 impl RenderProcessHandlerWrapper {
-    pub(crate) fn new(delegate: Box<dyn RenderProcessHandler>) -> *mut <cef_render_process_handler_t as RefCounter>::Wrapper {
+    pub(crate) fn new(delegate: Box<dyn RenderProcessHandler>) -> *mut RefCounted::<cef_render_process_handler_t> {
         RefCounted::new(cef_render_process_handler_t {
             base: unsafe { std::mem::zeroed() },
             on_render_thread_created: Some(Self::render_thread_created),
@@ -100,34 +100,34 @@ impl RenderProcessHandlerWrapper {
     }
 
     extern "C" fn render_thread_created(self_: *mut cef_render_process_handler_t, extra_info: *mut cef_list_value_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         this.delegate.on_render_thread_created(&ListValue::from(extra_info).into());
     }
 
     extern "C" fn web_kit_initialized(self_: *mut cef_render_process_handler_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_web_kit_initialized();
     }
 
     extern "C" fn browser_created(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, extra_info: *mut cef_dictionary_value_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_browser_created(&Browser::from(browser), &DictionaryValue::from(extra_info).into());
     }
 
     extern "C" fn browser_destroyed(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_browser_destroyed(&Browser::from(browser));
     }
 
     extern "C" fn get_load_handler(self_: *mut cef_render_process_handler_t) -> *mut cef_load_handler_t {
-        let mut this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         if let Some(handler) = (*this).delegate.get_load_handler() {
             let wrapper = LoadHandlerWrapper::new(handler);
             (*this).load_handler = wrapper;
             wrapper as *mut cef_load_handler_t
         } else {
             if !(*this).load_handler.is_null() {
-                <cef_render_process_handler_t as RefCounter>::Wrapper::release((*this).load_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_render_process_handler_t>::release((*this).load_handler as *mut cef_base_ref_counted_t);
                 (*this).load_handler = null_mut();
             }
             std::ptr::null_mut()
@@ -135,22 +135,22 @@ impl RenderProcessHandlerWrapper {
     }
 
     extern "C" fn context_created(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut cef_v8context_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_context_created(&Browser::from(browser), &Frame::from(frame), &V8Context::from(context));
     }
 
     extern "C" fn context_released(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut cef_v8context_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_context_created(&Browser::from(browser), &Frame::from(frame), &V8Context::from(context));
     }
 
     extern "C" fn uncaught_exception(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, context: *mut cef_v8context_t, exception: *mut cef_v8exception_t, stack_trace: *mut cef_v8stack_trace_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_uncaught_exception(&Browser::from(browser), &Frame::from(frame), &V8Context::from(context), &V8Exception::from(exception), &V8StackTrace::from(stack_trace));
     }
 
     extern "C" fn focused_node_changed(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, node: *mut cef_domnode_t) {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         match DOMNode::try_from(node) {
             Ok(domnode) => (*this).delegate.on_focused_node_changed(&Browser::from(browser), &Frame::from(frame), Some(&domnode)),
             Err(_) => (*this).delegate.on_focused_node_changed(&Browser::from(browser), &Frame::from(frame), None),
@@ -158,7 +158,7 @@ impl RenderProcessHandlerWrapper {
     }
 
     extern "C" fn process_message_received(self_: *mut cef_render_process_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, source_process: cef_process_id_t::Type, message: *mut cef_process_message_t) -> std::os::raw::c_int {
-        let this = unsafe { <cef_render_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_process_message_received(&Browser::from(browser), &Frame::from(frame), unsafe { ProcessId::from_unchecked(source_process as i32) }, &ProcessMessage::from(message)) as std::os::raw::c_int
     }
 }

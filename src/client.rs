@@ -51,7 +51,7 @@ pub(crate) struct ClientWrapper {
 }
 
 impl RefCounter for cef_client_t {
-    type Wrapper = RefCounted<Self, ClientWrapper>;
+    type Wrapper = ClientWrapper;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }

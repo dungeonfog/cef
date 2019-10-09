@@ -189,7 +189,7 @@ pub trait URLRequestClient: Send + Sync {
 }
 
 impl RefCounter for cef_urlrequest_client_t {
-    type Wrapper = RefCounted<Self, Box<dyn URLRequestClient>>;
+    type Wrapper = Box<dyn URLRequestClient>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -211,23 +211,23 @@ impl URLRequestClientWrapper {
     }
 
     extern "C" fn request_complete(self_: *mut cef_urlrequest_client_t, request: *mut cef_urlrequest_t) {
-        let mut this = unsafe { <cef_urlrequest_client_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_request_complete(&URLRequest::from(request));
     }
     extern "C" fn upload_progress(self_: *mut cef_urlrequest_client_t, request: *mut cef_urlrequest_t, current: i64, total: i64) {
-        let mut this = unsafe { <cef_urlrequest_client_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_upload_progress(&URLRequest::from(request), current, total);
     }
     extern "C" fn download_progress(self_: *mut cef_urlrequest_client_t, request: *mut cef_urlrequest_t, current: i64, total: i64) {
-        let mut this = unsafe { <cef_urlrequest_client_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_download_progress(&URLRequest::from(request), current, total);
     }
     extern "C" fn download_data(self_: *mut cef_urlrequest_client_t, request: *mut cef_urlrequest_t, data: *const std::os::raw::c_void, data_length: usize) {
-        let mut this = unsafe { <cef_urlrequest_client_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_download_data(&URLRequest::from(request), unsafe { std::slice::from_raw_parts(data as *const u8, data_length) });
     }
     extern "C" fn get_auth_credentials(self_: *mut cef_urlrequest_client_t, is_proxy: std::os::raw::c_int, host: *const cef_string_t, port: std::os::raw::c_int, realm: *const cef_string_t, scheme: *const cef_string_t, callback: *mut cef_auth_callback_t) -> i32 {
-        let mut this = unsafe { <cef_urlrequest_client_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).get_auth_credentials(is_proxy != 0, &CefString::copy_raw_to_string(host).unwrap(), port as u16, &CefString::copy_raw_to_string(realm).unwrap(), &CefString::copy_raw_to_string(scheme).unwrap(), AuthCallback::from(callback)) as i32
     }
 }
@@ -314,7 +314,7 @@ pub trait CookieAccessFilter: Sync + Send {
 pub(crate) struct CookieAccessFilterWrapper();
 
 impl RefCounter for cef_cookie_access_filter_t {
-    type Wrapper = RefCounted<Self, Box<dyn CookieAccessFilter>>;
+    type Wrapper = Box<dyn CookieAccessFilter>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -331,14 +331,14 @@ impl CookieAccessFilterWrapper {
     }
 
     extern "C" fn can_send_cookie(self_: *mut cef_cookie_access_filter_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, cookie: *const cef_cookie_t) -> std::os::raw::c_int {
-        let this = unsafe { <cef_cookie_access_filter_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_cookie_access_filter_t>::make_temp(self_) };
         let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
         let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _)));
         this.can_send_cookie(browser.as_ref(), frame.as_ref(), &Request::from(request), Cookie::from(cookie)) as std::os::raw::c_int
     }
 
     extern "C" fn can_save_cookie(self_: *mut cef_cookie_access_filter_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, response: *mut cef_response_t, cookie: *const cef_cookie_t) -> std::os::raw::c_int {
-        let this = unsafe { <cef_cookie_access_filter_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_cookie_access_filter_t>::make_temp(self_) };
         let browser = unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
         let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _)));
         this.can_save_cookie(browser.as_ref(), frame.as_ref(), &Request::from(request), &Response::from(response), Cookie::from(cookie)) as std::os::raw::c_int
@@ -392,7 +392,7 @@ pub trait ResponseFilter: Send + Sync {
 pub(crate) struct ResponseFilterWrapper();
 
 impl RefCounter for cef_response_filter_t {
-    type Wrapper = RefCounted<Self, Box<dyn ResponseFilter>>;
+    type Wrapper = Box<dyn ResponseFilter>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -408,11 +408,11 @@ impl ResponseFilterWrapper {
         unsafe { rc.as_mut() }.unwrap().get_cef()
     }
     extern "C" fn init_filter(self_: *mut cef_response_filter_t) -> std::os::raw::c_int {
-        let this = unsafe { <cef_response_filter_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_response_filter_t>::make_temp(self_) };
         this.init_filter() as std::os::raw::c_int
     }
     extern "C" fn filter(self_: *mut cef_response_filter_t, data_in: *mut std::os::raw::c_void, data_in_size: usize, data_in_read: *mut usize, data_out: *mut std::os::raw::c_void, data_out_size: usize, data_out_written: *mut usize) -> cef_response_filter_status_t::Type {
-        let this = unsafe { <cef_response_filter_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_response_filter_t>::make_temp(self_) };
         this.filter(unsafe { std::slice::from_raw_parts(data_in as *const u8, data_in_size) }, unsafe { data_in_read.as_mut() }.unwrap(), unsafe { std::slice::from_raw_parts_mut(data_out as *mut u8, data_out_size) }, unsafe { data_out_written.as_mut() }.unwrap()) as cef_response_filter_status_t::Type
     }
 }
@@ -469,7 +469,7 @@ pub trait ResourceHandler: Send + Sync {
 pub(crate) struct ResourceHandlerWrapper();
 
 impl RefCounter for cef_resource_handler_t {
-    type Wrapper = RefCounted<Self, Box<dyn ResourceHandler>>;
+    type Wrapper = Box<dyn ResourceHandler>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }

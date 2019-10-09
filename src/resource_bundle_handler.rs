@@ -69,14 +69,14 @@ pub trait ResourceBundleHandler: Send + Sync {
 pub struct ResourceBundleHandlerWrapper {}
 
 impl RefCounter for cef_resource_bundle_handler_t {
-    type Wrapper = RefCounted<Self, Box<dyn ResourceBundleHandler>>;
+    type Wrapper = Box<dyn ResourceBundleHandler>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
 }
 
 impl ResourceBundleHandlerWrapper {
-    pub(crate) fn new(delegate: Box<dyn ResourceBundleHandler>) -> *mut <cef_resource_bundle_handler_t as RefCounter>::Wrapper {
+    pub(crate) fn new(delegate: Box<dyn ResourceBundleHandler>) -> *mut RefCounted::<cef_resource_bundle_handler_t> {
         RefCounted::new(cef_resource_bundle_handler_t {
             base: unsafe { std::mem::zeroed() },
             get_localized_string: Some(Self::get_localized_string),
@@ -86,7 +86,7 @@ impl ResourceBundleHandlerWrapper {
     }
 
     extern "C" fn get_localized_string(self_: *mut cef_resource_bundle_handler_t, string_id: std::os::raw::c_int, string: *mut cef_string_t) -> std::os::raw::c_int {
-        let this = unsafe { <cef_resource_bundle_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
         match this.get_localized_string(string_id, &CefString::copy_raw_to_string(string).unwrap()) {
             None => 0,
             Some(rstr) => {
@@ -98,7 +98,7 @@ impl ResourceBundleHandlerWrapper {
     }
 
     extern "C" fn get_data_resource(self_: *mut cef_resource_bundle_handler_t, resource_id: std::os::raw::c_int, data: *mut *mut std::os::raw::c_void, data_size: *mut usize) -> std::os::raw::c_int {
-        let this = unsafe { <cef_resource_bundle_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
         match this.get_data_resource(resource_id) {
             None => 0,
             Some(bytes) => {
@@ -112,7 +112,7 @@ impl ResourceBundleHandlerWrapper {
     }
 
     extern "C" fn get_data_resource_for_scale(self_: *mut cef_resource_bundle_handler_t, resource_id: std::os::raw::c_int, scale_factor: cef_scale_factor_t::Type, data: *mut *mut std::os::raw::c_void, data_size: *mut usize) -> std::os::raw::c_int {
-        let this = unsafe { <cef_resource_bundle_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
         match this.get_data_resource_for_scale(resource_id, ScaleFactor::wrap(scale_factor)) {
             None => 0,
             Some(bytes) => {

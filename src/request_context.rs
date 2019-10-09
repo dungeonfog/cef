@@ -72,7 +72,7 @@ pub(crate) struct RequestContextHandlerWrapper {
 }
 
 impl RefCounter for cef_request_context_handler_t {
-    type Wrapper = RefCounted<Self, RequestContextHandlerWrapper>;
+    type Wrapper = RequestContextHandlerWrapper;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -92,11 +92,11 @@ impl RequestContextHandlerWrapper {
         unsafe { &mut *rc }.get_cef()
     }
     extern "C" fn request_context_initialized(self_: *mut cef_request_context_handler_t, request_context: *mut cef_request_context_t) {
-        let this = unsafe { <cef_request_context_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
         this.delegate.on_request_context_initialized(&RequestContext(request_context));
     }
     extern "C" fn before_plugin_load(self_: *mut cef_request_context_handler_t, mime_type: *const cef_string_t, plugin_url: *const cef_string_t, is_main_frame: std::os::raw::c_int, top_origin_url: *const cef_string_t, plugin_info: *mut cef_web_plugin_info_t, plugin_policy: *mut cef_plugin_policy_t::Type) -> std::os::raw::c_int {
-        let this = unsafe { <cef_request_context_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
         if let Some(policy) = this.delegate.on_before_plugin_load(&CefString::copy_raw_to_string(mime_type).unwrap(),
             CefString::copy_raw_to_string(plugin_url).as_ref().and_then(|s| Some(s.as_str())),
             is_main_frame != 0,
@@ -111,7 +111,7 @@ impl RequestContextHandlerWrapper {
         }
     }
     extern "C" fn get_resource_request_handler(self_: *mut cef_request_context_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, request: *mut cef_request_t, is_navigation: std::os::raw::c_int, is_download: std::os::raw::c_int, request_initiator: *const cef_string_t, disable_default_handling: *mut std::os::raw::c_int) -> *mut cef_resource_request_handler_t {
-        let mut this = unsafe { <cef_request_context_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
         let mut local_disable_default_handling = false;
         if let Some(resource_request_handler) = this.delegate.get_resource_request_handler(
             unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _))).as_ref(),
@@ -126,7 +126,7 @@ impl RequestContextHandlerWrapper {
                 unsafe { (*disable_default_handling) = 1 };
             }
             if let Some(resource_request_handler) = this.resource_request_handler.replace(ResourceRequestHandlerWrapper::wrap(resource_request_handler)) {
-                <cef_resource_request_handler_t as RefCounter>::Wrapper::release(resource_request_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_resource_request_handler_t>::release(resource_request_handler as *mut cef_base_ref_counted_t);
             }
             this.resource_request_handler.unwrap()
         } else {
@@ -134,7 +134,7 @@ impl RequestContextHandlerWrapper {
                 unsafe { (*disable_default_handling) = 1 };
             }
             if let Some(resource_request_handler) = this.resource_request_handler.take() {
-                <cef_resource_request_handler_t as RefCounter>::Wrapper::release(resource_request_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_resource_request_handler_t>::release(resource_request_handler as *mut cef_base_ref_counted_t);
             }
             null_mut() as *mut cef_resource_request_handler_t
         }

@@ -108,7 +108,7 @@ pub trait StringVisitor: Send + Sync {
 }
 
 impl RefCounter for cef_string_visitor_t {
-    type Wrapper = RefCounted<Self, Box<dyn StringVisitor>>;
+    type Wrapper = Box<dyn StringVisitor>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -126,11 +126,11 @@ impl StringVisitorWrapper {
     }
 
     extern "C" fn visit(self_: *mut cef_string_visitor_t, string: *const cef_string_t) {
-        let mut this = unsafe { <cef_string_visitor_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_string_visitor_t>::make_temp(self_) };
         if let Some(string) = CefString::copy_raw_to_string(string) {
             this.visit(&string);
         }
         // we're done here!
-        <cef_string_visitor_t as RefCounter>::Wrapper::release(this.get_cef() as *mut cef_base_ref_counted_t);
+        RefCounted::<cef_string_visitor_t>::release(this.get_cef() as *mut cef_base_ref_counted_t);
     }
 }

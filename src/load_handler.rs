@@ -1083,7 +1083,7 @@ pub trait LoadHandler: Send + Sync {
 pub(crate) struct LoadHandlerWrapper;
 
 impl RefCounter for cef_load_handler_t {
-    type Wrapper = RefCounted<Self, Box<dyn LoadHandler>>;
+    type Wrapper = Box<dyn LoadHandler>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -1091,25 +1091,25 @@ impl RefCounter for cef_load_handler_t {
 
 impl LoadHandlerWrapper {
     extern "C" fn loading_state_change(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, is_loading: std::os::raw::c_int, can_go_back: std::os::raw::c_int, can_go_forward: std::os::raw::c_int) {
-        let mut this = unsafe { <cef_load_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_loading_state_change(&Browser::from(browser), is_loading != 0, can_go_back != 0, can_go_forward != 0);
     }
     extern "C" fn load_start(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, transition_type: cef_transition_type_t) {
         if let Ok(transition_type) = TransitionType::try_from(transition_type.0) {
-            let mut this = unsafe { <cef_load_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+            let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
             (*this).on_load_start(&Browser::from(browser), &Frame::from(frame), transition_type);
         }
     }
     extern "C" fn load_end(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, http_status_code: std::os::raw::c_int) {
-        let mut this = unsafe { <cef_load_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_load_end(&Browser::from(browser), &Frame::from(frame), http_status_code);
     }
     extern "C" fn load_error(self_: *mut cef_load_handler_t, browser: *mut cef_browser_t, frame: *mut cef_frame_t, error_code: cef_errorcode_t::Type, error_text: *const cef_string_t, failed_url: *const cef_string_t) {
-        let mut this = unsafe { <cef_load_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_load_error(&Browser::from(browser), &Frame::from(frame), unsafe { ErrorCode::from_unchecked(error_code) }, &CefString::copy_raw_to_string(error_text).unwrap(), &CefString::copy_raw_to_string(failed_url).unwrap());
     }
 
-    pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut <cef_load_handler_t as RefCounter>::Wrapper {
+    pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut RefCounted::<cef_load_handler_t> {
         RefCounted::new(cef_load_handler_t {
             base: unsafe { std::mem::zeroed() },
             on_loading_state_change: Some(Self::loading_state_change),

@@ -190,7 +190,7 @@ pub trait DOMVisitor: Send + Sync {
 }
 
 impl RefCounter for cef_domvisitor_t {
-    type Wrapper = RefCounted<Self, Box<dyn DOMVisitor>>;
+    type Wrapper = Box<dyn DOMVisitor>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -208,9 +208,9 @@ impl DOMVisitorWrapper {
     }
 
     extern "C" fn visit(self_: *mut cef_domvisitor_t, document: *mut cef_domdocument_t) {
-        let mut this = unsafe { <cef_domvisitor_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_domvisitor_t>::make_temp(self_) };
         this.visit(&DOMDocument::from(document));
         // we're done here!
-        <cef_domvisitor_t as RefCounter>::Wrapper::release(this.get_cef() as *mut cef_base_ref_counted_t);
+        RefCounted::<cef_domvisitor_t>::release(this.get_cef() as *mut cef_base_ref_counted_t);
     }
 }

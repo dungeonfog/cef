@@ -35,7 +35,7 @@ pub enum FileDialogMode {
 
 impl TryFrom<i32> for FileDialogMode {
     type Error = ();
-    
+
     fn try_from(value: i32) -> Result<Self, Self::Error> {
         let base = value & cef_file_dialog_mode_t::FILE_DIALOG_TYPE_MASK.0;
         let mut flags = HashSet::new();
@@ -83,14 +83,14 @@ impl Into<i32> for FileDialogMode {
 pub(crate) struct RunFileDialogCallbackWrapper(*mut cef_run_file_dialog_callback_t);
 
 impl RefCounter for cef_run_file_dialog_callback_t {
-    type Wrapper = RefCounted<Self, Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>>;
+    type Wrapper = Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
 }
 
 impl RunFileDialogCallbackWrapper {
-    pub(crate) fn new<F>(callback: F) -> *mut cef_run_file_dialog_callback_t where F: FnOnce(usize, Option<Vec<String>>) {
+    pub(crate) fn new<F>(callback: F) -> *mut cef_run_file_dialog_callback_t where F: 'static + FnOnce(usize, Option<Vec<String>>) {
         let rc = RefCounted::new(cef_run_file_dialog_callback_t {
             base: unsafe { std::mem::zeroed() },
             on_file_dialog_dismissed: Some(Self::file_dialog_dismissed),
@@ -99,7 +99,7 @@ impl RunFileDialogCallbackWrapper {
     }
 
     extern "C" fn file_dialog_dismissed(self_: *mut cef_run_file_dialog_callback_t, selected_accept_filter: ::std::os::raw::c_int, file_paths: cef_string_list_t) {
-        let mut this = unsafe { <cef_run_file_dialog_callback_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_run_file_dialog_callback_t>::make_temp(self_) };
         if let Some(callback) = this.take() { // we can only call FnOnce once, so it has to be consumed here
             callback(selected_accept_filter as usize, if file_paths.is_null() {
                 None
@@ -108,6 +108,6 @@ impl RunFileDialogCallbackWrapper {
             });
         }
         // no longer needed
-        <cef_run_file_dialog_callback_t as RefCounter>::Wrapper::release(this.get_cef() as *mut _);
+        RefCounted::<cef_run_file_dialog_callback_t>::release(this.get_cef() as *mut _);
     }
 }

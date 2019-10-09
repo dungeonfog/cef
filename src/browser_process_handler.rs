@@ -47,21 +47,21 @@ pub trait BrowserProcessHandler: Sync + Send {
 pub(crate) struct BrowserProcessHandlerWrapper {
     delegate: Box<dyn BrowserProcessHandler>,
     #[cfg(target_os = "linux")]
-    print_handler: *mut <cef_print_handler_t as RefCounter>::Wrapper,
+    print_handler: *mut RefCounted::<cef_print_handler_t>,
 }
 
 unsafe impl Send for BrowserProcessHandlerWrapper {}
 unsafe impl Sync for BrowserProcessHandlerWrapper {}
 
 impl RefCounter for cef_browser_process_handler_t {
-    type Wrapper = RefCounted<Self, BrowserProcessHandlerWrapper>;
+    type Wrapper = BrowserProcessHandlerWrapper;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
 }
 
 impl BrowserProcessHandlerWrapper {
-    pub(crate) fn new(delegate: Box<dyn BrowserProcessHandler>) -> *mut <cef_browser_process_handler_t as RefCounter>::Wrapper {
+    pub(crate) fn new(delegate: Box<dyn BrowserProcessHandler>) -> *mut RefCounted::<cef_browser_process_handler_t> {
         RefCounted::new(cef_browser_process_handler_t {
             base: unsafe { std::mem::zeroed() },
             on_context_initialized: Some(Self::context_initialized),
@@ -80,36 +80,36 @@ impl BrowserProcessHandlerWrapper {
     }
 
     extern "C" fn context_initialized(self_: *mut cef_browser_process_handler_t) {
-        let this = unsafe { <cef_browser_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
         this.delegate.on_context_initialized();
     }
     extern "C" fn before_child_process_launch(self_: *mut cef_browser_process_handler_t, command_line: *mut cef_command_line_t) {
-        let this = unsafe { <cef_browser_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
         this.delegate.on_before_child_process_launch(&mut CommandLine::from(command_line));
     }
     extern "C" fn render_process_thread_created(self_: *mut cef_browser_process_handler_t, extra_info: *mut cef_list_value_t) {
-        let this = unsafe { <cef_browser_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
         let mut ei = ListValue::from(extra_info).into();
         this.delegate.on_render_process_thread_created(&mut ei);
         // TODO: copy stuff back from ei to extra_info
     }
     #[cfg(target_os = "linux")]
     extern "C" fn get_print_handler(self_: *mut cef_browser_process_handler_t) -> *mut cef_print_handler_t {
-        let mut this = unsafe { <cef_browser_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
         if let Some(handler) = this.delegate.get_print_handler() {
             let wrapper = PrintHandlerWrapper::new(handler);
             this.print_handler = wrapper;
             wrapper as *mut cef_print_handler_t
         } else {
             if !this.print_handler.is_null() {
-                <cef_print_handler_t as RefCounter>::Wrapper::release((*this).print_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_print_handler_t>::release((*this).print_handler as *mut cef_base_ref_counted_t);
                 this.print_handler = null_mut();
             }
             null_mut()
         }
     }
     extern "C" fn schedule_message_pump_work(self_: *mut cef_browser_process_handler_t, delay_ms: i64) {
-        let this = unsafe { <cef_browser_process_handler_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
         this.delegate.on_schedule_message_pump_work(delay_ms);
     }
 }
@@ -118,7 +118,7 @@ impl BrowserProcessHandlerWrapper {
 impl Drop for BrowserProcessHandlerWrapper {
     fn drop(&mut self) {
         if !self.print_handler.is_null() {
-            <cef_print_handler_t as RefCounter>::Wrapper::release(self.print_handler as *mut cef_base_ref_counted_t);
+            RefCounted::<cef_print_handler_t>::release(self.print_handler as *mut cef_base_ref_counted_t);
         }
     }
 }

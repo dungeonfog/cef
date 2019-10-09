@@ -17,35 +17,35 @@ pub(crate) trait RefCounter {
 // this is true as long as everything is #[repr(C)] and the corresponding structs are the first in the list.
 // It might sound like a hack, but I think that CEF assumes that you do it like this. It's a C API after all.
 #[repr(C)]
-pub(crate) struct RefCounted<C: RefCounter + Sized, R> {
+pub(crate) struct RefCounted<C: RefCounter + Sized> {
     cefobj: C,
     refcount: AtomicUsize,
-    object: R,
+    object: C::Wrapper,
 }
 
-unsafe impl<C: RefCounter + Sized, R> Sync for RefCounted<C, R> {}
-unsafe impl<C: RefCounter + Sized, R> Send for RefCounted<C, R> {}
+unsafe impl<C: RefCounter + Sized> Sync for RefCounted<C> {}
+unsafe impl<C: RefCounter + Sized> Send for RefCounted<C> {}
 
-impl<C: RefCounter + Sized, R> Deref for RefCounted<C, R> {
-    type Target = R;
+impl<C: RefCounter + Sized> Deref for RefCounted<C> {
+    type Target = C::Wrapper;
 
     fn deref(&self) -> &Self::Target {
         &self.object
     }
 }
 
-impl<C: RefCounter + Sized, R> DerefMut for RefCounted<C, R> {
+impl<C: RefCounter + Sized> DerefMut for RefCounted<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.object
     }
 }
 
-impl<C: RefCounter + Sized, R> RefCounted<C, R> {
+impl<C: RefCounter + Sized> RefCounted<C> {
     pub(crate) unsafe fn make_temp(ptr: *mut C) -> ManuallyDrop<Box<Self>> {
         ManuallyDrop::new(unsafe { Box::from_raw(ptr as *mut Self) })
     }
 
-    pub(crate) fn new(mut cefobj: C, object: R) -> *mut Self {
+    pub(crate) fn new(mut cefobj: C, object: C::Wrapper) -> *mut Self {
         cefobj.set_base(cef_base_ref_counted_t {
             size: std::mem::size_of::<C>(),
             add_ref: Some(Self::add_ref),

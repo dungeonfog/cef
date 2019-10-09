@@ -55,9 +55,9 @@ pub trait AppCallbacks {
 
 pub struct AppWrapper {
     delegate: Box<dyn AppCallbacks>,
-    resource_bundle_handler: *mut <cef_resource_bundle_handler_t as RefCounter>::Wrapper,
-    browser_process_handler: *mut <cef_browser_process_handler_t as RefCounter>::Wrapper,
-    render_process_handler: *mut <cef_render_process_handler_t as RefCounter>::Wrapper,
+    resource_bundle_handler: *mut RefCounted::<cef_resource_bundle_handler_t>,
+    browser_process_handler: *mut RefCounted::<cef_browser_process_handler_t>,
+    render_process_handler: *mut RefCounted::<cef_render_process_handler_t>,
 }
 
 /// Main entry point for using CEF
@@ -67,7 +67,7 @@ unsafe impl Sync for AppWrapper {}
 unsafe impl Send for AppWrapper {}
 
 impl RefCounter for cef_app_t {
-    type Wrapper = RefCounted<cef_app_t, AppWrapper>;
+    type Wrapper = AppWrapper;
     fn set_base(&mut self, base: cef_base_ref_counted_t) {
         self.base = base;
     }
@@ -88,7 +88,7 @@ impl App {
             browser_process_handler: null_mut(),
             render_process_handler: null_mut(),
         });
-        let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(rc as *mut _) };
+        let mut this = unsafe { RefCounted::<cef_app_t>::make_temp(rc as *mut _) };
         Self(this.get_cef())
     }
     /// Call during process startup to enable High-DPI support on Windows 7 or newer.
@@ -208,50 +208,50 @@ impl App {
 
 impl AppWrapper {
     extern "C" fn on_before_command_line_processing(self_: *mut cef_sys::cef_app_t, process_type: *const cef_sys::cef_string_t, command_line: *mut cef_sys::cef_command_line_t) {
-        let this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_app_t>::make_temp(self_) };
         (**this).delegate.on_before_command_line_processing(CefString::copy_raw_to_string(process_type).as_ref().map(|s| &**s), &CommandLine::from(command_line));
     }
     extern "C" fn on_register_custom_schemes(self_: *mut cef_sys::cef_app_t, registrar: *mut cef_sys::cef_scheme_registrar_t) {
-        let this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_app_t>::make_temp(self_) };
         (**this).delegate.on_register_custom_schemes(&SchemeRegistrar::from(registrar));
     }
     extern "C" fn get_resource_bundle_handler(self_: *mut cef_sys::cef_app_t) -> *mut cef_resource_bundle_handler_t {
-        let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_app_t>::make_temp(self_) };
         if let Some(handler) = (**this).delegate.get_resource_bundle_handler() {
             let wrapper = ResourceBundleHandlerWrapper::new(handler);
             (**this).resource_bundle_handler = wrapper;
             wrapper as *mut cef_resource_bundle_handler_t
         } else {
             if !(**this).resource_bundle_handler.is_null() {
-                <cef_resource_bundle_handler_t as RefCounter>::Wrapper::release((*this).resource_bundle_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_resource_bundle_handler_t>::release((*this).resource_bundle_handler as *mut cef_base_ref_counted_t);
                 (**this).resource_bundle_handler = null_mut();
             }
             null_mut()
         }
     }
     extern "C" fn get_browser_process_handler(self_: *mut cef_sys::cef_app_t) -> *mut cef_sys::cef_browser_process_handler_t {
-        let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_app_t>::make_temp(self_) };
         if let Some(handler) = this.delegate.get_browser_process_handler() {
             let wrapper = BrowserProcessHandlerWrapper::new(handler);
             this.browser_process_handler = wrapper;
             wrapper as *mut cef_browser_process_handler_t
         } else {
             if !this.browser_process_handler.is_null() {
-                <cef_browser_process_handler_t as RefCounter>::Wrapper::release((*this).browser_process_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_browser_process_handler_t>::release((*this).browser_process_handler as *mut cef_base_ref_counted_t);
                 this.browser_process_handler = null_mut();
             }
             null_mut()
         }
     }
     extern "C" fn get_render_process_handler(self_: *mut cef_sys::cef_app_t) -> *mut cef_render_process_handler_t {
-        let mut this = unsafe { <cef_app_t as RefCounter>::Wrapper::make_temp(self_) };
+        let mut this = unsafe { RefCounted::<cef_app_t>::make_temp(self_) };
         if let Some(handler) = this.delegate.get_render_process_handler() {
             let wrapper = RenderProcessHandlerWrapper::new(handler);
             this.render_process_handler = wrapper;
             wrapper as *mut cef_render_process_handler_t
         } else {
             if !this.render_process_handler.is_null() {
-                <cef_render_process_handler_t as RefCounter>::Wrapper::release((*this).render_process_handler as *mut cef_base_ref_counted_t);
+                RefCounted::<cef_render_process_handler_t>::release((*this).render_process_handler as *mut cef_base_ref_counted_t);
                 this.render_process_handler = null_mut();
             }
             null_mut()
@@ -262,10 +262,10 @@ impl AppWrapper {
 impl Drop for AppWrapper {
     fn drop(&mut self) {
         if !self.browser_process_handler.is_null() {
-            <cef_browser_process_handler_t as RefCounter>::Wrapper::release(self.browser_process_handler as *mut cef_base_ref_counted_t);
+            RefCounted::<cef_browser_process_handler_t>::release(self.browser_process_handler as *mut cef_base_ref_counted_t);
         }
         if !self.render_process_handler.is_null() {
-            <cef_render_process_handler_t as RefCounter>::Wrapper::release(self.render_process_handler as *mut cef_base_ref_counted_t);
+            RefCounted::<cef_render_process_handler_t>::release(self.render_process_handler as *mut cef_base_ref_counted_t);
         }
     }
 }
