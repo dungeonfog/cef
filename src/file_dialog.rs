@@ -88,13 +88,6 @@ impl Into<i32> for FileDialogMode {
 
 pub(crate) struct RunFileDialogCallbackWrapper(*mut cef_run_file_dialog_callback_t);
 
-impl RefCounter for cef_run_file_dialog_callback_t {
-    type Wrapper = Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl RunFileDialogCallbackWrapper {
     pub(crate) fn new<F>(callback: F) -> *mut cef_run_file_dialog_callback_t
     where

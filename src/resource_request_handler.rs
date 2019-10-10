@@ -12,7 +12,7 @@ use crate::{
     refcounted::{RefCounted, RefCounter},
     request::Request,
     string::CefString,
-    urlrequest::{
+    url_request::{
         CookieAccessFilter, CookieAccessFilterWrapper, RequestCallback, ResourceHandler,
         ResourceHandlerWrapper, Response, ResponseFilter, ResponseFilterWrapper, URLRequestStatus,
     },
@@ -152,13 +152,6 @@ pub(crate) struct ResourceRequestHandlerWrapper {
     cookie_access_filter: Option<*mut cef_cookie_access_filter_t>,
     resource_handler: Option<*mut cef_resource_handler_t>,
     response_filter: Option<*mut cef_response_filter_t>,
-}
-
-impl RefCounter for cef_resource_request_handler_t {
-    type Wrapper = ResourceRequestHandlerWrapper;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
 }
 
 impl ResourceRequestHandlerWrapper {

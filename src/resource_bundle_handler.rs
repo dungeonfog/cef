@@ -77,13 +77,6 @@ pub trait ResourceBundleHandler: Send + Sync {
 
 pub struct ResourceBundleHandlerWrapper {}
 
-impl RefCounter for cef_resource_bundle_handler_t {
-    type Wrapper = Box<dyn ResourceBundleHandler>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl ResourceBundleHandlerWrapper {
     pub(crate) fn new(
         delegate: Box<dyn ResourceBundleHandler>,

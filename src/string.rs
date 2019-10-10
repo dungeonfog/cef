@@ -125,13 +125,6 @@ pub trait StringVisitor: Send + Sync {
     fn visit(&self, string: &str);
 }
 
-impl RefCounter for cef_string_visitor_t {
-    type Wrapper = Box<dyn StringVisitor>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 pub(crate) struct StringVisitorWrapper();
 
 impl StringVisitorWrapper {

@@ -16,6 +16,7 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ReferrerPolicy {
     
+    
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
     Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,

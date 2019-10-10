@@ -50,13 +50,6 @@ pub(crate) struct ClientWrapper {
     delegate: Box<dyn Client>,
 }
 
-impl RefCounter for cef_client_t {
-    type Wrapper = ClientWrapper;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl ClientWrapper {
     pub(crate) fn wrap<C: Client + 'static>(delegate: C) -> *mut cef_client_t {
         let mut rc = RefCounted::new(

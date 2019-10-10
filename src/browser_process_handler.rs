@@ -57,13 +57,6 @@ pub(crate) struct BrowserProcessHandlerWrapper {
 unsafe impl Send for BrowserProcessHandlerWrapper {}
 unsafe impl Sync for BrowserProcessHandlerWrapper {}
 
-impl RefCounter for cef_browser_process_handler_t {
-    type Wrapper = BrowserProcessHandlerWrapper;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl BrowserProcessHandlerWrapper {
     pub(crate) fn new(
         delegate: Box<dyn BrowserProcessHandler>,

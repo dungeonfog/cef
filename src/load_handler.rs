@@ -1107,13 +1107,6 @@ pub trait LoadHandler: Send + Sync {
 
 pub(crate) struct LoadHandlerWrapper;
 
-impl RefCounter for cef_load_handler_t {
-    type Wrapper = Box<dyn LoadHandler>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl LoadHandlerWrapper {
     extern "C" fn loading_state_change(
         self_: *mut cef_load_handler_t,

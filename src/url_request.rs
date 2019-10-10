@@ -18,7 +18,7 @@ use crate::{
     refcounted::{RefCounted, RefCounter},
     request::Request,
     request_context::RequestContext,
-    resource_request::ResourceRequestHandler,
+    resource_request_handler::ResourceRequestHandler,
     string::CefString,
     web_plugin::WebPluginInfo,
     ReturnValue,
@@ -228,13 +228,6 @@ pub trait URLRequestClient: Send + Sync {
     }
 }
 
-impl RefCounter for cef_urlrequest_client_t {
-    type Wrapper = Box<dyn URLRequestClient>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 pub(crate) struct URLRequestClientWrapper();
 
 impl URLRequestClientWrapper {
@@ -412,13 +405,6 @@ pub trait CookieAccessFilter: Sync + Send {
 
 pub(crate) struct CookieAccessFilterWrapper();
 
-impl RefCounter for cef_cookie_access_filter_t {
-    type Wrapper = Box<dyn CookieAccessFilter>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl CookieAccessFilterWrapper {
     pub(crate) fn wrap(filter: Box<dyn CookieAccessFilter>) -> *mut cef_cookie_access_filter_t {
         let rc = RefCounted::new(
@@ -529,13 +515,6 @@ pub trait ResponseFilter: Send + Sync {
 
 pub(crate) struct ResponseFilterWrapper();
 
-impl RefCounter for cef_response_filter_t {
-    type Wrapper = Box<dyn ResponseFilter>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl ResponseFilterWrapper {
     pub(crate) fn wrap(handler: Box<dyn ResponseFilter>) -> *mut cef_response_filter_t {
         let rc = RefCounted::new(
@@ -631,13 +610,6 @@ pub trait ResourceHandler: Send + Sync {
 }
 
 pub(crate) struct ResourceHandlerWrapper();
-
-impl RefCounter for cef_resource_handler_t {
-    type Wrapper = Box<dyn ResourceHandler>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
 
 impl ResourceHandlerWrapper {
     pub(crate) fn wrap(handler: Box<dyn ResourceHandler>) -> *mut cef_resource_handler_t {

@@ -5,7 +5,7 @@ use crate::{
     dom::{DOMVisitor, DOMVisitorWrapper},
     request::Request,
     string::{CefString, StringVisitor, StringVisitorWrapper},
-    urlrequest::{URLRequest, URLRequestClient, URLRequestClientWrapper},
+    url_request::{URLRequest, URLRequestClient, URLRequestClientWrapper},
     v8context::V8Context,
 };
 

@@ -78,13 +78,6 @@ pub struct App(*mut cef_app_t);
 unsafe impl Sync for AppWrapper {}
 unsafe impl Send for AppWrapper {}
 
-impl RefCounter for cef_app_t {
-    type Wrapper = AppWrapper;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl App {
     pub fn new<T: AppCallbacks + 'static>(delegate: T) -> Self {
         let rc = RefCounted::new(

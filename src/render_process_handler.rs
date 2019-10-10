@@ -89,13 +89,6 @@ pub(crate) struct RenderProcessHandlerWrapper {
 unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
-impl RefCounter for cef_render_process_handler_t {
-    type Wrapper = RenderProcessHandlerWrapper;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 impl RenderProcessHandlerWrapper {
     pub(crate) fn new(
         delegate: Box<dyn RenderProcessHandler>,

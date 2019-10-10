@@ -14,7 +14,7 @@ use crate::{
     frame::Frame,
     refcounted::{RefCounted, RefCounter},
     request::Request,
-    resource_request::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
+    resource_request_handler::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
     string::CefString,
     web_plugin::WebPluginInfo,
 };
@@ -96,13 +96,6 @@ pub trait RequestContextHandler: Send + Sync {
 pub(crate) struct RequestContextHandlerWrapper {
     delegate: Box<dyn RequestContextHandler>,
     resource_request_handler: Option<*mut cef_resource_request_handler_t>,
-}
-
-impl RefCounter for cef_request_context_handler_t {
-    type Wrapper = RequestContextHandlerWrapper;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
 }
 
 impl RequestContextHandlerWrapper {

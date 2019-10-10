@@ -196,13 +196,6 @@ pub trait DOMVisitor: Send + Sync {
     fn visit(&self, document: &DOMDocument);
 }
 
-impl RefCounter for cef_domvisitor_t {
-    type Wrapper = Box<dyn DOMVisitor>;
-    fn set_base(&mut self, base: cef_base_ref_counted_t) {
-        self.base = base;
-    }
-}
-
 pub(crate) struct DOMVisitorWrapper;
 
 impl DOMVisitorWrapper {
