@@ -58,7 +58,7 @@ macro_rules! is_same {
     ($cef:ident) => {
         impl IsSame for cef_sys::$cef {
             fn is_same(this: *mut Self, other: *mut Self) -> bool {
-                unsafe{ ((*this).is_same.unwrap())(this, other) != 0 }
+                unsafe { ((*this).is_same.unwrap())(this, other) != 0 }
             }
         }
     };
@@ -85,26 +85,27 @@ pub(crate) struct RefCountedPtr<C: RefCounter> {
 
 impl<C: RefCounter> RefCountedPtr<C> {
     pub(crate) fn wrap(mut cefobj: C, object: C::Wrapper) -> RefCountedPtr<C>
-        where C: RefCounterWrapped
+    where
+        C: RefCounterWrapped,
     {
-        unsafe{ RefCountedPtr::from_ptr_unchecked((*RefCounted::new(cefobj, object)).get_cef()) }
+        unsafe { RefCountedPtr::from_ptr_unchecked((*RefCounted::new(cefobj, object)).get_cef()) }
     }
 
     pub unsafe fn from_ptr_add_ref(ptr: *mut C) -> Option<RefCountedPtr<C>> {
         let mut cef = NonNull::new(ptr)?;
         let add_ref = cef.as_ref().base().add_ref.unwrap();
         (add_ref)(cef.as_mut().base_mut());
-        Some(RefCountedPtr {cef})
+        Some(RefCountedPtr { cef })
     }
 
     pub unsafe fn from_ptr(ptr: *mut C) -> Option<RefCountedPtr<C>> {
         let mut cef = NonNull::new(ptr)?;
-        Some(RefCountedPtr {cef})
+        Some(RefCountedPtr { cef })
     }
 
     pub unsafe fn from_ptr_unchecked(ptr: *mut C) -> RefCountedPtr<C> {
         let mut cef = NonNull::new_unchecked(ptr);
-        RefCountedPtr {cef}
+        RefCountedPtr { cef }
     }
 
     pub fn as_ptr(&self) -> *mut C {
@@ -162,13 +163,13 @@ impl<C: RefCounter> Deref for RefCountedPtr<C> {
     type Target = C;
 
     fn deref(&self) -> &Self::Target {
-        unsafe{ self.cef.as_ref() }
+        unsafe { self.cef.as_ref() }
     }
 }
 
 impl<C: RefCounter> DerefMut for RefCountedPtr<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe{ self.cef.as_mut() }
+        unsafe { self.cef.as_mut() }
     }
 }
 
@@ -185,9 +186,7 @@ impl<C: RefCounter> Drop for RefCountedPtr<C> {
 impl<C: RefCounter> Clone for RefCountedPtr<C> {
     fn clone(&self) -> RefCountedPtr<C> {
         unsafe {
-            let mut new = RefCountedPtr {
-                cef: self.cef
-            };
+            let mut new = RefCountedPtr { cef: self.cef };
             let add_ref = new.cef.as_ref().base().add_ref.unwrap();
             (add_ref)(new.cef.as_mut().base_mut());
             new

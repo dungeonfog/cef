@@ -90,15 +90,16 @@ impl BrowserProcessHandlerWrapper {
         command_line: *mut cef_command_line_t,
     ) {
         let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        this.delegate
-            .on_before_child_process_launch(unsafe{ &mut CommandLine::from_ptr_unchecked(command_line) });
+        this.delegate.on_before_child_process_launch(unsafe {
+            &mut CommandLine::from_ptr_unchecked(command_line)
+        });
     }
     extern "C" fn render_process_thread_created(
         self_: *mut cef_browser_process_handler_t,
         extra_info: *mut cef_list_value_t,
     ) {
         let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        let mut ei = unsafe{ ListValue::from_ptr_unchecked(extra_info) }.into();
+        let mut ei = unsafe { ListValue::from_ptr_unchecked(extra_info) }.into();
         this.delegate.on_render_process_thread_created(&mut ei);
         // TODO: copy stuff back from ei to extra_info
     }

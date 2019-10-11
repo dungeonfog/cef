@@ -15,8 +15,6 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 #[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ReferrerPolicy {
-
-
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
     Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,
@@ -160,7 +158,7 @@ pub enum PostDataElementType {
     File = cef_postdataelement_type_t::PDE_TYPE_FILE as i32,
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent a web request. The functions of this structure
     /// may be called on any thread.
     #[derive(Clone)]
@@ -173,7 +171,7 @@ unsafe impl Sync for Request {}
 impl Request {
     /// Create a new Request object.
     pub fn new() -> Self {
-        unsafe{ Self::from_ptr_unchecked(cef_request_create()) }
+        unsafe { Self::from_ptr_unchecked(cef_request_create()) }
     }
 
     /// Returns true if this object is read-only.
@@ -235,7 +233,11 @@ impl Request {
         if let Some(set_referrer) = self.0.set_referrer {
             if let Some(referrer_url) = referrer_url {
                 unsafe {
-                    set_referrer(self.0.as_ptr(), CefString::new(referrer_url).as_ref(), policy.into());
+                    set_referrer(
+                        self.0.as_ptr(),
+                        CefString::new(referrer_url).as_ref(),
+                        policy.into(),
+                    );
                 }
             }
         }
@@ -259,7 +261,9 @@ impl Request {
         self.0
             .get_referrer_policy
             .and_then(|get_referrer_policy| {
-                Some(unsafe { ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32) })
+                Some(unsafe {
+                    ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32)
+                })
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
@@ -291,7 +295,8 @@ impl Request {
     /// `name` might have multiple values.
     pub fn get_header_by_name(&self, name: &str) -> Option<String> {
         if let Some(get_header_by_name) = self.0.get_header_by_name {
-            let header = unsafe { get_header_by_name(self.0.as_ptr(), CefString::new(name).as_ref()) };
+            let header =
+                unsafe { get_header_by_name(self.0.as_ptr(), CefString::new(name).as_ref()) };
             let result = CefString::copy_raw_to_string(header);
             if result.is_some() {
                 unsafe {
@@ -390,15 +395,19 @@ impl Request {
     /// process.
     pub fn get_resource_type(&self) -> ResourceType {
         unsafe {
-            ResourceType::from_unchecked(((&*self.0.as_ptr()).get_resource_type).unwrap()(self.0.as_ptr()) as i32)
+            ResourceType::from_unchecked(((&*self.0.as_ptr()).get_resource_type).unwrap()(
+                self.0.as_ptr(),
+            ) as i32)
         }
     }
     /// Get the transition type for this request. Only available in the browser
     /// process and only applies to requests that represent a main frame or sub-
     /// frame navigation.
     pub fn get_transition_type(&self) -> TransitionType {
-        TransitionType::try_from(unsafe { (&*self.0.as_ptr()).get_transition_type.unwrap()(self.0.as_ptr()).0 })
-            .unwrap()
+        TransitionType::try_from(unsafe {
+            (&*self.0.as_ptr()).get_transition_type.unwrap()(self.0.as_ptr()).0
+        })
+        .unwrap()
     }
     /// Returns the globally unique identifier for this request or 0 if not
     /// specified. Can be used by [ResourceRequestHandler] implementations in
@@ -412,7 +421,7 @@ impl Request {
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent post data for a web request. The functions of
     /// this structure may be called on any thread.
     #[derive(Clone)]
@@ -424,7 +433,7 @@ unsafe impl Sync for PostData {}
 
 impl PostData {
     pub fn new() -> Self {
-        unsafe{ Self::from_ptr_unchecked(cef_post_data_create()) }
+        unsafe { Self::from_ptr_unchecked(cef_post_data_create()) }
     }
 
     /// Returns true if this object is read-only.
@@ -441,7 +450,9 @@ impl PostData {
     pub fn has_excluded_elements(&self) -> bool {
         self.0
             .has_excluded_elements
-            .and_then(|has_excluded_elements| Some(unsafe { has_excluded_elements(self.as_ptr()) != 0 }))
+            .and_then(|has_excluded_elements| {
+                Some(unsafe { has_excluded_elements(self.as_ptr()) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Returns the number of existing post data elements.
@@ -460,7 +471,10 @@ impl PostData {
                 unsafe {
                     get_elements(self.as_ptr(), &mut count, elements.as_mut_ptr());
                 }
-                elements.into_iter().map(|p| unsafe{ PostDataElement::from_ptr_unchecked(p) }).collect()
+                elements
+                    .into_iter()
+                    .map(|p| unsafe { PostDataElement::from_ptr_unchecked(p) })
+                    .collect()
             } else {
                 Vec::new()
             }
@@ -495,7 +509,7 @@ impl PostData {
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent a single element in the request post data. The
     /// functions of this structure may be called on any thread.
     #[derive(Clone)]
@@ -582,7 +596,11 @@ impl PostDataElement {
             if let Some(get_bytes) = self.0.get_bytes {
                 let mut buffer = vec![0; size];
                 unsafe {
-                    get_bytes(self.as_ptr(), size, buffer.as_mut_ptr() as *mut std::ffi::c_void);
+                    get_bytes(
+                        self.as_ptr(),
+                        size,
+                        buffer.as_mut_ptr() as *mut std::ffi::c_void,
+                    );
                 }
                 buffer.to_vec()
             } else {

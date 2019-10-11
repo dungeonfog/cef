@@ -42,7 +42,10 @@ impl CefString {
     }
 
     pub unsafe fn from_mut_ptr<'a>(ptr: *mut cef_string_t) -> &'a mut CefString {
-        assert_eq!(std::mem::size_of::<cef_string_t>(), std::mem::size_of::<CefString>());
+        assert_eq!(
+            std::mem::size_of::<cef_string_t>(),
+            std::mem::size_of::<CefString>()
+        );
         &mut *(ptr as *mut CefString)
     }
 

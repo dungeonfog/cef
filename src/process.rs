@@ -16,7 +16,7 @@ pub enum ProcessId {
     Renderer = cef_process_id_t::PID_RENDERER as i32,
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     pub struct ProcessMessage(*mut cef_process_message_t);
 }
 
@@ -46,12 +46,13 @@ impl ProcessMessage {
         }
     }
     pub fn get_argument_list(&self) -> Vec<StoredValue> {
-        unsafe { ListValue::from_ptr_unchecked(self.0.get_argument_list.unwrap()(self.as_ptr())) }.into()
+        unsafe { ListValue::from_ptr_unchecked(self.0.get_argument_list.unwrap()(self.as_ptr())) }
+            .into()
     }
 }
 
 impl Clone for ProcessMessage {
     fn clone(&self) -> Self {
-        unsafe{ Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
+        unsafe { Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
     }
 }

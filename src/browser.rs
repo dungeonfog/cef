@@ -8,7 +8,7 @@ use crate::{
     string::{CefString, CefStringList},
 };
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent a browser window. When used in the browser
     /// process the functions of this structure may be called on any thread unless
     /// otherwise indicated in the comments. When used in the render process the
@@ -24,7 +24,7 @@ impl Browser {
     /// Returns the browser host object. This function can only be called in the
     /// browser process.
     pub fn get_host(&self) -> BrowserHost {
-        unsafe{ BrowserHost::from_ptr_unchecked((self.0.get_host.unwrap())(self.0.as_ptr())) }
+        unsafe { BrowserHost::from_ptr_unchecked((self.0.get_host.unwrap())(self.0.as_ptr())) }
     }
     /// Returns true if the browser can navigate backwards.
     pub fn can_go_back(&self) -> bool {
@@ -91,11 +91,21 @@ impl Browser {
     }
     /// Returns the frame with the specified identifier, or None if not found.
     pub fn get_frame_byident(&self, identifier: i64) -> Option<Frame> {
-        unsafe { Frame::from_ptr((self.0.get_frame_byident.unwrap())(self.0.as_ptr(), identifier)) }
+        unsafe {
+            Frame::from_ptr((self.0.get_frame_byident.unwrap())(
+                self.0.as_ptr(),
+                identifier,
+            ))
+        }
     }
     /// Returns the frame with the specified name, or None if not found.
     pub fn get_frame(&self, name: &str) -> Option<Frame> {
-        unsafe { Frame::from_ptr((self.0.get_frame.unwrap())(self.0.as_ptr(), CefString::new(name).as_ref())) }
+        unsafe {
+            Frame::from_ptr((self.0.get_frame.unwrap())(
+                self.0.as_ptr(),
+                CefString::new(name).as_ref(),
+            ))
+        }
     }
     /// Returns the number of frames that currently exist.
     pub fn get_frame_count(&self) -> usize {
@@ -106,7 +116,11 @@ impl Browser {
         let mut count = self.get_frame_count();
         let mut result = vec![0; count];
         unsafe {
-            (self.0.get_frame_identifiers.unwrap())(self.0.as_ptr(), &mut count, result.as_mut_ptr());
+            (self.0.get_frame_identifiers.unwrap())(
+                self.0.as_ptr(),
+                &mut count,
+                result.as_mut_ptr(),
+            );
         }
         result
     }

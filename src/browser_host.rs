@@ -35,7 +35,7 @@ pub type WindowHandle = u64;
 #[cfg(target_os = "macos")]
 pub type WindowHandle = *mut std::ffi::c_void; // Actually NSView*
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent the browser process aspects of a browser window.
     /// The functions of this structure can only be called in the browser process.
     /// They may be called on any thread in that process unless otherwise indicated

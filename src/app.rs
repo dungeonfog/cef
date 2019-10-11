@@ -72,7 +72,7 @@ pub struct AppWrapper {
     render_process_handler: *mut RefCounted<cef_render_process_handler_t>,
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Main entry point for using CEF
     pub struct App(*mut cef_app_t);
 }
@@ -264,7 +264,7 @@ impl AppWrapper {
             CefString::copy_raw_to_string(process_type)
                 .as_ref()
                 .map(|s| &**s),
-            unsafe{ &CommandLine::from_ptr_unchecked(command_line) },
+            unsafe { &CommandLine::from_ptr_unchecked(command_line) },
         );
     }
     extern "C" fn on_register_custom_schemes(

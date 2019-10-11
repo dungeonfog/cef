@@ -38,7 +38,7 @@ pub enum StoredValue {
     List(Vec<StoredValue>),
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     pub(crate) struct Value(*mut cef_value_t);
 }
 
@@ -47,7 +47,7 @@ unsafe impl Send for Value {}
 
 impl Value {
     pub(crate) fn new() -> Self {
-        unsafe{ Self::from_ptr_unchecked(cef_value_create()) }
+        unsafe { Self::from_ptr_unchecked(cef_value_create()) }
     }
     /// Returns true if the underlying data is valid. This will always be true
     /// for simple types. For complex types (binary, dictionary and list) the
@@ -158,8 +158,8 @@ impl Value {
     /// the [set_value()] function instead of passing the returned reference to
     /// [set_dictionary()].
     pub(crate) fn try_to_dictionary(&self) -> Option<DictionaryValue> {
-        self.0.get_dictionary.and_then(|get_dictionary| {
-            unsafe { DictionaryValue::from_ptr(get_dictionary(self.as_ptr())) }
+        self.0.get_dictionary.and_then(|get_dictionary| unsafe {
+            DictionaryValue::from_ptr(get_dictionary(self.as_ptr()))
         })
     }
     /// Returns the underlying value as type list. The returned reference may
@@ -169,9 +169,9 @@ impl Value {
     /// the [set_value()] function instead of passing the returned reference to
     /// [set_list()].
     pub(crate) fn try_to_list(&self) -> Option<ListValue> {
-        self.0.get_list.and_then(|get_list| {
-            unsafe { ListValue::from_ptr(get_list(self.as_ptr())) }
-        })
+        self.0
+            .get_list
+            .and_then(|get_list| unsafe { ListValue::from_ptr(get_list(self.as_ptr())) })
     }
     /// Sets the underlying value as type null. Returns true if the value was
     /// set successfully.
@@ -186,7 +186,9 @@ impl Value {
     pub(crate) fn set_bool(&mut self, value: bool) -> bool {
         self.0
             .set_bool
-            .and_then(|set_bool| Some(unsafe { set_bool(self.as_ptr(), if value { 1 } else { 0 }) != 0 }))
+            .and_then(|set_bool| {
+                Some(unsafe { set_bool(self.as_ptr(), if value { 1 } else { 0 }) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Sets the underlying value as type int. Returns true if the value was
@@ -194,7 +196,9 @@ impl Value {
     pub(crate) fn set_int(&mut self, value: i32) -> bool {
         self.0
             .set_int
-            .and_then(|set_int| Some(unsafe { set_int(self.as_ptr(), value as std::os::raw::c_int) != 0 }))
+            .and_then(|set_int| {
+                Some(unsafe { set_int(self.as_ptr(), value as std::os::raw::c_int) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Sets the underlying value as type double. Returns true if the value was
@@ -222,7 +226,9 @@ impl Value {
         self.0
             .set_binary
             .and_then(|set_binary| {
-                Some(unsafe { set_binary(self.as_ptr(), value.as_ref() as *const _ as *mut _) != 0 })
+                Some(unsafe {
+                    set_binary(self.as_ptr(), value.as_ref() as *const _ as *mut _) != 0
+                })
             })
             .unwrap_or(false)
     }
@@ -243,9 +249,7 @@ impl Value {
     pub(crate) fn set_list(&mut self, value: &ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| {
-                Some(unsafe { set_list(self.as_ptr(), value.as_ptr()) != 0 })
-            })
+            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), value.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
 }
@@ -264,7 +268,7 @@ impl PartialEq for Value {
 impl Clone for Value {
     /// Returns a copy of this object. The underlying data will also be copied.
     fn clone(&self) -> Self {
-        unsafe{ Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
+        unsafe { Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
     }
 }
 
@@ -473,7 +477,7 @@ impl Drop for BinaryValue {
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     pub(crate) struct DictionaryValue(*mut cef_dictionary_value_t);
 }
 
@@ -482,7 +486,7 @@ unsafe impl Send for DictionaryValue {}
 
 impl DictionaryValue {
     pub(crate) fn new() -> Self {
-        unsafe{ Self::from_ptr_unchecked(cef_dictionary_value_create()) }
+        unsafe { Self::from_ptr_unchecked(cef_dictionary_value_create()) }
     }
     /// Returns true if this object is valid. This object may become invalid if
     /// the underlying data is owned by another object (e.g. list or dictionary)
@@ -535,7 +539,9 @@ impl DictionaryValue {
     pub(crate) fn contains_key(&self, key: &str) -> bool {
         self.0
             .has_key
-            .and_then(|has_key| Some(unsafe { has_key(self.as_ptr(), CefString::new(key).as_ref()) != 0 }))
+            .and_then(|has_key| {
+                Some(unsafe { has_key(self.as_ptr(), CefString::new(key).as_ref()) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Reads all keys for this dictionary into the specified vector.
@@ -557,7 +563,9 @@ impl DictionaryValue {
     pub(crate) fn remove(&mut self, key: &str) -> bool {
         self.0
             .remove
-            .and_then(|remove| Some(unsafe { remove(self.as_ptr(), CefString::new(key).as_ref()) != 0 }))
+            .and_then(|remove| {
+                Some(unsafe { remove(self.as_ptr(), CefString::new(key).as_ref()) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Returns the value type for the specified key.
@@ -589,8 +597,8 @@ impl DictionaryValue {
     pub(crate) fn get_value(&self, key: &str) -> Value {
         self.0
             .get_value
-            .and_then(|get_value| {
-                unsafe { Value::from_ptr(get_value(self.as_ptr(), CefString::new(key).as_ref())) }
+            .and_then(|get_value| unsafe {
+                Value::from_ptr(get_value(self.as_ptr(), CefString::new(key).as_ref()))
             })
             .unwrap_or_else(|| Value::new())
     }
@@ -647,16 +655,16 @@ impl DictionaryValue {
     /// value will reference existing data and modifications to the value will
     /// modify this object.
     pub(crate) fn try_get_dictionary(&self, key: &str) -> Option<DictionaryValue> {
-        self.0.get_dictionary.and_then(|get_dictionary| {
-            unsafe { DictionaryValue::from_ptr(get_dictionary(self.as_ptr(), CefString::new(key).as_ref())) }
+        self.0.get_dictionary.and_then(|get_dictionary| unsafe {
+            DictionaryValue::from_ptr(get_dictionary(self.as_ptr(), CefString::new(key).as_ref()))
         })
     }
     /// Returns the value at the specified key as type list. The returned value
     /// will reference existing data and modifications to the value will modify
     /// this object.
     pub(crate) fn try_get_list(&self, key: &str) -> Option<ListValue> {
-        self.0.get_list.and_then(|get_list| {
-            unsafe { ListValue::from_ptr(get_list(self.as_ptr(), CefString::new(key).as_ref())) }
+        self.0.get_list.and_then(|get_list| unsafe {
+            ListValue::from_ptr(get_list(self.as_ptr(), CefString::new(key).as_ref()))
         })
     }
     /// Sets the value at the specified key. Returns true if the value was set
@@ -669,7 +677,13 @@ impl DictionaryValue {
         self.0
             .set_value
             .and_then(|set_value| {
-                Some(unsafe { set_value(self.as_ptr(), CefString::new(key).as_ref(), value.into_raw()) != 0 })
+                Some(unsafe {
+                    set_value(
+                        self.as_ptr(),
+                        CefString::new(key).as_ref(),
+                        value.into_raw(),
+                    ) != 0
+                })
             })
             .unwrap_or(false)
     }
@@ -744,7 +758,9 @@ impl DictionaryValue {
         self.0
             .set_binary
             .and_then(|set_binary| {
-                Some(unsafe { set_binary(self.as_ptr(), CefString::new(key).as_ref(), value.0) != 0 })
+                Some(unsafe {
+                    set_binary(self.as_ptr(), CefString::new(key).as_ref(), value.0) != 0
+                })
             })
             .unwrap_or(false)
     }
@@ -757,7 +773,13 @@ impl DictionaryValue {
         self.0
             .set_dictionary
             .and_then(|set_dictionary| {
-                Some(unsafe { set_dictionary(self.as_ptr(), CefString::new(key).as_ref(), value.into_raw()) != 0 })
+                Some(unsafe {
+                    set_dictionary(
+                        self.as_ptr(),
+                        CefString::new(key).as_ref(),
+                        value.into_raw(),
+                    ) != 0
+                })
             })
             .unwrap_or(false)
     }
@@ -770,7 +792,13 @@ impl DictionaryValue {
         self.0
             .set_list
             .and_then(|set_list| {
-                Some(unsafe { set_list(self.as_ptr(), CefString::new(key).as_ref(), value.into_raw()) != 0 })
+                Some(unsafe {
+                    set_list(
+                        self.as_ptr(),
+                        CefString::new(key).as_ref(),
+                        value.into_raw(),
+                    ) != 0
+                })
             })
             .unwrap_or(false)
     }
@@ -818,7 +846,7 @@ impl Clone for DictionaryValue {
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     pub(crate) struct ListValue(*mut cef_list_value_t);
 }
 
@@ -916,9 +944,9 @@ impl ListValue {
     /// returned value will reference existing data and modifications to the value
     /// will modify this object.
     pub(crate) fn try_get_value(&self, index: usize) -> Option<Value> {
-        self.0.get_value.and_then(|get_value| {
-            unsafe { Value::from_ptr(get_value(self.as_ptr(), index)) }
-        })
+        self.0
+            .get_value
+            .and_then(|get_value| unsafe { Value::from_ptr(get_value(self.as_ptr(), index)) })
     }
     /// Returns the value at the specified index as type bool.
     pub(crate) fn get_bool(&self, index: usize) -> bool {
@@ -967,17 +995,17 @@ impl ListValue {
     /// value will reference existing data and modifications to the value will
     /// modify this object.
     pub(crate) fn try_get_dictionary(&self, index: usize) -> Option<DictionaryValue> {
-        self.0.get_dictionary.and_then(|get_dictionary| {
-            unsafe { DictionaryValue::from_ptr(get_dictionary(self.as_ptr(), index)) }
+        self.0.get_dictionary.and_then(|get_dictionary| unsafe {
+            DictionaryValue::from_ptr(get_dictionary(self.as_ptr(), index))
         })
     }
     /// Returns the value at the specified index as type list. The returned value
     /// will reference existing data and modifications to the value will modify
     /// this object.
     pub(crate) fn try_get_list(&self, index: usize) -> Option<ListValue> {
-        self.0.get_list.and_then(|get_list| {
-            unsafe { ListValue::from_ptr(get_list(self.as_ptr(), index)) }
-        })
+        self.0
+            .get_list
+            .and_then(|get_list| unsafe { ListValue::from_ptr(get_list(self.as_ptr(), index)) })
     }
     /// Sets the value at the specified index. Returns true if the value was
     /// set successfully. If `value` represents simple data then the underlying
@@ -988,7 +1016,9 @@ impl ListValue {
     pub(crate) fn set_value(&mut self, index: usize, value: Value) -> bool {
         self.0
             .set_value
-            .and_then(|set_value| Some(unsafe { set_value(self.as_ptr(), index, value.into_raw()) != 0 }))
+            .and_then(|set_value| {
+                Some(unsafe { set_value(self.as_ptr(), index, value.into_raw()) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type null. Returns true if the
@@ -1031,7 +1061,9 @@ impl ListValue {
         self.0
             .set_string
             .and_then(|set_string| {
-                Some(unsafe { set_string(self.as_ptr(), index, CefString::new(value).as_ref()) != 0 })
+                Some(unsafe {
+                    set_string(self.as_ptr(), index, CefString::new(value).as_ref()) != 0
+                })
             })
             .unwrap_or(false)
     }
@@ -1054,7 +1086,9 @@ impl ListValue {
     pub(crate) fn set_dictionary(&mut self, index: usize, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
-            .and_then(|set_dictionary| Some(unsafe { set_dictionary(self.as_ptr(), index, value.into_raw()) != 0 }))
+            .and_then(|set_dictionary| {
+                Some(unsafe { set_dictionary(self.as_ptr(), index, value.into_raw()) != 0 })
+            })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type list. Returns true if the
@@ -1065,7 +1099,9 @@ impl ListValue {
     pub(crate) fn set_list(&mut self, index: usize, value: ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), index, value.into_raw()) != 0 }))
+            .and_then(|set_list| {
+                Some(unsafe { set_list(self.as_ptr(), index, value.into_raw()) != 0 })
+            })
             .unwrap_or(false)
     }
 }

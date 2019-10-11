@@ -41,7 +41,7 @@ pub enum URLRequestStatus {
     Failed = cef_urlrequest_status_t::UR_FAILED as i32,
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to make a URL request. URL requests are not associated with a
     /// browser instance so no [Client] callbacks will be executed. URL requests
     /// can be created on any valid CEF thread in either the browser or render
@@ -75,31 +75,35 @@ impl URLRequest {
         client: Box<dyn URLRequestClient>,
         request_context: Option<&RequestContext>,
     ) -> Self {
-        unsafe{ Self::from_ptr_unchecked(
-            cef_urlrequest_create(
+        unsafe {
+            Self::from_ptr_unchecked(cef_urlrequest_create(
                 request.as_ptr(),
                 URLRequestClientWrapper::wrap(client),
                 request_context
                     .and_then(|ctx| Some(ctx.as_ptr()))
                     .unwrap_or_else(null_mut),
-            )
-        ) }
+            ))
+        }
     }
     /// Returns the request object used to create this URL request. The returned
     /// object is read-only and should not be modified.
     pub fn get_request(&self) -> Request {
-        unsafe{ Request::from_ptr_unchecked(self.0.get_request.unwrap()(self.as_ptr())) }
+        unsafe { Request::from_ptr_unchecked(self.0.get_request.unwrap()(self.as_ptr())) }
     }
     /// Returns the request status.
     pub fn get_request_status(&self) -> URLRequestStatus {
         unsafe {
-            URLRequestStatus::from_unchecked(self.0.get_request_status.unwrap()(self.as_ptr()) as i32)
+            URLRequestStatus::from_unchecked(
+                self.0.get_request_status.unwrap()(self.as_ptr()) as i32
+            )
         }
     }
     /// Returns the request error if status is [URLRequestStatus::Canceled] or [URLRequestStatus::Failed], or [ErrorCode::None]
     /// otherwise.
     pub fn get_request_error(&self) -> ErrorCode {
-        unsafe { ErrorCode::from_unchecked(self.0.get_request_error.unwrap()(self.as_ptr()) as i32) }
+        unsafe {
+            ErrorCode::from_unchecked(self.0.get_request_error.unwrap()(self.as_ptr()) as i32)
+        }
     }
     /// Returns the response, or None if no response information is available.
     /// Response information will only be available after the upload has completed.
@@ -118,7 +122,7 @@ impl URLRequest {
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Callback structure used for asynchronous continuation of authentication
     /// requests.
     pub struct AuthCallback(*mut cef_auth_callback_t);
@@ -220,7 +224,7 @@ impl URLRequestClientWrapper {
         request: *mut cef_urlrequest_t,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_request_complete(unsafe{ &URLRequest::from_ptr_unchecked(request) });
+        (*this).on_request_complete(unsafe { &URLRequest::from_ptr_unchecked(request) });
     }
     extern "C" fn upload_progress(
         self_: *mut cef_urlrequest_client_t,
@@ -229,7 +233,11 @@ impl URLRequestClientWrapper {
         total: i64,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_upload_progress(unsafe{ &URLRequest::from_ptr_unchecked(request) }, current, total);
+        (*this).on_upload_progress(
+            unsafe { &URLRequest::from_ptr_unchecked(request) },
+            current,
+            total,
+        );
     }
     extern "C" fn download_progress(
         self_: *mut cef_urlrequest_client_t,
@@ -238,7 +246,11 @@ impl URLRequestClientWrapper {
         total: i64,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_download_progress(unsafe{ &URLRequest::from_ptr_unchecked(request) }, current, total);
+        (*this).on_download_progress(
+            unsafe { &URLRequest::from_ptr_unchecked(request) },
+            current,
+            total,
+        );
     }
     extern "C" fn download_data(
         self_: *mut cef_urlrequest_client_t,
@@ -247,9 +259,10 @@ impl URLRequestClientWrapper {
         data_length: usize,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_download_data(unsafe{ &URLRequest::from_ptr_unchecked(request) }, unsafe {
-            std::slice::from_raw_parts(data as *const u8, data_length)
-        });
+        (*this).on_download_data(
+            unsafe { &URLRequest::from_ptr_unchecked(request) },
+            unsafe { std::slice::from_raw_parts(data as *const u8, data_length) },
+        );
     }
     extern "C" fn get_auth_credentials(
         self_: *mut cef_urlrequest_client_t,
@@ -267,12 +280,12 @@ impl URLRequestClientWrapper {
             port as u16,
             &CefString::copy_raw_to_string(realm).unwrap(),
             &CefString::copy_raw_to_string(scheme).unwrap(),
-            unsafe{ AuthCallback::from_ptr_unchecked(callback) },
+            unsafe { AuthCallback::from_ptr_unchecked(callback) },
         ) as i32
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent a web response. The functions of this structure
     /// may be called on any thread.
     pub struct Response(*mut cef_response_t);
@@ -281,7 +294,7 @@ ref_counted_ptr!{
 unsafe impl Send for Response {}
 unsafe impl Sync for Response {}
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Callback structure used for asynchronous continuation of url requests.
     pub struct RequestCallback(*mut cef_request_callback_t);
 }
@@ -343,7 +356,9 @@ pub trait CookieAccessFilter: Sync + Send {
 pub(crate) struct CookieAccessFilterWrapper();
 
 impl CookieAccessFilterWrapper {
-    pub(crate) fn wrap(filter: Box<dyn CookieAccessFilter>) -> RefCountedPtr<cef_cookie_access_filter_t> {
+    pub(crate) fn wrap(
+        filter: Box<dyn CookieAccessFilter>,
+    ) -> RefCountedPtr<cef_cookie_access_filter_t> {
         RefCountedPtr::wrap(
             cef_cookie_access_filter_t {
                 base: unsafe { std::mem::zeroed() },
@@ -362,12 +377,12 @@ impl CookieAccessFilterWrapper {
         cookie: *const cef_cookie_t,
     ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_cookie_access_filter_t>::make_temp(self_) };
-        let browser = unsafe{ Browser::from_ptr(browser) };
-        let frame = unsafe{ Frame::from_ptr(frame) };
+        let browser = unsafe { Browser::from_ptr(browser) };
+        let frame = unsafe { Frame::from_ptr(frame) };
         this.can_send_cookie(
             browser.as_ref(),
             frame.as_ref(),
-            unsafe{ &Request::from_ptr_unchecked(request) },
+            unsafe { &Request::from_ptr_unchecked(request) },
             Cookie::from(cookie),
         ) as std::os::raw::c_int
     }
@@ -381,13 +396,13 @@ impl CookieAccessFilterWrapper {
         cookie: *const cef_cookie_t,
     ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_cookie_access_filter_t>::make_temp(self_) };
-        let browser = unsafe{ Browser::from_ptr(browser) };
-        let frame = unsafe{ Frame::from_ptr(frame) };
+        let browser = unsafe { Browser::from_ptr(browser) };
+        let frame = unsafe { Frame::from_ptr(frame) };
         this.can_save_cookie(
             browser.as_ref(),
             frame.as_ref(),
-            unsafe{ &Request::from_ptr_unchecked(request) },
-            unsafe{ &Response::from_ptr_unchecked(response) },
+            unsafe { &Request::from_ptr_unchecked(request) },
+            unsafe { &Response::from_ptr_unchecked(response) },
             Cookie::from(cookie),
         ) as std::os::raw::c_int
     }

@@ -25,7 +25,7 @@ pub enum DOMNodeType {
     DocumentFragment = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as i32,
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent a DOM node. The functions of this structure
     /// should only be called on the render process main thread.
     pub struct DOMNode(*mut cef_domnode_t);
@@ -146,7 +146,7 @@ impl PartialEq for DOMNode {
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     pub struct DOMDocument(*mut cef_domdocument_t);
 }
 
@@ -175,7 +175,7 @@ impl DOMVisitorWrapper {
 
     extern "C" fn visit(self_: *mut cef_domvisitor_t, document: *mut cef_domdocument_t) {
         let mut this = unsafe { RefCounted::<cef_domvisitor_t>::make_temp(self_) };
-        this.visit(unsafe{ &DOMDocument::from_ptr_unchecked(document) });
+        this.visit(unsafe { &DOMDocument::from_ptr_unchecked(document) });
         // we're done here!
         RefCounted::<cef_domvisitor_t>::release(this.get_cef() as *mut cef_base_ref_counted_t);
     }

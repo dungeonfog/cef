@@ -1,6 +1,6 @@
 use cef_sys::cef_callback_t;
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Generic callback structure used for asynchronous continuation.
     pub struct Callback(*mut cef_callback_t);
 }

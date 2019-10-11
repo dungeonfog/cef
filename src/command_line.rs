@@ -12,7 +12,7 @@ use crate::{
     string::{CefString, CefStringList},
 };
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to create and/or parse command line arguments. Arguments with
     /// `--`, `-` and, on Windows, `/` prefixes are considered switches. Switches
     /// will always precede any arguments without switch prefixes. Switches can
@@ -228,6 +228,6 @@ impl CommandLine {
 impl Clone for CommandLine {
     /// Returns a writable copy of this object.
     fn clone(&self) -> Self {
-        unsafe{ Self::from_ptr_unchecked(self.0.copy.unwrap()(self.as_ptr())) }
+        unsafe { Self::from_ptr_unchecked(self.0.copy.unwrap()(self.as_ptr())) }
     }
 }

@@ -120,7 +120,7 @@ impl RenderProcessHandlerWrapper {
     ) {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         this.delegate
-            .on_render_thread_created(&unsafe{ ListValue::from_ptr_unchecked(extra_info) }.into());
+            .on_render_thread_created(&unsafe { ListValue::from_ptr_unchecked(extra_info) }.into());
     }
 
     extern "C" fn web_kit_initialized(self_: *mut cef_render_process_handler_t) {
@@ -134,10 +134,11 @@ impl RenderProcessHandlerWrapper {
         extra_info: *mut cef_dictionary_value_t,
     ) {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this).delegate.on_browser_created(
-            unsafe{ &Browser::from_ptr_unchecked(browser) },
-            unsafe{ &DictionaryValue::from_ptr_unchecked(extra_info).into() },
-        );
+        (*this)
+            .delegate
+            .on_browser_created(unsafe { &Browser::from_ptr_unchecked(browser) }, unsafe {
+                &DictionaryValue::from_ptr_unchecked(extra_info).into()
+            });
     }
 
     extern "C" fn browser_destroyed(
@@ -147,7 +148,7 @@ impl RenderProcessHandlerWrapper {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this)
             .delegate
-            .on_browser_destroyed(unsafe{ &Browser::from_ptr_unchecked(browser) });
+            .on_browser_destroyed(unsafe { &Browser::from_ptr_unchecked(browser) });
     }
 
     extern "C" fn get_load_handler(
@@ -177,9 +178,9 @@ impl RenderProcessHandlerWrapper {
     ) {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_context_created(
-            unsafe{ &Browser::from_ptr_unchecked(browser) },
-            unsafe{ &Frame::from_ptr_unchecked(frame) },
-            unsafe{ &V8Context::from_ptr_unchecked(context) },
+            unsafe { &Browser::from_ptr_unchecked(browser) },
+            unsafe { &Frame::from_ptr_unchecked(frame) },
+            unsafe { &V8Context::from_ptr_unchecked(context) },
         );
     }
 
@@ -191,9 +192,9 @@ impl RenderProcessHandlerWrapper {
     ) {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_context_created(
-            unsafe{ &Browser::from_ptr_unchecked(browser) },
-            unsafe{ &Frame::from_ptr_unchecked(frame) },
-            unsafe{ &V8Context::from_ptr_unchecked(context) },
+            unsafe { &Browser::from_ptr_unchecked(browser) },
+            unsafe { &Frame::from_ptr_unchecked(frame) },
+            unsafe { &V8Context::from_ptr_unchecked(context) },
         );
     }
 
@@ -207,11 +208,11 @@ impl RenderProcessHandlerWrapper {
     ) {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_uncaught_exception(
-            unsafe{ &Browser::from_ptr_unchecked(browser) },
-            unsafe{ &Frame::from_ptr_unchecked(frame) },
-            unsafe{ &V8Context::from_ptr_unchecked(context) },
-            unsafe{ &V8Exception::from_ptr_unchecked(exception) },
-            unsafe{ &V8StackTrace::from_ptr_unchecked(stack_trace) },
+            unsafe { &Browser::from_ptr_unchecked(browser) },
+            unsafe { &Frame::from_ptr_unchecked(frame) },
+            unsafe { &V8Context::from_ptr_unchecked(context) },
+            unsafe { &V8Exception::from_ptr_unchecked(exception) },
+            unsafe { &V8StackTrace::from_ptr_unchecked(stack_trace) },
         );
     }
 
@@ -222,15 +223,15 @@ impl RenderProcessHandlerWrapper {
         node: *mut cef_domnode_t,
     ) {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        match unsafe{ DOMNode::from_ptr(node) } {
+        match unsafe { DOMNode::from_ptr(node) } {
             Some(domnode) => (*this).delegate.on_focused_node_changed(
-                unsafe{ &Browser::from_ptr_unchecked(browser) },
-                unsafe{ &Frame::from_ptr_unchecked(frame) },
+                unsafe { &Browser::from_ptr_unchecked(browser) },
+                unsafe { &Frame::from_ptr_unchecked(frame) },
                 Some(&domnode),
             ),
             None => (*this).delegate.on_focused_node_changed(
-                unsafe{ &Browser::from_ptr_unchecked(browser) },
-                unsafe{ &Frame::from_ptr_unchecked(frame) },
+                unsafe { &Browser::from_ptr_unchecked(browser) },
+                unsafe { &Frame::from_ptr_unchecked(frame) },
                 None,
             ),
         };
@@ -245,10 +246,10 @@ impl RenderProcessHandlerWrapper {
     ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
         (*this).delegate.on_process_message_received(
-            unsafe{ &Browser::from_ptr_unchecked(browser) },
-            unsafe{ &Frame::from_ptr_unchecked(frame) },
-            unsafe{ ProcessId::from_unchecked(source_process as i32) },
-            unsafe{ &ProcessMessage::from_ptr_unchecked(message) },
+            unsafe { &Browser::from_ptr_unchecked(browser) },
+            unsafe { &Frame::from_ptr_unchecked(frame) },
+            unsafe { ProcessId::from_unchecked(source_process as i32) },
+            unsafe { &ProcessMessage::from_ptr_unchecked(message) },
         ) as std::os::raw::c_int
     }
 }

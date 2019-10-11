@@ -165,9 +165,9 @@ impl RequestContextHandlerWrapper {
         let mut this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
         let mut local_disable_default_handling = false;
         if let Some(resource_request_handler) = this.delegate.get_resource_request_handler(
-            unsafe{ Browser::from_ptr(browser).as_ref() },
-            unsafe{ Frame::from_ptr(frame).as_ref() },
-            unsafe{ &Request::from_ptr_unchecked(request) },
+            unsafe { Browser::from_ptr(browser).as_ref() },
+            unsafe { Frame::from_ptr(frame).as_ref() },
+            unsafe { &Request::from_ptr_unchecked(request) },
             is_navigation != 0,
             is_download != 0,
             CefString::copy_raw_to_string(request_initiator)

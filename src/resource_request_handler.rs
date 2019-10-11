@@ -181,7 +181,7 @@ impl ResourceRequestHandlerWrapper {
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl ResourceRequestHandlerWrapper: cef_resource_request_handler_t {
         fn get_cookie_access_filter(
             &mut self,

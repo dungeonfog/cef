@@ -10,7 +10,7 @@ use crate::{
     v8context::V8Context,
 };
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     /// Structure used to represent a frame in the browser window. When used in the
     /// browser process the functions of this structure may be called on any thread
     /// unless otherwise indicated in the comments. When used in the render process
@@ -215,7 +215,7 @@ impl Frame {
     /// frame.
     pub fn get_parent(&self) -> Option<Frame> {
         if let Some(get_parent) = self.0.get_parent {
-            unsafe{ Frame::from_ptr(get_parent(self.0.as_ptr())) }
+            unsafe { Frame::from_ptr(get_parent(self.0.as_ptr())) }
         } else {
             None
         }
@@ -240,13 +240,13 @@ impl Frame {
     /// Returns the browser that this frame belongs to.
     pub fn get_browser(&self) -> Browser {
         let browser = unsafe { self.0.get_browser.unwrap()(self.0.as_ptr()) };
-        unsafe{ Browser::from_ptr(browser).expect("CEF: Frame without a browser!") }
+        unsafe { Browser::from_ptr(browser).expect("CEF: Frame without a browser!") }
     }
     /// Get the V8 context associated with the frame. This function can only be
     /// called from the render process.
     pub fn get_v8context(&self) -> V8Context {
         let context = unsafe { self.0.get_v8context.unwrap()(self.0.as_ptr()) };
-        unsafe{ V8Context::from_ptr(context).expect("CEF: Frame without a V8 context!") }
+        unsafe { V8Context::from_ptr(context).expect("CEF: Frame without a V8 context!") }
     }
     /// Visit the DOM document. This function can only be called from the render
     /// process.
@@ -282,12 +282,11 @@ impl Frame {
         client: Box<dyn URLRequestClient>,
     ) -> URLRequest {
         unsafe {
-            let urlrequest =
-                self.0.create_urlrequest.unwrap()(
-                    self.0.as_ptr(),
-                    request.as_ptr(),
-                    URLRequestClientWrapper::wrap(client),
-                );
+            let urlrequest = self.0.create_urlrequest.unwrap()(
+                self.0.as_ptr(),
+                request.as_ptr(),
+                URLRequestClientWrapper::wrap(client),
+            );
             URLRequest::from_ptr_unchecked(urlrequest)
         }
     }

@@ -1,21 +1,21 @@
 use crate::{
     app::App,
-    url_request::URLRequestStatus,
     browser::Browser,
     browser_host::BrowserHost,
     callback::Callback,
     command_line::CommandLine,
-    dom::{DOMNode, DOMDocument},
+    dom::{DOMDocument, DOMNode},
     drag::DragData,
     frame::Frame,
     image::Image,
     navigation::NavigationEntry,
     process::ProcessMessage,
-    request::{Request, PostData, PostDataElement},
-    url_request::{URLRequest, AuthCallback, Response, RequestCallback},
-    v8context::{V8Context, V8Exception, V8StackTrace},
-    values::{Value, DictionaryValue, ListValue},
+    request::{PostData, PostDataElement, Request},
     string::CefString,
+    url_request::URLRequestStatus,
+    url_request::{AuthCallback, RequestCallback, Response, URLRequest},
+    v8context::{V8Context, V8Exception, V8StackTrace},
+    values::{DictionaryValue, ListValue, Value},
 };
 
 pub trait Pointer: Copy {
