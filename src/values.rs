@@ -988,7 +988,7 @@ impl ListValue {
     pub(crate) fn set_value(&mut self, index: usize, value: Value) -> bool {
         self.0
             .set_value
-            .and_then(|set_value| Some(unsafe { set_value(self.as_ptr(), index, value.as_ptr()) != 0 }))
+            .and_then(|set_value| Some(unsafe { set_value(self.as_ptr(), index, value.into_raw()) != 0 }))
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type null. Returns true if the
@@ -1054,7 +1054,7 @@ impl ListValue {
     pub(crate) fn set_dictionary(&mut self, index: usize, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
-            .and_then(|set_dictionary| Some(unsafe { set_dictionary(self.as_ptr(), index, value.as_ptr()) != 0 }))
+            .and_then(|set_dictionary| Some(unsafe { set_dictionary(self.as_ptr(), index, value.into_raw()) != 0 }))
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type list. Returns true if the
@@ -1065,7 +1065,7 @@ impl ListValue {
     pub(crate) fn set_list(&mut self, index: usize, value: ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), index, value.as_ptr()) != 0 }))
+            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), index, value.into_raw()) != 0 }))
             .unwrap_or(false)
     }
 }
