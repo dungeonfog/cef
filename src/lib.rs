@@ -2,6 +2,8 @@
 #![feature(fn_traits)]
 #[macro_use]
 mod refcounted;
+#[macro_use]
+mod extern_callback_helpers;
 mod ptr_hash;
 mod string;
 pub use string::StringVisitor;
