@@ -12,7 +12,7 @@ use crate::{
     command_line::CommandLine,
     main_args::MainArgs,
     ptr_hash::Hashed,
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted, RefCountedPtr, RefCounter},
     render_process_handler::{RenderProcessHandler, RenderProcessHandlerWrapper},
     resource_bundle_handler::{ResourceBundleHandler, ResourceBundleHandlerWrapper},
     scheme_registrar::SchemeRegistrar,
@@ -72,15 +72,17 @@ pub struct AppWrapper {
     render_process_handler: *mut RefCounted<cef_render_process_handler_t>,
 }
 
-/// Main entry point for using CEF
-pub struct App(*mut cef_app_t);
+ref_counted_ptr!{
+    /// Main entry point for using CEF
+    pub struct App(*mut cef_app_t);
+}
 
 unsafe impl Sync for AppWrapper {}
 unsafe impl Send for AppWrapper {}
 
 impl App {
     pub fn new<T: AppCallbacks + 'static>(delegate: T) -> Self {
-        let rc = RefCounted::new(
+        App(RefCountedPtr::wrap(
             cef_app_t {
                 base: unsafe { std::mem::zeroed() },
                 on_before_command_line_processing: Some(
@@ -97,9 +99,7 @@ impl App {
                 browser_process_handler: null_mut(),
                 render_process_handler: null_mut(),
             },
-        );
-        let mut this = unsafe { RefCounted::<cef_app_t>::make_temp(rc as *mut _) };
-        Self(this.get_cef())
+        ))
     }
     /// Call during process startup to enable High-DPI support on Windows 7 or newer.
     /// Older versions of Windows should be left DPI-unaware because they do not
@@ -129,7 +129,7 @@ impl App {
             cef_execute_process(
                 args.get(),
                 application
-                    .and_then(|app| Some(app.0))
+                    .and_then(|app| Some(app.as_ptr()))
                     .unwrap_or_else(null_mut),
                 windows_sandbox_info
                     .and_then(|wsi| Some(wsi.get()))
@@ -174,7 +174,7 @@ impl App {
                 args.get(),
                 settings.get(),
                 application
-                    .and_then(|app| Some(app.0))
+                    .and_then(|app| Some(app.as_ptr()))
                     .unwrap_or_else(null_mut),
                 windows_sandbox_info
                     .and_then(|wsi| Some(wsi.get()))
@@ -264,7 +264,7 @@ impl AppWrapper {
             CefString::copy_raw_to_string(process_type)
                 .as_ref()
                 .map(|s| &**s),
-            &CommandLine::from(command_line),
+            unsafe{ &CommandLine::from_ptr_unchecked(command_line) },
         );
     }
     extern "C" fn on_register_custom_schemes(

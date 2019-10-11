@@ -12,41 +12,44 @@ use crate::{
     string::{CefString, CefStringList},
 };
 
-/// Structure used to create and/or parse command line arguments. Arguments with
-/// `--`, `-` and, on Windows, `/` prefixes are considered switches. Switches
-/// will always precede any arguments without switch prefixes. Switches can
-/// optionally have a value specified using the `=` delimiter (e.g.
-/// `-switch=value`). An argument of `--` will terminate switch parsing with all
-/// subsequent tokens, regardless of prefix, being interpreted as non-switch
-/// arguments. Switch names are considered case-insensitive. This structure can
-/// be used before [App::initialize] is called.
-pub struct CommandLine(*mut cef_command_line_t);
+ref_counted_ptr!{
+    /// Structure used to create and/or parse command line arguments. Arguments with
+    /// `--`, `-` and, on Windows, `/` prefixes are considered switches. Switches
+    /// will always precede any arguments without switch prefixes. Switches can
+    /// optionally have a value specified using the `=` delimiter (e.g.
+    /// `-switch=value`). An argument of `--` will terminate switch parsing with all
+    /// subsequent tokens, regardless of prefix, being interpreted as non-switch
+    /// arguments. Switch names are considered case-insensitive. This structure can
+    /// be used before [App::initialize] is called.
+    pub struct CommandLine(*mut cef_command_line_t);
+}
 
 impl CommandLine {
     /// Returns the singleton global CommandLine object. The returned object
     /// will be read-only.
     pub fn get_global() -> Self {
-        Self(unsafe { cef_command_line_get_global() })
+        unsafe { CommandLine::from_ptr_unchecked(cef_command_line_get_global()) }
     }
     /// Create a new CommandLine instance.
     pub fn new() -> Self {
-        Self(unsafe { cef_command_line_create() })
+        unsafe { CommandLine::from_ptr_unchecked(cef_command_line_create()) }
     }
 
     /// Returns true if this object is valid. Do not call any other functions
     /// if this function returns false.
+    /// TODO: IF `is_valid` IS FALSE, DOES CALLING OTHER FUNCTIONS VIOLATE SAFETY --OSSPIAL
     pub fn is_valid(&self) -> bool {
-        self.as_ref()
+        self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.0) } != 0))
+            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) } != 0))
             .unwrap_or(false)
     }
     /// Returns true if the values of this object are read-only. Some APIs may
     /// expose read-only objects.
     pub fn is_read_only(&self) -> bool {
-        self.as_ref()
+        self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.0) } != 0))
+            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) } != 0))
             .unwrap_or(true)
     }
     /// Initialize the command line with the specified |argv| values.
@@ -68,20 +71,20 @@ impl CommandLine {
     /// Initialize the command line with the string returned by calling
     /// GetCommandLineW(). This function is only supported on Windows.
     pub fn new_from_string(command_line: &str) -> Self {
-        let instance = unsafe { cef_command_line_create() };
+        let instance = CommandLine::new();
         unsafe {
-            ((*instance).init_from_string.unwrap())(
-                instance,
+            (instance.0.init_from_string.unwrap())(
+                instance.as_ptr(),
                 CefString::new(command_line).as_ref(),
             );
         }
-        Self(instance)
+        instance
     }
     /// Reset the command-line switches and arguments but leave the program
     /// component unchanged.
     pub fn reset(&mut self) {
         unsafe {
-            (self.as_ref().reset.unwrap())(self.0);
+            (self.0.reset.unwrap())(self.as_ptr());
         }
     }
     /// Retrieve the original command line string as a vector of strings. The argv
@@ -89,14 +92,14 @@ impl CommandLine {
     pub fn get_argv(&self) -> Vec<String> {
         let list = CefStringList::new();
         unsafe {
-            (self.as_ref().get_argv.unwrap())(self.0, list.get());
+            (self.0.get_argv.unwrap())(self.as_ptr(), list.get());
         }
         list.into()
     }
     /// Constructs and returns the represented command line string. Use this
     /// function cautiously because quoting behavior is unclear.
     pub fn get_command_line_string(&self) -> String {
-        let command_line = unsafe { (self.as_ref().get_command_line_string.unwrap())(self.0) };
+        let command_line = unsafe { (self.0.get_command_line_string.unwrap())(self.as_ptr()) };
 
         let command_line_str = String::from_utf16_lossy(unsafe {
             std::slice::from_raw_parts((*command_line).str, (*command_line).length)
@@ -109,7 +112,7 @@ impl CommandLine {
     }
     /// Get the program part of the command line string (the first item).
     pub fn get_program(&self) -> String {
-        let program = unsafe { (self.as_ref().get_program.unwrap())(self.0) };
+        let program = unsafe { (self.0.get_program.unwrap())(self.as_ptr()) };
         let program_str = String::from_utf16_lossy(unsafe {
             std::slice::from_raw_parts((*program).str, (*program).length)
         });
@@ -123,22 +126,22 @@ impl CommandLine {
     pub fn set_program(&mut self, program: &str) {
         let program = CefString::new(program);
         unsafe {
-            (self.as_ref().set_program.unwrap())(self.0, program.as_ref());
+            (self.0.set_program.unwrap())(self.as_ptr(), program.as_ref());
         }
     }
     /// Returns true if the command line has switches.
     pub fn has_switches(&self) -> bool {
-        unsafe { (self.as_ref().has_switches.unwrap())(self.0) != 0 }
+        unsafe { (self.0.has_switches.unwrap())(self.as_ptr()) != 0 }
     }
     /// Returns true if the command line contains the given switch.
     pub fn has_switch(&self, name: &str) -> bool {
-        unsafe { (self.as_ref().has_switch.unwrap())(self.0, CefString::new(name).as_ref()) != 0 }
+        unsafe { (self.0.has_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ref()) != 0 }
     }
     /// Returns the value associated with the given switch. If the switch has no
     /// value or isn't present this function returns None.
     pub fn get_switch_value(&self, name: &str) -> Option<String> {
         let value = unsafe {
-            (self.as_ref().get_switch_value.unwrap())(self.0, CefString::new(name).as_ref())
+            (self.0.get_switch_value.unwrap())(self.as_ptr(), CefString::new(name).as_ref())
         };
         if value.is_null() {
             return None;
@@ -157,7 +160,7 @@ impl CommandLine {
     pub fn get_switches(&self) -> HashMap<String, Option<String>> {
         let switches = unsafe { cef_string_map_alloc() };
         unsafe {
-            (self.as_ref().get_switches.unwrap())(self.0, switches);
+            (self.0.get_switches.unwrap())(self.as_ptr(), switches);
         }
 
         let result = (0..unsafe { cef_string_map_size(switches) })
@@ -182,14 +185,14 @@ impl CommandLine {
     /// Add a switch to the end of the command line.
     pub fn append_switch(&mut self, name: &str) {
         unsafe {
-            (self.as_ref().append_switch.unwrap())(self.0, CefString::new(name).as_ref());
+            (self.0.append_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ref());
         }
     }
     /// Add a switch with the specified value to the end of the command line.
     pub fn append_switch_with_value(&mut self, name: &str, value: &str) {
         unsafe {
-            (self.as_ref().append_switch_with_value.unwrap())(
-                self.0,
+            (self.0.append_switch_with_value.unwrap())(
+                self.as_ptr(),
                 CefString::new(name).as_ref(),
                 CefString::new(value).as_ref(),
             );
@@ -197,59 +200,34 @@ impl CommandLine {
     }
     /// True if there are remaining command line arguments.
     pub fn has_arguments(&self) -> bool {
-        unsafe { (self.as_ref().has_arguments.unwrap())(self.0) != 0 }
+        unsafe { (self.0.has_arguments.unwrap())(self.as_ptr()) != 0 }
     }
     /// Get the remaining command line arguments.
     pub fn get_arguments(&self) -> Vec<String> {
         let list = CefStringList::new();
         unsafe {
-            (self.as_ref().get_arguments.unwrap())(self.0, list.get());
+            (self.0.get_arguments.unwrap())(self.as_ptr(), list.get());
         }
         list.into()
     }
     /// Add an argument to the end of the command line.
     pub fn append_argument(&mut self, argument: &str) {
         unsafe {
-            (self.as_ref().append_argument.unwrap())(self.0, CefString::new(argument).as_ref());
+            (self.0.append_argument.unwrap())(self.as_ptr(), CefString::new(argument).as_ref());
         }
     }
     /// Insert a command before the current command. Common for debuggers, like
     /// "valgrind" or "`gdb --args`".
     pub fn prepend_wrapper(&mut self, wrapper: &str) {
         unsafe {
-            (self.as_ref().prepend_wrapper.unwrap())(self.0, CefString::new(wrapper).as_ref());
+            (self.0.prepend_wrapper.unwrap())(self.as_ptr(), CefString::new(wrapper).as_ref());
         }
-    }
-}
-
-#[doc(hidden)]
-impl std::convert::AsRef<cef_command_line_t> for CommandLine {
-    fn as_ref(&self) -> &cef_command_line_t {
-        unsafe { self.0.as_ref().unwrap() }
-    }
-}
-
-#[doc(hidden)]
-impl From<*mut cef_command_line_t> for CommandLine {
-    fn from(cmd: *mut cef_command_line_t) -> Self {
-        unsafe {
-            ((*cmd).base.add_ref.unwrap())(&mut (*cmd).base);
-        }
-        Self(cmd)
     }
 }
 
 impl Clone for CommandLine {
     /// Returns a writable copy of this object.
     fn clone(&self) -> Self {
-        Self(unsafe { (self.as_ref().copy.unwrap())(self.0) })
-    }
-}
-
-impl Drop for CommandLine {
-    fn drop(&mut self) {
-        unsafe {
-            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
-        }
+        unsafe{ Self::from_ptr_unchecked(self.0.copy.unwrap()(self.as_ptr())) }
     }
 }

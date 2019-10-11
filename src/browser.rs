@@ -14,7 +14,7 @@ ref_counted_ptr!{
     /// otherwise indicated in the comments. When used in the render process the
     /// functions of this structure may only be called on the main thread.
     #[derive(PartialEq, Eq)]
-    pub struct Browser(cef_browser_t);
+    pub struct Browser(*mut cef_browser_t);
 }
 
 unsafe impl Send for Browser {}
@@ -24,7 +24,7 @@ impl Browser {
     /// Returns the browser host object. This function can only be called in the
     /// browser process.
     pub fn get_host(&self) -> BrowserHost {
-        BrowserHost::from(unsafe { (self.0.get_host.unwrap())(self.0.as_ptr()) })
+        unsafe{ BrowserHost::from_ptr_unchecked((self.0.get_host.unwrap())(self.0.as_ptr())) }
     }
     /// Returns true if the browser can navigate backwards.
     pub fn can_go_back(&self) -> bool {
@@ -117,21 +117,6 @@ impl Browser {
             (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.get());
         }
         list.into()
-    }
-}
-
-#[doc(hidden)]
-impl std::convert::AsRef<cef_browser_t> for Browser {
-    fn as_ref(&self) -> &cef_browser_t {
-        &self.0
-    }
-}
-
-impl Drop for Browser {
-    fn drop(&mut self) {
-        unsafe {
-            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
-        }
     }
 }
 

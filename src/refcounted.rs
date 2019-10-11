@@ -64,6 +64,7 @@ macro_rules! is_same {
     };
 }
 
+// TODO: STANDARZIE MEANING OF EQUAL
 is_same!(_cef_value_t);
 is_same!(_cef_binary_value_t);
 is_same!(_cef_dictionary_value_t);
@@ -109,12 +110,18 @@ impl<C: RefCounter> RefCountedPtr<C> {
     pub fn as_ptr(&self) -> *mut C {
         self.cef.as_ptr()
     }
+
+    pub fn into_raw(self) -> *mut C {
+        let ptr = self.cef.as_ptr();
+        std::mem::forget(self);
+        ptr
+    }
 }
 
 macro_rules! ref_counted_ptr {
     (
         $(#[$meta:meta])*
-        $vis:vis struct $Struct:ident($cef:ident);
+        $vis:vis struct $Struct:ident(*mut $cef:ident);
     ) => {
         $(#[$meta])*
         #[repr(transparent)]
@@ -135,6 +142,10 @@ macro_rules! ref_counted_ptr {
 
             pub fn as_ptr(&self) -> *mut $cef {
                 self.0.as_ptr()
+            }
+
+            pub fn into_raw(self) -> *mut $cef {
+                self.0.into_raw()
             }
         }
     };

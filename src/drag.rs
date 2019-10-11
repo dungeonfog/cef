@@ -36,23 +36,17 @@ impl DragOperation {
     }
 }
 
-/// Structure used to represent drag data. The functions of this structure may be
-/// called on any thread.
-pub struct DragData(*mut cef_drag_data_t);
+ref_counted_ptr!{
+    /// Structure used to represent drag data. The functions of this structure may be
+    /// called on any thread.
+    pub struct DragData(*mut cef_drag_data_t);
+}
 
 unsafe impl Sync for DragData {}
 unsafe impl Send for DragData {}
 
 impl DragData {
     pub fn new() -> Self {
-        Self(unsafe { cef_drag_data_create() })
-    }
-}
-
-impl Drop for DragData {
-    fn drop(&mut self) {
-        unsafe {
-            (&*self.0).base.release.unwrap()(&mut (*self.0).base as *mut _);
-        }
+        unsafe{ Self::from_ptr_unchecked(cef_drag_data_create()) }
     }
 }

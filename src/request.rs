@@ -164,7 +164,7 @@ ref_counted_ptr!{
     /// Structure used to represent a web request. The functions of this structure
     /// may be called on any thread.
     #[derive(Clone)]
-    pub struct Request(cef_request_t);
+    pub struct Request(*mut cef_request_t);
 }
 
 unsafe impl Send for Request {}
@@ -185,7 +185,7 @@ impl Request {
     }
     /// Get the fully qualified URL.
     pub fn get_url(&self) -> String {
-        unsafe { &*self.0 }
+        self.0
             .get_url
             .and_then(|get_url| {
                 let mut s = unsafe { get_url(self.0.as_ptr()) };
@@ -199,7 +199,7 @@ impl Request {
     }
     /// Set the fully qualified URL.
     pub fn set_url(&mut self, url: &str) {
-        if let Some(set_url) = unsafe { &*self.0.as_ptr() }.set_url {
+        if let Some(set_url) = self.0.set_url {
             unsafe {
                 set_url(self.0.as_ptr(), CefString::new(url).as_ref());
             }
@@ -208,7 +208,7 @@ impl Request {
     /// Get the request function type. The value will default to POST if post data
     /// is provided and GET otherwise.
     pub fn get_method(&self) -> String {
-        unsafe { &*self.0.as_ptr() }
+        self.0
             .get_method
             .and_then(|get_method| {
                 let s = unsafe { get_method(self.0.as_ptr()) };
@@ -222,7 +222,7 @@ impl Request {
     }
     /// Set the request function type.
     pub fn set_method(&mut self, method: &str) {
-        if let Some(set_method) = unsafe { &*self.0.as_ptr() }.set_method {
+        if let Some(set_method) = self.0.set_method {
             unsafe {
                 set_method(self.0.as_ptr(), CefString::new(method).as_ref());
             }
@@ -232,7 +232,7 @@ impl Request {
     /// qualified with an HTTP or HTTPS scheme component. Any username, password or
     /// ref component will be removed.
     pub fn set_referrer(&mut self, referrer_url: Option<&str>, policy: ReferrerPolicy) {
-        if let Some(set_referrer) = unsafe { &*self.0.as_ptr() }.set_referrer {
+        if let Some(set_referrer) = self.0.set_referrer {
             if let Some(referrer_url) = referrer_url {
                 unsafe {
                     set_referrer(self.0.as_ptr(), CefString::new(referrer_url).as_ref(), policy.into());
@@ -242,7 +242,7 @@ impl Request {
     }
     /// Get the referrer URL.
     pub fn get_referrer_url(&self) -> String {
-        unsafe { &*self.0.as_ptr() }
+        self.0
             .get_referrer_url
             .and_then(|get_referrer_url| {
                 let s = unsafe { get_referrer_url(self.0.as_ptr()) };
@@ -256,7 +256,7 @@ impl Request {
     }
     /// Get the referrer policy.
     pub fn get_referrer_policy(&self) -> ReferrerPolicy {
-        unsafe { &*self.0.as_ptr() }
+        self.0
             .get_referrer_policy
             .and_then(|get_referrer_policy| {
                 Some(unsafe { ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32) })
@@ -265,20 +265,20 @@ impl Request {
     }
     /// Get the post data.
     pub fn get_post_data(&self) -> PostData {
-        let get_post_data = unsafe { &*self.0.as_ptr() }.get_post_data.unwrap();
-        PostData::from(unsafe { get_post_data(self.0.as_ptr()) })
+        let get_post_data = self.0.get_post_data.unwrap();
+        unsafe { PostData::from_ptr_unchecked(get_post_data(self.0.as_ptr())) }
     }
     /// Set the post data.
     pub fn set_post_data(&mut self, post_data: PostData) {
-        if let Some(set_post_data) = unsafe { &*self.0.as_ptr() }.set_post_data {
+        if let Some(set_post_data) = self.0.set_post_data {
             unsafe {
-                set_post_data(self.0.as_ptr(), post_data.0);
+                set_post_data(self.0.as_ptr(), post_data.into_raw());
             }
         }
     }
     /// Get the header values. Will not include the Referer value if any.
     pub fn get_header_map(&self) -> HashMap<String, Vec<String>> {
-        if let Some(get_header_map) = unsafe { &*self.0.as_ptr() }.get_header_map {
+        if let Some(get_header_map) = self.0.get_header_map {
             let mut map = MultiMap::new();
             unsafe { get_header_map(self.0.as_ptr(), map.as_ptr()) };
             map.into()
@@ -290,7 +290,7 @@ impl Request {
     /// Will not return the Referer value if any. Use [Request::get_header_map] instead if
     /// `name` might have multiple values.
     pub fn get_header_by_name(&self, name: &str) -> Option<String> {
-        if let Some(get_header_by_name) = unsafe { &*self.0.as_ptr() }.get_header_by_name {
+        if let Some(get_header_by_name) = self.0.get_header_by_name {
             let header = unsafe { get_header_by_name(self.0.as_ptr(), CefString::new(name).as_ref()) };
             let result = CefString::copy_raw_to_string(header);
             if result.is_some() {
@@ -308,7 +308,7 @@ impl Request {
     /// existing values will not be overwritten. The Referer value cannot be set
     /// using this function.
     pub fn set_header_by_name(&mut self, name: &str, value: &str, overwrite: bool) {
-        if let Some(set_header_by_name) = unsafe { &*self.0.as_ptr() }.set_header_by_name {
+        if let Some(set_header_by_name) = self.0.set_header_by_name {
             unsafe {
                 set_header_by_name(
                     self.0.as_ptr(),
@@ -327,7 +327,7 @@ impl Request {
         post_data: PostData,
         header_map: HashMap<String, Vec<String>>,
     ) {
-        if let Some(set) = unsafe { &*self.0.as_ptr() }.set {
+        if let Some(set) = self.0.set {
             let url = CefString::new(url);
             let method = CefString::new(method);
             let header_map = MultiMap::from(&header_map);
@@ -337,7 +337,7 @@ impl Request {
                     self.0.as_ptr(),
                     url.as_ref(),
                     method.as_ref(),
-                    post_data.0,
+                    post_data.into_raw(),
                     header_map.as_ptr(),
                 );
             }
@@ -346,7 +346,7 @@ impl Request {
     /// Get the flags used in combination with [URLRequest]. See
     /// [URLRequestFlags] for supported values.
     pub fn get_flags(&self) -> Vec<URLRequestFlags> {
-        if let Some(get_flags) = unsafe { &*self.0.as_ptr() }.get_flags {
+        if let Some(get_flags) = self.0.get_flags {
             URLRequestFlags::from_bitfield(unsafe { get_flags(self.0.as_ptr()) })
         } else {
             Vec::new()
@@ -355,7 +355,7 @@ impl Request {
     /// Set the flags used in combination with [URLRequest]. See
     /// [URLRequestFlags] for supported values.
     pub fn set_flags(&mut self, flags: &Vec<URLRequestFlags>) {
-        if let Some(set_flags) = unsafe { &*self.0.as_ptr() }.set_flags {
+        if let Some(set_flags) = self.0.set_flags {
             unsafe {
                 set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags));
             }
@@ -364,7 +364,7 @@ impl Request {
     /// Get the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn get_first_party_for_cookies(&self) -> String {
-        if let Some(get_first_party_for_cookies) = unsafe { &*self.0.as_ptr() }.get_first_party_for_cookies {
+        if let Some(get_first_party_for_cookies) = self.0.get_first_party_for_cookies {
             let url = unsafe { get_first_party_for_cookies(self.0.as_ptr()) };
             let result = CefString::copy_raw_to_string(url);
             if result.is_some() {
@@ -380,7 +380,7 @@ impl Request {
     /// Set the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn set_first_party_for_cookies(&mut self, url: &str) {
-        if let Some(set_first_party_for_cookies) = unsafe { &*self.0.as_ptr() }.set_first_party_for_cookies {
+        if let Some(set_first_party_for_cookies) = self.0.set_first_party_for_cookies {
             unsafe {
                 set_first_party_for_cookies(self.0.as_ptr(), CefString::new(url).as_ref());
             }
@@ -404,7 +404,7 @@ impl Request {
     /// specified. Can be used by [ResourceRequestHandler] implementations in
     /// the browser process to track a single request across multiple callbacks.
     pub fn get_identifier(&self) -> u64 {
-        if let Some(get_identifier) = unsafe { &*self.0.as_ptr() }.get_identifier {
+        if let Some(get_identifier) = self.0.get_identifier {
             unsafe { get_identifier(self.0.as_ptr()) }
         } else {
             0
@@ -412,23 +412,26 @@ impl Request {
     }
 }
 
-/// Structure used to represent post data for a web request. The functions of
-/// this structure may be called on any thread.
-pub struct PostData(*mut cef_post_data_t);
+ref_counted_ptr!{
+    /// Structure used to represent post data for a web request. The functions of
+    /// this structure may be called on any thread.
+    #[derive(Clone)]
+    pub struct PostData(*mut cef_post_data_t);
+}
 
 unsafe impl Send for PostData {}
 unsafe impl Sync for PostData {}
 
 impl PostData {
     pub fn new() -> Self {
-        Self(unsafe { cef_post_data_create() })
+        unsafe{ Self::from_ptr_unchecked(cef_post_data_create()) }
     }
 
     /// Returns true if this object is read-only.
     pub fn is_read_only(&self) -> bool {
-        unsafe { &*self.0 }
+        self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.0) != 0 }))
+            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
             .unwrap_or(true)
     }
     /// Returns true if the underlying POST data includes elements that are not
@@ -436,28 +439,28 @@ impl PostData {
     /// upload data). Modifying [PostData] objects with excluded elements may
     /// result in the request failing.
     pub fn has_excluded_elements(&self) -> bool {
-        unsafe { &*self.0 }
+        self.0
             .has_excluded_elements
-            .and_then(|has_excluded_elements| Some(unsafe { has_excluded_elements(self.0) != 0 }))
+            .and_then(|has_excluded_elements| Some(unsafe { has_excluded_elements(self.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
     /// Returns the number of existing post data elements.
     pub fn get_element_count(&self) -> usize {
-        unsafe { &*self.0 }
+        self.0
             .get_element_count
-            .and_then(|get_element_count| Some(unsafe { get_element_count(self.0) }))
+            .and_then(|get_element_count| Some(unsafe { get_element_count(self.as_ptr()) }))
             .unwrap_or(0)
     }
     /// Retrieve the post data elements.
     pub fn get_elements(&self) -> Vec<PostDataElement> {
         let mut count = self.get_element_count();
         if count > 0 {
-            if let Some(get_elements) = unsafe { &*self.0 }.get_elements {
+            if let Some(get_elements) = self.0.get_elements {
                 let mut elements = vec![null_mut(); count];
                 unsafe {
-                    get_elements(self.0, &mut count, elements.as_mut_ptr());
+                    get_elements(self.as_ptr(), &mut count, elements.as_mut_ptr());
                 }
-                elements.into_iter().map(PostDataElement::from).collect()
+                elements.into_iter().map(|p| unsafe{ PostDataElement::from_ptr_unchecked(p) }).collect()
             } else {
                 Vec::new()
             }
@@ -468,57 +471,36 @@ impl PostData {
     /// Remove the specified post data element. Returns true if the removal
     /// succeeds.
     pub fn remove_element(&mut self, element: &PostDataElement) -> bool {
-        if let Some(remove_element) = unsafe { &*self.0 }.remove_element {
-            unsafe { remove_element(self.0, element.0) != 0 }
+        if let Some(remove_element) = self.0.remove_element {
+            unsafe { remove_element(self.as_ptr(), element.as_ptr()) != 0 }
         } else {
             false
         }
     }
     /// Add the specified post data element. Returns true if the add succeeds.
     pub fn add_element(&mut self, element: &PostDataElement) -> bool {
-        if let Some(add_element) = unsafe { &*self.0 }.add_element {
-            unsafe { add_element(self.0, element.0) != 0 }
+        if let Some(add_element) = self.0.add_element {
+            unsafe { add_element(self.as_ptr(), element.as_ptr()) != 0 }
         } else {
             false
         }
     }
     /// Remove all existing post data elements.
     pub fn remove_elements(&mut self) {
-        if let Some(remove_elements) = unsafe { &*self.0 }.remove_elements {
+        if let Some(remove_elements) = self.0.remove_elements {
             unsafe {
-                remove_elements(self.0);
+                remove_elements(self.as_ptr());
             }
         }
     }
 }
 
-#[doc(hidden)]
-impl From<*mut cef_post_data_t> for PostData {
-    fn from(post_data: *mut cef_post_data_t) -> Self {
-        unsafe {
-            ((*post_data).base.add_ref.unwrap())(&mut (*post_data).base);
-        }
-        Self(post_data)
-    }
+ref_counted_ptr!{
+    /// Structure used to represent a single element in the request post data. The
+    /// functions of this structure may be called on any thread.
+    #[derive(Clone)]
+    pub struct PostDataElement(*mut cef_post_data_element_t);
 }
-
-impl Clone for PostData {
-    fn clone(&self) -> Self {
-        Self::from(self.0)
-    }
-}
-
-impl Drop for PostData {
-    fn drop(&mut self) {
-        unsafe {
-            ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base);
-        }
-    }
-}
-
-/// Structure used to represent a single element in the request post data. The
-/// functions of this structure may be called on any thread.
-pub struct PostDataElement(*mut cef_post_data_element_t);
 
 unsafe impl Send for PostDataElement {}
 unsafe impl Sync for PostDataElement {}
@@ -526,39 +508,39 @@ unsafe impl Sync for PostDataElement {}
 impl PostDataElement {
     /// Create a new [PostDataElement] object.
     pub fn new() -> Self {
-        Self(unsafe { cef_post_data_element_create() })
+        unsafe { Self::from_ptr_unchecked(cef_post_data_element_create()) }
     }
 
     /// Returns true if this object is read-only.
     pub fn is_read_only(&self) -> bool {
-        unsafe { &*self.0 }
+        self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.0) != 0 }))
+            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
             .unwrap_or(true)
     }
     /// Remove all contents from the post data element.
     pub fn set_to_empty(&mut self) {
-        if let Some(set_to_empty) = unsafe { &*self.0 }.set_to_empty {
+        if let Some(set_to_empty) = self.0.set_to_empty {
             unsafe {
-                set_to_empty(self.0);
+                set_to_empty(self.as_ptr());
             }
         }
     }
     /// The post data element will represent a file.
     pub fn set_to_file(&mut self, file_name: &str) {
-        if let Some(set_to_file) = unsafe { &*self.0 }.set_to_file {
+        if let Some(set_to_file) = self.0.set_to_file {
             unsafe {
-                set_to_file(self.0, CefString::new(file_name).as_ref());
+                set_to_file(self.0.as_ptr(), CefString::new(file_name).as_ref());
             }
         }
     }
     /// The post data element will represent bytes.  The bytes passed in will be
     /// copied.
     pub fn set_to_bytes(&mut self, bytes: &[u8]) {
-        if let Some(set_to_bytes) = unsafe { &*self.0 }.set_to_bytes {
+        if let Some(set_to_bytes) = self.0.set_to_bytes {
             unsafe {
                 set_to_bytes(
-                    self.0,
+                    self.0.as_ptr(),
                     bytes.len(),
                     bytes.as_ptr() as *const std::ffi::c_void,
                 );
@@ -567,15 +549,15 @@ impl PostDataElement {
     }
     /// Return the type of this post data element.
     pub fn get_type(&self) -> PostDataElementType {
-        if let Some(get_type) = unsafe { &*self.0 }.get_type {
-            unsafe { PostDataElementType::from_unchecked(get_type(self.0) as i32) }
+        if let Some(get_type) = self.0.get_type {
+            unsafe { PostDataElementType::from_unchecked(get_type(self.as_ptr()) as i32) }
         } else {
             PostDataElementType::Empty
         }
     }
     /// Return the file name.
     pub fn get_file(&self) -> String {
-        let name = unsafe { (&*self.0).get_file.unwrap()(self.0) };
+        let name = unsafe { (&*self.0).get_file.unwrap()(self.as_ptr()) };
         if let Some(result) = CefString::copy_raw_to_string(name) {
             unsafe {
                 cef_string_userfree_utf16_free(name);
@@ -587,8 +569,8 @@ impl PostDataElement {
     }
     /// Return the number of bytes.
     pub fn get_bytes_count(&self) -> usize {
-        if let Some(get_bytes_count) = unsafe { &*self.0 }.get_bytes_count {
-            unsafe { get_bytes_count(self.0) }
+        if let Some(get_bytes_count) = self.0.get_bytes_count {
+            unsafe { get_bytes_count(self.as_ptr()) }
         } else {
             0
         }
@@ -597,10 +579,10 @@ impl PostDataElement {
     pub fn get_bytes(&self) -> Vec<u8> {
         let size = self.get_bytes_count();
         if size > 0 {
-            if let Some(get_bytes) = unsafe { &*self.0 }.get_bytes {
+            if let Some(get_bytes) = self.0.get_bytes {
                 let mut buffer = vec![0; size];
                 unsafe {
-                    get_bytes(self.0, size, buffer.as_mut_ptr() as *mut std::ffi::c_void);
+                    get_bytes(self.as_ptr(), size, buffer.as_mut_ptr() as *mut std::ffi::c_void);
                 }
                 buffer.to_vec()
             } else {
@@ -608,30 +590,6 @@ impl PostDataElement {
             }
         } else {
             Vec::new()
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<*mut cef_post_data_element_t> for PostDataElement {
-    fn from(element: *mut cef_post_data_element_t) -> Self {
-        unsafe {
-            ((*element).base.add_ref.unwrap())(&mut (*element).base);
-        }
-        Self(element)
-    }
-}
-
-impl Clone for PostDataElement {
-    fn clone(&self) -> Self {
-        Self::from(self.0)
-    }
-}
-
-impl Drop for PostDataElement {
-    fn drop(&mut self) {
-        unsafe {
-            ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base);
         }
     }
 }

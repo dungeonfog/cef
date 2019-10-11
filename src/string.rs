@@ -45,6 +45,10 @@ impl CefString {
         assert_eq!(std::mem::size_of::<cef_string_t>(), std::mem::size_of::<CefString>());
         &mut *(ptr as *mut CefString)
     }
+
+    pub unsafe fn from_raw(raw: cef_string_t) -> CefString {
+        CefString(raw)
+    }
 }
 
 impl Default for CefString {

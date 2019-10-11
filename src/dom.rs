@@ -25,9 +25,11 @@ pub enum DOMNodeType {
     DocumentFragment = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as i32,
 }
 
-/// Structure used to represent a DOM node. The functions of this structure
-/// should only be called on the render process main thread.
-pub struct DOMNode(*mut cef_domnode_t);
+ref_counted_ptr!{
+    /// Structure used to represent a DOM node. The functions of this structure
+    /// should only be called on the render process main thread.
+    pub struct DOMNode(*mut cef_domnode_t);
+}
 
 impl DOMNode {
     /// Returns the type for this node.
@@ -144,47 +146,8 @@ impl PartialEq for DOMNode {
     }
 }
 
-impl TryFrom<*mut cef_domnode_t> for DOMNode {
-    type Error = ();
-
-    fn try_from(node: *mut cef_domnode_t) -> Result<Self, Self::Error> {
-        if node.is_null() {
-            Err(())
-        } else {
-            unsafe {
-                ((*node).base.add_ref.unwrap())(&mut (*node).base);
-            }
-            Ok(Self(node))
-        }
-    }
-}
-
-impl Drop for DOMNode {
-    fn drop(&mut self) {
-        unsafe {
-            ((*self.0).base.release.unwrap())(&mut (*self.0).base);
-        }
-    }
-}
-
-pub struct DOMDocument(*mut cef_domdocument_t);
-
-#[doc(hidden)]
-impl From<*mut cef_domdocument_t> for DOMDocument {
-    fn from(document: *mut cef_domdocument_t) -> Self {
-        unsafe {
-            ((*document).base.add_ref.unwrap())(&mut (*document).base);
-        }
-        Self(document)
-    }
-}
-
-impl Drop for DOMDocument {
-    fn drop(&mut self) {
-        unsafe {
-            ((*self.0).base.release.unwrap())(&mut (*self.0).base);
-        }
-    }
+ref_counted_ptr!{
+    pub struct DOMDocument(*mut cef_domdocument_t);
 }
 
 /// Structure to implement for visiting the DOM. The functions of this structure
@@ -212,7 +175,7 @@ impl DOMVisitorWrapper {
 
     extern "C" fn visit(self_: *mut cef_domvisitor_t, document: *mut cef_domdocument_t) {
         let mut this = unsafe { RefCounted::<cef_domvisitor_t>::make_temp(self_) };
-        this.visit(&DOMDocument::from(document));
+        this.visit(unsafe{ &DOMDocument::from_ptr_unchecked(document) });
         // we're done here!
         RefCounted::<cef_domvisitor_t>::release(this.get_cef() as *mut cef_base_ref_counted_t);
     }

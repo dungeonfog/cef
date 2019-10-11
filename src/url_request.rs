@@ -41,12 +41,14 @@ pub enum URLRequestStatus {
     Failed = cef_urlrequest_status_t::UR_FAILED as i32,
 }
 
-/// Structure used to make a URL request. URL requests are not associated with a
-/// browser instance so no [Client] callbacks will be executed. URL requests
-/// can be created on any valid CEF thread in either the browser or render
-/// process. Once created the functions of the URL request object must be
-/// accessed on the same thread that created it.
-pub struct URLRequest(*mut cef_urlrequest_t);
+ref_counted_ptr!{
+    /// Structure used to make a URL request. URL requests are not associated with a
+    /// browser instance so no [Client] callbacks will be executed. URL requests
+    /// can be created on any valid CEF thread in either the browser or render
+    /// process. Once created the functions of the URL request object must be
+    /// accessed on the same thread that created it.
+    pub struct URLRequest(*mut cef_urlrequest_t);
+}
 
 impl URLRequest {
     /// Create a new URL request that is not associated with a specific browser or
@@ -73,7 +75,7 @@ impl URLRequest {
         client: Box<dyn URLRequestClient>,
         request_context: Option<&RequestContext>,
     ) -> Self {
-        Self(unsafe {
+        unsafe{ Self::from_ptr_unchecked(
             cef_urlrequest_create(
                 request.as_ptr(),
                 URLRequestClientWrapper::wrap(client),
@@ -81,62 +83,46 @@ impl URLRequest {
                     .and_then(|ctx| Some(ctx.as_ptr()))
                     .unwrap_or_else(null_mut),
             )
-        })
+        ) }
     }
     /// Returns the request object used to create this URL request. The returned
     /// object is read-only and should not be modified.
     pub fn get_request(&self) -> Request {
-        unsafe{ Request::from_ptr_unchecked((*self.0).get_request.unwrap()(self.0)) }
+        unsafe{ Request::from_ptr_unchecked(self.0.get_request.unwrap()(self.as_ptr())) }
     }
     /// Returns the request status.
     pub fn get_request_status(&self) -> URLRequestStatus {
         unsafe {
-            URLRequestStatus::from_unchecked((*self.0).get_request_status.unwrap()(self.0) as i32)
+            URLRequestStatus::from_unchecked(self.0.get_request_status.unwrap()(self.as_ptr()) as i32)
         }
     }
     /// Returns the request error if status is [URLRequestStatus::Canceled] or [URLRequestStatus::Failed], or [ErrorCode::None]
     /// otherwise.
     pub fn get_request_error(&self) -> ErrorCode {
-        unsafe { ErrorCode::from_unchecked((*self.0).get_request_error.unwrap()(self.0) as i32) }
+        unsafe { ErrorCode::from_unchecked(self.0.get_request_error.unwrap()(self.as_ptr()) as i32) }
     }
     /// Returns the response, or None if no response information is available.
     /// Response information will only be available after the upload has completed.
     /// The returned object is read-only and should not be modified.
     pub fn get_response(&self) -> Option<Response> {
-        unsafe { Response::from_ptr((*self.0).get_response.unwrap()(self.0)) }
+        unsafe { Response::from_ptr(self.0.get_response.unwrap()(self.as_ptr())) }
     }
     /// Returns true if the response body was served from the cache. This
     /// includes responses for which revalidation was required.
     pub fn response_was_cached(&self) -> bool {
-        unsafe { (*self.0).response_was_cached.unwrap()(self.0) != 0 }
+        unsafe { self.0.response_was_cached.unwrap()(self.as_ptr()) != 0 }
     }
     /// Cancel the request.
     pub fn cancel(&self) {
-        unsafe { (*self.0).cancel.unwrap()(self.0) }
+        unsafe { self.0.cancel.unwrap()(self.as_ptr()) }
     }
 }
 
-#[doc(hidden)]
-impl From<*mut cef_urlrequest_t> for URLRequest {
-    fn from(req: *mut cef_urlrequest_t) -> Self {
-        unsafe {
-            ((*req).base.add_ref.unwrap())(&mut (*req).base);
-        }
-        Self(req)
-    }
+ref_counted_ptr!{
+    /// Callback structure used for asynchronous continuation of authentication
+    /// requests.
+    pub struct AuthCallback(*mut cef_auth_callback_t);
 }
-
-impl Drop for URLRequest {
-    fn drop(&mut self) {
-        unsafe {
-            ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base);
-        }
-    }
-}
-
-/// Callback structure used for asynchronous continuation of authentication
-/// requests.
-pub struct AuthCallback(*mut cef_auth_callback_t);
 
 unsafe impl Send for AuthCallback {}
 unsafe impl Sync for AuthCallback {}
@@ -144,43 +130,27 @@ unsafe impl Sync for AuthCallback {}
 impl AuthCallback {
     /// Continue the authentication request.
     pub fn cont(&self, username: &str, password: &str) {
-        if let Some(cont) = unsafe { &*self.0 }.cont {
+        if let Some(cont) = self.0.cont {
             unsafe {
                 cont(
-                    self.0,
+                    self.as_ptr(),
                     CefString::new(username).as_ref(),
                     CefString::new(password).as_ref(),
                 );
             }
         }
-        unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
+        // TODO: WHY IS THIS HERE?
+        // unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
     }
     /// Cancel the authentication request.
     pub fn cancel(&self) {
         if let Some(cancel) = unsafe { &*self.0 }.cancel {
             unsafe {
-                cancel(self.0);
+                cancel(self.as_ptr());
             }
         }
-        unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
-    }
-}
-
-impl Drop for AuthCallback {
-    fn drop(&mut self) {
-        unsafe {
-            ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base);
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<*mut cef_auth_callback_t> for AuthCallback {
-    fn from(cb: *mut cef_auth_callback_t) -> Self {
-        unsafe {
-            ((*cb).base.add_ref.unwrap())(&mut (*cb).base);
-        }
-        Self(cb)
+        // TODO: WHY IS THIS HERE?
+        // unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
     }
 }
 
@@ -250,7 +220,7 @@ impl URLRequestClientWrapper {
         request: *mut cef_urlrequest_t,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_request_complete(&URLRequest::from(request));
+        (*this).on_request_complete(unsafe{ &URLRequest::from_ptr_unchecked(request) });
     }
     extern "C" fn upload_progress(
         self_: *mut cef_urlrequest_client_t,
@@ -259,7 +229,7 @@ impl URLRequestClientWrapper {
         total: i64,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_upload_progress(&URLRequest::from(request), current, total);
+        (*this).on_upload_progress(unsafe{ &URLRequest::from_ptr_unchecked(request) }, current, total);
     }
     extern "C" fn download_progress(
         self_: *mut cef_urlrequest_client_t,
@@ -268,7 +238,7 @@ impl URLRequestClientWrapper {
         total: i64,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_download_progress(&URLRequest::from(request), current, total);
+        (*this).on_download_progress(unsafe{ &URLRequest::from_ptr_unchecked(request) }, current, total);
     }
     extern "C" fn download_data(
         self_: *mut cef_urlrequest_client_t,
@@ -277,7 +247,7 @@ impl URLRequestClientWrapper {
         data_length: usize,
     ) {
         let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).on_download_data(&URLRequest::from(request), unsafe {
+        (*this).on_download_data(unsafe{ &URLRequest::from_ptr_unchecked(request) }, unsafe {
             std::slice::from_raw_parts(data as *const u8, data_length)
         });
     }
@@ -297,7 +267,7 @@ impl URLRequestClientWrapper {
             port as u16,
             &CefString::copy_raw_to_string(realm).unwrap(),
             &CefString::copy_raw_to_string(scheme).unwrap(),
-            AuthCallback::from(callback),
+            unsafe{ AuthCallback::from_ptr_unchecked(callback) },
         ) as i32
     }
 }
@@ -305,7 +275,7 @@ impl URLRequestClientWrapper {
 ref_counted_ptr!{
     /// Structure used to represent a web response. The functions of this structure
     /// may be called on any thread.
-    pub struct Response(cef_response_t);
+    pub struct Response(*mut cef_response_t);
 }
 
 unsafe impl Send for Response {}
@@ -313,7 +283,7 @@ unsafe impl Sync for Response {}
 
 ref_counted_ptr!{
     /// Callback structure used for asynchronous continuation of url requests.
-    pub struct RequestCallback(cef_request_callback_t);
+    pub struct RequestCallback(*mut cef_request_callback_t);
 }
 
 unsafe impl Send for RequestCallback {}

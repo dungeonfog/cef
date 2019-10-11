@@ -35,11 +35,13 @@ pub type WindowHandle = u64;
 #[cfg(target_os = "macos")]
 pub type WindowHandle = *mut std::ffi::c_void; // Actually NSView*
 
-/// Structure used to represent the browser process aspects of a browser window.
-/// The functions of this structure can only be called in the browser process.
-/// They may be called on any thread in that process unless otherwise indicated
-/// in the comments.
-pub struct BrowserHost(*mut cef_browser_host_t);
+ref_counted_ptr!{
+    /// Structure used to represent the browser process aspects of a browser window.
+    /// The functions of this structure can only be called in the browser process.
+    /// They may be called on any thread in that process unless otherwise indicated
+    /// in the comments.
+    pub struct BrowserHost(*mut cef_browser_host_t);
+}
 
 impl BrowserHost {
     /// Create a new browser window using the window parameters specified by
@@ -68,7 +70,7 @@ impl BrowserHost {
                 CefString::new(url).as_ref(),
                 settings.get(),
                 extra_info
-                    .and_then(|mut ei| Some(ei.get_mut()))
+                    .and_then(|mut ei| Some(ei.as_ptr()))
                     .unwrap_or_else(null_mut),
                 request_context
                     .and_then(|rc| Some(rc.as_ptr()))
@@ -519,29 +521,4 @@ impl BrowserHost {
         unimplemented!()
     }
     // TODO: continue
-}
-
-#[doc(hidden)]
-impl std::convert::AsRef<cef_browser_host_t> for BrowserHost {
-    fn as_ref(&self) -> &cef_browser_host_t {
-        unsafe { self.0.as_ref().unwrap() }
-    }
-}
-
-#[doc(hidden)]
-impl From<*mut cef_browser_host_t> for BrowserHost {
-    fn from(browser_host: *mut cef_browser_host_t) -> Self {
-        unsafe {
-            ((*browser_host).base.add_ref.unwrap())(&mut (*browser_host).base);
-        }
-        Self(browser_host)
-    }
-}
-
-impl Drop for BrowserHost {
-    fn drop(&mut self) {
-        unsafe {
-            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
-        }
-    }
 }
