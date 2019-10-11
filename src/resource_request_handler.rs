@@ -185,12 +185,12 @@ cef_callback_impl! {
     impl ResourceRequestHandlerWrapper: cef_resource_request_handler_t {
         fn get_cookie_access_filter(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame  : Option<&Frame>  : *mut cef_frame_t,
-            request: &Request        : *mut cef_request_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame  : Option<Frame>  : *mut cef_frame_t,
+            request: Request        : *mut cef_request_t,
         ) -> *mut cef_cookie_access_filter_t
         {
-            if let Some(filter) = self.delegate.get_cookie_access_filter(browser, frame, request) {
+            if let Some(filter) = self.delegate.get_cookie_access_filter(browser.as_ref(), frame.as_ref(), &request) {
                 self
                     .cookie_access_filter
                     .replace(CookieAccessFilterWrapper::wrap(filter));
@@ -202,30 +202,30 @@ cef_callback_impl! {
         }
         fn before_resource_load(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
-            callback: &RequestCallback: *mut cef_request_callback_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            callback: RequestCallback: *mut cef_request_callback_t,
         ) -> cef_return_value_t::Type {
             let result = self.delegate.on_before_resource_load(
-                browser,
-                frame,
-                request,
-                callback
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
+                &callback
             ) as i32;
             result as cef_return_value_t::Type
         }
 
         fn get_resource_handler(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
         ) -> *mut cef_resource_handler_t {
             if let Some(handler) = self.delegate.get_resource_handler(
-                browser,
-                frame,
-                request,
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
             ) {
                 self
                     .resource_handler
@@ -239,18 +239,18 @@ cef_callback_impl! {
 
         fn resource_redirect(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
-            response: &Response: *mut cef_response_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            response: Response: *mut cef_response_t,
             new_url: &mut CefString: *mut cef_string_t,
         ) {
             let mut new_url_rust = (&*new_url).into();
             self.delegate.on_resource_redirect(
-                browser,
-                frame,
-                request,
-                response,
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
+                &response,
                 &mut new_url_rust,
             );
             new_url.set_string(&new_url_rust);
@@ -258,32 +258,32 @@ cef_callback_impl! {
 
         fn resource_response(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
-            response: &Response: *mut cef_response_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            response: Response: *mut cef_response_t,
         ) -> std::os::raw::c_int {
             self.delegate.on_resource_response(
-                browser,
-                frame,
-                request,
-                response,
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
+                &response,
             );
             0
         }
 
         fn get_resource_response_filter(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
-            response: &Response: *mut cef_response_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            response: Response: *mut cef_response_t,
         ) -> *mut cef_response_filter_t {
             if let Some(filter) = self.delegate.get_resource_response_filter(
-                browser,
-                frame,
-                request,
-                response,
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
+                &response,
             ) {
                 self.response_filter
                     .replace(ResponseFilterWrapper::wrap(filter));
@@ -296,18 +296,18 @@ cef_callback_impl! {
 
         fn resource_load_complete(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
-            response: &Response: *mut cef_response_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            response: Response: *mut cef_response_t,
             status: URLRequestStatus: cef_urlrequest_status_t::Type,
             received_content_length: i64: i64,
         ) {
             self.delegate.on_resource_load_complete(
-                browser,
-                frame,
-                request,
-                response,
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
+                &response,
                 status,
                 received_content_length,
             );
@@ -315,15 +315,15 @@ cef_callback_impl! {
 
         fn protocol_execution(
             &mut self,
-            browser: Option<&Browser>: *mut cef_browser_t,
-            frame: Option<&Frame>: *mut cef_frame_t,
-            request: &Request: *mut cef_request_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
             allow_os_execution: Option<&mut std::os::raw::c_int>: *mut std::os::raw::c_int,
         ) {
             if self.delegate.on_protocol_execution(
-                browser,
-                frame,
-                request,
+                browser.as_ref(),
+                frame.as_ref(),
+                &request,
             ) {
                 if let Some(allow_os_execution) = allow_os_execution {
                     *allow_os_execution = 1;

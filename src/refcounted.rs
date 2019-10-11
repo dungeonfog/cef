@@ -152,13 +152,6 @@ macro_rules! ref_counted_ptr {
     };
 }
 
-impl<C: RefCounter + IsSame> std::cmp::Eq for RefCountedPtr<C> {}
-impl<C: RefCounter + IsSame> std::cmp::PartialEq for RefCountedPtr<C> {
-    fn eq(&self, rhs: &Self) -> bool {
-        C::is_same(self.as_ptr(), rhs.as_ptr())
-    }
-}
-
 impl<C: RefCounter> Deref for RefCountedPtr<C> {
     type Target = C;
 
