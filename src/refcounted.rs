@@ -49,22 +49,101 @@ macro_rules! ref_counter {
     };
 }
 
+/// TODO: PULL OUT OF refcounted.rs
+pub trait IsSame {
+    fn is_same(this: *mut Self, other: *mut Self) -> bool;
+}
+
+macro_rules! is_same {
+    ($cef:ident) => {
+        impl IsSame for cef_sys::$cef {
+            fn is_same(this: *mut Self, other: *mut Self) -> bool {
+                unsafe{ ((*this).is_same.unwrap())(this, other) != 0 }
+            }
+        }
+    };
+}
+
+is_same!(_cef_value_t);
+is_same!(_cef_binary_value_t);
+is_same!(_cef_dictionary_value_t);
+is_same!(_cef_list_value_t);
+is_same!(_cef_image_t);
+is_same!(_cef_domnode_t);
+is_same!(_cef_extension_t);
+is_same!(_cef_request_context_t);
+is_same!(_cef_browser_t);
+is_same!(_cef_task_runner_t);
+is_same!(_cef_v8context_t);
+is_same!(_cef_v8value_t);
+
 #[repr(transparent)]
 pub(crate) struct RefCountedPtr<C: RefCounter> {
     cef: NonNull<C>,
 }
 
 impl<C: RefCounter> RefCountedPtr<C> {
-    pub unsafe fn new_add_ref(ptr: *mut C) -> Option<RefCountedPtr<C>> {
+    pub(crate) fn wrap(mut cefobj: C, object: C::Wrapper) -> RefCountedPtr<C>
+        where C: RefCounterWrapped
+    {
+        unsafe{ RefCountedPtr::from_ptr_unchecked((*RefCounted::new(cefobj, object)).get_cef()) }
+    }
+
+    pub unsafe fn from_ptr_add_ref(ptr: *mut C) -> Option<RefCountedPtr<C>> {
         let mut cef = NonNull::new(ptr)?;
         let add_ref = cef.as_ref().base().add_ref.unwrap();
         (add_ref)(cef.as_mut().base_mut());
         Some(RefCountedPtr {cef})
     }
 
-    pub unsafe fn new(ptr: *mut C) -> Option<RefCountedPtr<C>> {
+    pub unsafe fn from_ptr(ptr: *mut C) -> Option<RefCountedPtr<C>> {
         let mut cef = NonNull::new(ptr)?;
         Some(RefCountedPtr {cef})
+    }
+
+    pub unsafe fn from_ptr_unchecked(ptr: *mut C) -> RefCountedPtr<C> {
+        let mut cef = NonNull::new_unchecked(ptr);
+        RefCountedPtr {cef}
+    }
+
+    pub fn as_ptr(&self) -> *mut C {
+        self.cef.as_ptr()
+    }
+}
+
+macro_rules! ref_counted_ptr {
+    (
+        $(#[$meta:meta])*
+        $vis:vis struct $Struct:ident($cef:ident);
+    ) => {
+        $(#[$meta])*
+        #[repr(transparent)]
+        $vis struct $Struct(crate::refcounted::RefCountedPtr<cef_sys::$cef>);
+
+        impl $Struct {
+            pub unsafe fn from_ptr_add_ref(ptr: *mut $cef) -> Option<$Struct> {
+                crate::refcounted::RefCountedPtr::from_ptr_add_ref(ptr).map(Self)
+            }
+
+            pub unsafe fn from_ptr(ptr: *mut $cef) -> Option<$Struct> {
+                crate::refcounted::RefCountedPtr::from_ptr(ptr).map(Self)
+            }
+
+            pub unsafe fn from_ptr_unchecked(ptr: *mut $cef) -> $Struct {
+                Self(crate::refcounted::RefCountedPtr::from_ptr_unchecked(ptr))
+            }
+
+            pub fn as_ptr(&self) -> *mut $cef {
+                self.0.as_ptr()
+            }
+        }
+    };
+}
+
+impl<C: RefCounter + IsSame> std::cmp::Eq for RefCountedPtr<C> {}
+impl<C: RefCounter + IsSame> std::cmp::PartialEq for RefCountedPtr<C> {
+    fn eq(&self, rhs: &Self) -> bool {
+        C::is_same(self.as_ptr(), rhs.as_ptr())
     }
 }
 

@@ -1117,7 +1117,7 @@ impl LoadHandlerWrapper {
     ) {
         let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_loading_state_change(
-            &Browser::from(browser),
+            unsafe{ &Browser::from_ptr_unchecked(browser) },
             is_loading != 0,
             can_go_back != 0,
             can_go_forward != 0,
@@ -1132,8 +1132,8 @@ impl LoadHandlerWrapper {
         if let Ok(transition_type) = TransitionType::try_from(transition_type.0) {
             let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
             (*this).on_load_start(
-                &Browser::from(browser),
-                &Frame::from(frame),
+                unsafe{ &Browser::from_ptr_unchecked(browser) },
+                unsafe{ &Frame::from_ptr_unchecked(frame) },
                 transition_type,
             );
         }
@@ -1146,8 +1146,8 @@ impl LoadHandlerWrapper {
     ) {
         let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_load_end(
-            &Browser::from(browser),
-            &Frame::from(frame),
+            unsafe{ &Browser::from_ptr_unchecked(browser) },
+            unsafe{ &Frame::from_ptr_unchecked(frame) },
             http_status_code,
         );
     }
@@ -1161,8 +1161,8 @@ impl LoadHandlerWrapper {
     ) {
         let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_load_error(
-            &Browser::from(browser),
-            &Frame::from(frame),
+            unsafe{ &Browser::from_ptr_unchecked(browser) },
+            unsafe{ &Frame::from_ptr_unchecked(frame) },
             unsafe { ErrorCode::from_unchecked(error_code) },
             &CefString::copy_raw_to_string(error_text).unwrap(),
             &CefString::copy_raw_to_string(failed_url).unwrap(),

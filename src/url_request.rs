@@ -15,7 +15,7 @@ use crate::{
     cookie::Cookie,
     frame::Frame,
     load_handler::ErrorCode,
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted, RefCountedPtr, RefCounter},
     request::Request,
     request_context::RequestContext,
     resource_request_handler::ResourceRequestHandler,
@@ -86,7 +86,7 @@ impl URLRequest {
     /// Returns the request object used to create this URL request. The returned
     /// object is read-only and should not be modified.
     pub fn get_request(&self) -> Request {
-        Request::from(unsafe { (*self.0).get_request.unwrap()(self.0) })
+        unsafe{ Request::from_ptr_unchecked((*self.0).get_request.unwrap()(self.0)) }
     }
     /// Returns the request status.
     pub fn get_request_status(&self) -> URLRequestStatus {
@@ -103,8 +103,7 @@ impl URLRequest {
     /// Response information will only be available after the upload has completed.
     /// The returned object is read-only and should not be modified.
     pub fn get_response(&self) -> Option<Response> {
-        unsafe { (*self.0).get_response.unwrap()(self.0).as_mut() }
-            .and_then(|response| Some(Response::from(response as *mut _)))
+        unsafe { Response::from_ptr((*self.0).get_response.unwrap()(self.0)) }
     }
     /// Returns true if the response body was served from the cache. This
     /// includes responses for which revalidation was required.
@@ -303,33 +302,19 @@ impl URLRequestClientWrapper {
     }
 }
 
-/// Structure used to represent a web response. The functions of this structure
-/// may be called on any thread.
-pub struct Response(*mut cef_response_t);
+ref_counted_ptr!{
+    /// Structure used to represent a web response. The functions of this structure
+    /// may be called on any thread.
+    pub struct Response(cef_response_t);
+}
 
 unsafe impl Send for Response {}
 unsafe impl Sync for Response {}
 
-#[doc(hidden)]
-impl From<*mut cef_response_t> for Response {
-    fn from(response: *mut cef_response_t) -> Self {
-        unsafe {
-            ((*response).base.add_ref.unwrap())(&mut (*response).base);
-        }
-        Self(response)
-    }
+ref_counted_ptr!{
+    /// Callback structure used for asynchronous continuation of url requests.
+    pub struct RequestCallback(cef_request_callback_t);
 }
-
-impl Drop for Response {
-    fn drop(&mut self) {
-        unsafe {
-            unsafe { &*self.0 }.base.release.unwrap()(self.0 as *mut cef_base_ref_counted_t);
-        }
-    }
-}
-
-/// Callback structure used for asynchronous continuation of url requests.
-pub struct RequestCallback(*mut cef_request_callback_t);
 
 unsafe impl Send for RequestCallback {}
 unsafe impl Sync for RequestCallback {}
@@ -339,31 +324,13 @@ impl RequestCallback {
     /// continued. Otherwise, the request will be canceled.
     pub fn cont(&self, allow: bool) {
         unsafe {
-            self.0.as_ref().unwrap().cont.unwrap()(self.0, allow as i32);
+            self.0.cont.unwrap()(self.0.as_ptr(), allow as i32);
         }
     }
     /// Cancel the url request.
     pub fn cancel(&self) {
         unsafe {
-            self.0.as_ref().unwrap().cancel.unwrap()(self.0);
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<*mut cef_request_callback_t> for RequestCallback {
-    fn from(cb: *mut cef_request_callback_t) -> Self {
-        unsafe {
-            ((*cb).base.add_ref.unwrap())(&mut (*cb).base);
-        }
-        Self(cb)
-    }
-}
-
-impl Drop for RequestCallback {
-    fn drop(&mut self) {
-        unsafe {
-            unsafe { &*self.0 }.base.release.unwrap()(self.0 as *mut cef_base_ref_counted_t);
+            self.0.cancel.unwrap()(self.0.as_ptr());
         }
     }
 }
@@ -406,16 +373,15 @@ pub trait CookieAccessFilter: Sync + Send {
 pub(crate) struct CookieAccessFilterWrapper();
 
 impl CookieAccessFilterWrapper {
-    pub(crate) fn wrap(filter: Box<dyn CookieAccessFilter>) -> *mut cef_cookie_access_filter_t {
-        let rc = RefCounted::new(
+    pub(crate) fn wrap(filter: Box<dyn CookieAccessFilter>) -> RefCountedPtr<cef_cookie_access_filter_t> {
+        RefCountedPtr::wrap(
             cef_cookie_access_filter_t {
                 base: unsafe { std::mem::zeroed() },
                 can_send_cookie: Some(Self::can_send_cookie),
                 can_save_cookie: Some(Self::can_save_cookie),
             },
             filter,
-        );
-        unsafe { &mut *rc }.get_cef()
+        )
     }
 
     extern "C" fn can_send_cookie(
@@ -426,13 +392,12 @@ impl CookieAccessFilterWrapper {
         cookie: *const cef_cookie_t,
     ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_cookie_access_filter_t>::make_temp(self_) };
-        let browser =
-            unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
-        let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _)));
+        let browser = unsafe{ Browser::from_ptr(browser) };
+        let frame = unsafe{ Frame::from_ptr(frame) };
         this.can_send_cookie(
             browser.as_ref(),
             frame.as_ref(),
-            &Request::from(request),
+            unsafe{ &Request::from_ptr_unchecked(request) },
             Cookie::from(cookie),
         ) as std::os::raw::c_int
     }
@@ -446,14 +411,13 @@ impl CookieAccessFilterWrapper {
         cookie: *const cef_cookie_t,
     ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_cookie_access_filter_t>::make_temp(self_) };
-        let browser =
-            unsafe { browser.as_mut() }.and_then(|browser| Some(Browser::from(browser as *mut _)));
-        let frame = unsafe { frame.as_mut() }.and_then(|frame| Some(Frame::from(frame as *mut _)));
+        let browser = unsafe{ Browser::from_ptr(browser) };
+        let frame = unsafe{ Frame::from_ptr(frame) };
         this.can_save_cookie(
             browser.as_ref(),
             frame.as_ref(),
-            &Request::from(request),
-            &Response::from(response),
+            unsafe{ &Request::from_ptr_unchecked(request) },
+            unsafe{ &Response::from_ptr_unchecked(response) },
             Cookie::from(cookie),
         ) as std::os::raw::c_int
     }
@@ -516,16 +480,15 @@ pub trait ResponseFilter: Send + Sync {
 pub(crate) struct ResponseFilterWrapper();
 
 impl ResponseFilterWrapper {
-    pub(crate) fn wrap(handler: Box<dyn ResponseFilter>) -> *mut cef_response_filter_t {
-        let rc = RefCounted::new(
+    pub(crate) fn wrap(handler: Box<dyn ResponseFilter>) -> RefCountedPtr<cef_response_filter_t> {
+        RefCountedPtr::wrap(
             cef_response_filter_t {
                 base: unsafe { std::mem::zeroed() },
                 init_filter: Some(Self::init_filter),
                 filter: Some(Self::filter),
             },
             handler,
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
+        )
     }
     extern "C" fn init_filter(self_: *mut cef_response_filter_t) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_response_filter_t>::make_temp(self_) };
@@ -612,8 +575,8 @@ pub trait ResourceHandler: Send + Sync {
 pub(crate) struct ResourceHandlerWrapper();
 
 impl ResourceHandlerWrapper {
-    pub(crate) fn wrap(handler: Box<dyn ResourceHandler>) -> *mut cef_resource_handler_t {
-        let rc = RefCounted::new(
+    pub(crate) fn wrap(handler: Box<dyn ResourceHandler>) -> RefCountedPtr<cef_resource_handler_t> {
+        RefCountedPtr::wrap(
             cef_resource_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 open: Some(Self::open),
@@ -626,8 +589,7 @@ impl ResourceHandlerWrapper {
                 read_response: None,
             },
             handler,
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
+        )
     }
     extern "C" fn open(
         self_: *mut cef_resource_handler_t,

@@ -1,10 +1,11 @@
 #![allow(unused)]
 #![feature(fn_traits)]
+#[macro_use]
+mod refcounted;
 mod ptr_hash;
 mod string;
 pub use string::StringVisitor;
 mod multimap;
-mod refcounted;
 mod values;
 pub use values::StoredValue;
 mod scheme_registrar;

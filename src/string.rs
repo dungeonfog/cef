@@ -6,6 +6,7 @@ use cef_sys::{
 
 use crate::refcounted::{RefCounted, RefCounter};
 
+#[repr(transparent)]
 pub(crate) struct CefString(cef_string_t);
 
 impl CefString {
@@ -21,6 +22,15 @@ impl CefString {
         }
         CefString(instance)
     }
+    pub fn set_string(&mut self, str: &str) {
+        unsafe {
+            cef_string_utf8_to_utf16(
+                str.as_ptr() as *const std::os::raw::c_char,
+                str.len(),
+                &mut self.0,
+            );
+        }
+    }
     pub fn copy_raw_to_string(source: *const cef_string_t) -> Option<String> {
         if source.is_null() {
             None
@@ -29,6 +39,11 @@ impl CefString {
                 std::slice::from_raw_parts((*source).str, (*source).length)
             }))
         }
+    }
+
+    pub unsafe fn from_mut_ptr<'a>(ptr: *mut cef_string_t) -> &'a mut CefString {
+        assert_eq!(std::mem::size_of::<cef_string_t>(), std::mem::size_of::<CefString>());
+        &mut *(ptr as *mut CefString)
     }
 }
 
@@ -63,6 +78,12 @@ impl From<cef_string_t> for CefString {
 impl Into<String> for CefString {
     fn into(self) -> String {
         Self::copy_raw_to_string(&self.0).unwrap()
+    }
+}
+
+impl<'a> Into<String> for &'a CefString {
+    fn into(self) -> String {
+        CefString::copy_raw_to_string(&self.0).unwrap()
     }
 }
 

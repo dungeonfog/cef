@@ -15,8 +15,8 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 #[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ReferrerPolicy {
-    
-    
+
+
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
     Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,
@@ -160,9 +160,12 @@ pub enum PostDataElementType {
     File = cef_postdataelement_type_t::PDE_TYPE_FILE as i32,
 }
 
-/// Structure used to represent a web request. The functions of this structure
-/// may be called on any thread.
-pub struct Request(*mut cef_request_t);
+ref_counted_ptr!{
+    /// Structure used to represent a web request. The functions of this structure
+    /// may be called on any thread.
+    #[derive(Clone)]
+    pub struct Request(cef_request_t);
+}
 
 unsafe impl Send for Request {}
 unsafe impl Sync for Request {}
@@ -170,17 +173,14 @@ unsafe impl Sync for Request {}
 impl Request {
     /// Create a new Request object.
     pub fn new() -> Self {
-        Self(unsafe { cef_request_create() })
-    }
-    pub(crate) fn as_ptr(&self) -> *mut cef_request_t {
-        self.0
+        unsafe{ Self::from_ptr_unchecked(cef_request_create()) }
     }
 
     /// Returns true if this object is read-only.
     pub fn is_read_only(&self) -> bool {
-        unsafe { &*self.0 }
+        self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.0) != 0 }))
+            .and_then(|is_read_only| Some(unsafe { is_read_only(self.0.as_ptr()) != 0 }))
             .unwrap_or(true)
     }
     /// Get the fully qualified URL.
@@ -188,7 +188,7 @@ impl Request {
         unsafe { &*self.0 }
             .get_url
             .and_then(|get_url| {
-                let mut s = unsafe { get_url(self.0) };
+                let mut s = unsafe { get_url(self.0.as_ptr()) };
                 let result = CefString::copy_raw_to_string(s);
                 unsafe {
                     cef_string_userfree_utf16_free(s);
@@ -199,19 +199,19 @@ impl Request {
     }
     /// Set the fully qualified URL.
     pub fn set_url(&mut self, url: &str) {
-        if let Some(set_url) = unsafe { &*self.0 }.set_url {
+        if let Some(set_url) = unsafe { &*self.0.as_ptr() }.set_url {
             unsafe {
-                set_url(self.0, CefString::new(url).as_ref());
+                set_url(self.0.as_ptr(), CefString::new(url).as_ref());
             }
         }
     }
     /// Get the request function type. The value will default to POST if post data
     /// is provided and GET otherwise.
     pub fn get_method(&self) -> String {
-        unsafe { &*self.0 }
+        unsafe { &*self.0.as_ptr() }
             .get_method
             .and_then(|get_method| {
-                let s = unsafe { get_method(self.0) };
+                let s = unsafe { get_method(self.0.as_ptr()) };
                 let result = CefString::copy_raw_to_string(s);
                 unsafe {
                     cef_string_userfree_utf16_free(s);
@@ -222,9 +222,9 @@ impl Request {
     }
     /// Set the request function type.
     pub fn set_method(&mut self, method: &str) {
-        if let Some(set_method) = unsafe { &*self.0 }.set_method {
+        if let Some(set_method) = unsafe { &*self.0.as_ptr() }.set_method {
             unsafe {
-                set_method(self.0, CefString::new(method).as_ref());
+                set_method(self.0.as_ptr(), CefString::new(method).as_ref());
             }
         }
     }
@@ -232,20 +232,20 @@ impl Request {
     /// qualified with an HTTP or HTTPS scheme component. Any username, password or
     /// ref component will be removed.
     pub fn set_referrer(&mut self, referrer_url: Option<&str>, policy: ReferrerPolicy) {
-        if let Some(set_referrer) = unsafe { &*self.0 }.set_referrer {
+        if let Some(set_referrer) = unsafe { &*self.0.as_ptr() }.set_referrer {
             if let Some(referrer_url) = referrer_url {
                 unsafe {
-                    set_referrer(self.0, CefString::new(referrer_url).as_ref(), policy.into());
+                    set_referrer(self.0.as_ptr(), CefString::new(referrer_url).as_ref(), policy.into());
                 }
             }
         }
     }
     /// Get the referrer URL.
     pub fn get_referrer_url(&self) -> String {
-        unsafe { &*self.0 }
+        unsafe { &*self.0.as_ptr() }
             .get_referrer_url
             .and_then(|get_referrer_url| {
-                let s = unsafe { get_referrer_url(self.0) };
+                let s = unsafe { get_referrer_url(self.0.as_ptr()) };
                 let result = CefString::copy_raw_to_string(s);
                 unsafe {
                     cef_string_userfree_utf16_free(s);
@@ -256,31 +256,31 @@ impl Request {
     }
     /// Get the referrer policy.
     pub fn get_referrer_policy(&self) -> ReferrerPolicy {
-        unsafe { &*self.0 }
+        unsafe { &*self.0.as_ptr() }
             .get_referrer_policy
             .and_then(|get_referrer_policy| {
-                Some(unsafe { ReferrerPolicy::from_unchecked(get_referrer_policy(self.0) as i32) })
+                Some(unsafe { ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32) })
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
     /// Get the post data.
     pub fn get_post_data(&self) -> PostData {
-        let get_post_data = unsafe { &*self.0 }.get_post_data.unwrap();
-        PostData::from(unsafe { get_post_data(self.0) })
+        let get_post_data = unsafe { &*self.0.as_ptr() }.get_post_data.unwrap();
+        PostData::from(unsafe { get_post_data(self.0.as_ptr()) })
     }
     /// Set the post data.
     pub fn set_post_data(&mut self, post_data: PostData) {
-        if let Some(set_post_data) = unsafe { &*self.0 }.set_post_data {
+        if let Some(set_post_data) = unsafe { &*self.0.as_ptr() }.set_post_data {
             unsafe {
-                set_post_data(self.0, post_data.0);
+                set_post_data(self.0.as_ptr(), post_data.0);
             }
         }
     }
     /// Get the header values. Will not include the Referer value if any.
     pub fn get_header_map(&self) -> HashMap<String, Vec<String>> {
-        if let Some(get_header_map) = unsafe { &*self.0 }.get_header_map {
+        if let Some(get_header_map) = unsafe { &*self.0.as_ptr() }.get_header_map {
             let mut map = MultiMap::new();
-            unsafe { get_header_map(self.0, map.as_ptr()) };
+            unsafe { get_header_map(self.0.as_ptr(), map.as_ptr()) };
             map.into()
         } else {
             HashMap::new()
@@ -290,8 +290,8 @@ impl Request {
     /// Will not return the Referer value if any. Use [Request::get_header_map] instead if
     /// `name` might have multiple values.
     pub fn get_header_by_name(&self, name: &str) -> Option<String> {
-        if let Some(get_header_by_name) = unsafe { &*self.0 }.get_header_by_name {
-            let header = unsafe { get_header_by_name(self.0, CefString::new(name).as_ref()) };
+        if let Some(get_header_by_name) = unsafe { &*self.0.as_ptr() }.get_header_by_name {
+            let header = unsafe { get_header_by_name(self.0.as_ptr(), CefString::new(name).as_ref()) };
             let result = CefString::copy_raw_to_string(header);
             if result.is_some() {
                 unsafe {
@@ -308,10 +308,10 @@ impl Request {
     /// existing values will not be overwritten. The Referer value cannot be set
     /// using this function.
     pub fn set_header_by_name(&mut self, name: &str, value: &str, overwrite: bool) {
-        if let Some(set_header_by_name) = unsafe { &*self.0 }.set_header_by_name {
+        if let Some(set_header_by_name) = unsafe { &*self.0.as_ptr() }.set_header_by_name {
             unsafe {
                 set_header_by_name(
-                    self.0,
+                    self.0.as_ptr(),
                     CefString::new(name).as_ref(),
                     CefString::new(value).as_ref(),
                     overwrite as i32,
@@ -327,14 +327,14 @@ impl Request {
         post_data: PostData,
         header_map: HashMap<String, Vec<String>>,
     ) {
-        if let Some(set) = unsafe { &*self.0 }.set {
+        if let Some(set) = unsafe { &*self.0.as_ptr() }.set {
             let url = CefString::new(url);
             let method = CefString::new(method);
             let header_map = MultiMap::from(&header_map);
 
             unsafe {
                 set(
-                    self.0,
+                    self.0.as_ptr(),
                     url.as_ref(),
                     method.as_ref(),
                     post_data.0,
@@ -346,8 +346,8 @@ impl Request {
     /// Get the flags used in combination with [URLRequest]. See
     /// [URLRequestFlags] for supported values.
     pub fn get_flags(&self) -> Vec<URLRequestFlags> {
-        if let Some(get_flags) = unsafe { &*self.0 }.get_flags {
-            URLRequestFlags::from_bitfield(unsafe { get_flags(self.0) })
+        if let Some(get_flags) = unsafe { &*self.0.as_ptr() }.get_flags {
+            URLRequestFlags::from_bitfield(unsafe { get_flags(self.0.as_ptr()) })
         } else {
             Vec::new()
         }
@@ -355,17 +355,17 @@ impl Request {
     /// Set the flags used in combination with [URLRequest]. See
     /// [URLRequestFlags] for supported values.
     pub fn set_flags(&mut self, flags: &Vec<URLRequestFlags>) {
-        if let Some(set_flags) = unsafe { &*self.0 }.set_flags {
+        if let Some(set_flags) = unsafe { &*self.0.as_ptr() }.set_flags {
             unsafe {
-                set_flags(self.0, URLRequestFlags::to_bitfield(flags));
+                set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags));
             }
         }
     }
     /// Get the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn get_first_party_for_cookies(&self) -> String {
-        if let Some(get_first_party_for_cookies) = unsafe { &*self.0 }.get_first_party_for_cookies {
-            let url = unsafe { get_first_party_for_cookies(self.0) };
+        if let Some(get_first_party_for_cookies) = unsafe { &*self.0.as_ptr() }.get_first_party_for_cookies {
+            let url = unsafe { get_first_party_for_cookies(self.0.as_ptr()) };
             let result = CefString::copy_raw_to_string(url);
             if result.is_some() {
                 unsafe {
@@ -380,9 +380,9 @@ impl Request {
     /// Set the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn set_first_party_for_cookies(&mut self, url: &str) {
-        if let Some(set_first_party_for_cookies) = unsafe { &*self.0 }.set_first_party_for_cookies {
+        if let Some(set_first_party_for_cookies) = unsafe { &*self.0.as_ptr() }.set_first_party_for_cookies {
             unsafe {
-                set_first_party_for_cookies(self.0, CefString::new(url).as_ref());
+                set_first_party_for_cookies(self.0.as_ptr(), CefString::new(url).as_ref());
             }
         }
     }
@@ -390,48 +390,24 @@ impl Request {
     /// process.
     pub fn get_resource_type(&self) -> ResourceType {
         unsafe {
-            ResourceType::from_unchecked(((&*self.0).get_resource_type).unwrap()(self.0) as i32)
+            ResourceType::from_unchecked(((&*self.0.as_ptr()).get_resource_type).unwrap()(self.0.as_ptr()) as i32)
         }
     }
     /// Get the transition type for this request. Only available in the browser
     /// process and only applies to requests that represent a main frame or sub-
     /// frame navigation.
     pub fn get_transition_type(&self) -> TransitionType {
-        TransitionType::try_from(unsafe { (&*self.0).get_transition_type.unwrap()(self.0).0 })
+        TransitionType::try_from(unsafe { (&*self.0.as_ptr()).get_transition_type.unwrap()(self.0.as_ptr()).0 })
             .unwrap()
     }
     /// Returns the globally unique identifier for this request or 0 if not
     /// specified. Can be used by [ResourceRequestHandler] implementations in
     /// the browser process to track a single request across multiple callbacks.
     pub fn get_identifier(&self) -> u64 {
-        if let Some(get_identifier) = unsafe { &*self.0 }.get_identifier {
-            unsafe { get_identifier(self.0) }
+        if let Some(get_identifier) = unsafe { &*self.0.as_ptr() }.get_identifier {
+            unsafe { get_identifier(self.0.as_ptr()) }
         } else {
             0
-        }
-    }
-}
-
-#[doc(hidden)]
-impl From<*mut cef_request_t> for Request {
-    fn from(request: *mut cef_request_t) -> Self {
-        unsafe {
-            ((*request).base.add_ref.unwrap())(&mut (*request).base);
-        }
-        Self(request)
-    }
-}
-
-impl Clone for Request {
-    fn clone(&self) -> Self {
-        Self::from(self.0)
-    }
-}
-
-impl Drop for Request {
-    fn drop(&mut self) {
-        unsafe {
-            unsafe { &*self.0 }.base.release.unwrap()(self.0 as *mut cef_base_ref_counted_t);
         }
     }
 }
