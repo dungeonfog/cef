@@ -41,7 +41,7 @@ pub trait CTypeToOwned {
 }
 
 pub trait RefMutTo<'a, O> {
-    fn from_owned(b: &'a mut Self) -> O;
+    fn ref_mut_to(b: &'a mut Self) -> O;
 }
 
 impl<'a, T> CTypeToOwned for Option<&'a T>
@@ -64,7 +64,7 @@ impl<'a, T> RefMutTo<'a, Option<&'a T>> for Option<T>
 where
     &'a T: CTypeToOwned<Owned = T>,
 {
-    fn from_owned(b: &'a mut Option<T>) -> Option<&'a T> {
+    fn ref_mut_to(b: &'a mut Option<T>) -> Option<&'a T> {
         b.as_ref()
     }
 }
@@ -72,7 +72,7 @@ impl<'a, T> RefMutTo<'a, Option<&'a T>> for Option<&'a T>
 where
     &'a T: CTypeToOwned<Owned = T>,
 {
-    fn from_owned(b: &'a mut Option<&'a T>) -> Option<&'a T> {
+    fn ref_mut_to(b: &'a mut Option<&'a T>) -> Option<&'a T> {
         *b
     }
 }
@@ -97,7 +97,7 @@ impl<'a, T> RefMutTo<'a, Option<&'a mut T>> for Option<T>
 where
     &'a mut T: CTypeToOwned,
 {
-    fn from_owned(b: &'a mut Option<T>) -> Option<&'a mut T> {
+    fn ref_mut_to(b: &'a mut Option<T>) -> Option<&'a mut T> {
         b.as_mut()
     }
 }
@@ -105,7 +105,7 @@ impl<'a, T> RefMutTo<'a, Option<&'a mut T>> for Option<&'a mut T>
 where
     &'a mut T: CTypeToOwned,
 {
-    fn from_owned(b: &'a mut Option<&'a mut T>) -> Option<&'a mut T> {
+    fn ref_mut_to(b: &'a mut Option<&'a mut T>) -> Option<&'a mut T> {
         Option::<&mut &mut T>::from(b).map(|b| &mut **b)
     }
 }
@@ -120,7 +120,7 @@ macro_rules! owned_casts {
             }
         }
         impl<'a> RefMutTo<'a, &'a $Self> for <&'a $Self as CTypeToOwned>::Owned {
-            fn from_owned(b: &'a mut $Self) -> &'a $Self {
+            fn ref_mut_to(b: &'a mut $Self) -> &'a $Self {
                 b
             }
         }
@@ -151,17 +151,17 @@ macro_rules! owned_casts_no_transform {
             }
         }
         impl<'a> RefMutTo<'a, &'a $Self> for $Self {
-            fn from_owned(b: &'a mut $Self) -> &'a $Self {
+            fn ref_mut_to(b: &'a mut $Self) -> &'a $Self {
                 b
             }
         }
         impl<'a> RefMutTo<'a, &'a mut $Self> for $Self {
-            fn from_owned(b: &'a mut $Self) -> &'a mut $Self {
+            fn ref_mut_to(b: &'a mut $Self) -> &'a mut $Self {
                 b
             }
         }
         impl<'a> RefMutTo<'a, $Self> for $Self {
-            fn from_owned(b: &'a mut $Self) -> $Self {
+            fn ref_mut_to(b: &'a mut $Self) -> $Self {
                 *b
             }
         }
@@ -210,7 +210,7 @@ impl<'a> CTypeToOwned for &'a mut CefString {
     }
 }
 impl<'a> RefMutTo<'a, &'a mut CefString> for &'a mut CefString {
-    fn from_owned(b: &'a mut &'a mut CefString) -> Self {
+    fn ref_mut_to(b: &'a mut &'a mut CefString) -> Self {
         *b
     }
 }
@@ -223,7 +223,7 @@ impl<'a> CTypeToOwned for URLRequestStatus {
     }
 }
 impl<'a> RefMutTo<'a, URLRequestStatus> for URLRequestStatus {
-    fn from_owned(b: &'a mut URLRequestStatus) -> Self {
+    fn ref_mut_to(b: &'a mut URLRequestStatus) -> Self {
         *b
     }
 }
@@ -247,7 +247,7 @@ macro_rules! cef_callback_impl {
                         let mut $field_name: <$field_ty as crate::extern_callback_helpers::CTypeToOwned>::Owned = unsafe{ <$field_ty as crate::extern_callback_helpers::CTypeToOwned>::from_c_type($field_name) };
                     )+
                     $(
-                        let $field_name: $field_ty = <<$field_ty as crate::extern_callback_helpers::CTypeToOwned>::Owned as crate::extern_callback_helpers::RefMutTo<$field_ty>>::from_owned(&mut $field_name);
+                        let $field_name: $field_ty = <<$field_ty as crate::extern_callback_helpers::CTypeToOwned>::Owned as crate::extern_callback_helpers::RefMutTo<$field_ty>>::ref_mut_to(&mut $field_name);
                     )+
                     this.inner($($field_name),+)
                 }
