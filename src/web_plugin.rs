@@ -32,12 +32,12 @@ impl WebPluginInfo {
 #[doc(hidden)]
 impl From<*mut cef_web_plugin_info_t> for WebPluginInfo {
     fn from(info: *mut cef_web_plugin_info_t) -> Self {
-        let mut name = unsafe { (*info).get_name.unwrap()(info) };
-        let mut path = unsafe { (*info).get_path.unwrap()(info) };
-        let mut version = unsafe { (*info).get_version.unwrap()(info) };
-        let mut description = unsafe { (*info).get_description.unwrap()(info) };
+        let name = unsafe { (*info).get_name.unwrap()(info) };
+        let path = unsafe { (*info).get_path.unwrap()(info) };
+        let version = unsafe { (*info).get_version.unwrap()(info) };
+        let description = unsafe { (*info).get_description.unwrap()(info) };
 
-        let result = unsafe {
+        let result = {
             Self {
                 name: CefString::copy_raw_to_string(name).unwrap(),
                 path: CefString::copy_raw_to_string(path).unwrap(),

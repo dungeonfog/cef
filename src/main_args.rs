@@ -1,5 +1,5 @@
 use cef_sys::cef_main_args_t;
-use std::ffi::CString;
+
 use winapi::shared::minwindef::HINSTANCE;
 
 /// Structure representing CefExecuteProcess arguments.

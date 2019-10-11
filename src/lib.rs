@@ -1,4 +1,4 @@
-#![allow(unused)]
+#![allow(dead_code, unused_variables)]
 #![feature(fn_traits)]
 #[macro_use]
 mod refcounted;

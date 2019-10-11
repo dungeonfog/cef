@@ -8,7 +8,6 @@ use std::{collections::HashMap, ptr::null_mut};
 use std::{ffi::CString, os::raw::c_char};
 
 use crate::{
-    app::App,
     string::{CefString, CefStringList},
 };
 

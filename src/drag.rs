@@ -1,5 +1,5 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_drag_data_create, cef_drag_data_t, cef_drag_operations_mask_t,
+    cef_drag_data_create, cef_drag_data_t, cef_drag_operations_mask_t,
 };
 use num_enum::UnsafeFromPrimitive;
 use std::collections::HashSet;

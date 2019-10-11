@@ -1,15 +1,14 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_browser_t, cef_errorcode_t, cef_frame_t, cef_load_handler_t,
+    cef_browser_t, cef_errorcode_t, cef_frame_t, cef_load_handler_t,
     cef_string_t, cef_transition_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashSet, convert::TryFrom, sync::Arc};
+use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
     browser::Browser,
     frame::Frame,
-    ptr_hash::Hashed,
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted},
     string::CefString,
 };
 
@@ -1115,7 +1114,7 @@ impl LoadHandlerWrapper {
         can_go_back: std::os::raw::c_int,
         can_go_forward: std::os::raw::c_int,
     ) {
-        let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_loading_state_change(
             unsafe { &Browser::from_ptr_unchecked(browser) },
             is_loading != 0,
@@ -1130,7 +1129,7 @@ impl LoadHandlerWrapper {
         transition_type: cef_transition_type_t,
     ) {
         if let Ok(transition_type) = TransitionType::try_from(transition_type.0) {
-            let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
+            let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
             (*this).on_load_start(
                 unsafe { &Browser::from_ptr_unchecked(browser) },
                 unsafe { &Frame::from_ptr_unchecked(frame) },
@@ -1144,7 +1143,7 @@ impl LoadHandlerWrapper {
         frame: *mut cef_frame_t,
         http_status_code: std::os::raw::c_int,
     ) {
-        let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_load_end(
             unsafe { &Browser::from_ptr_unchecked(browser) },
             unsafe { &Frame::from_ptr_unchecked(frame) },
@@ -1159,7 +1158,7 @@ impl LoadHandlerWrapper {
         error_text: *const cef_string_t,
         failed_url: *const cef_string_t,
     ) {
-        let mut this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
         (*this).on_load_error(
             unsafe { &Browser::from_ptr_unchecked(browser) },
             unsafe { &Frame::from_ptr_unchecked(frame) },

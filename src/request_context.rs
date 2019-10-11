@@ -12,7 +12,7 @@ use std::ptr::{null, null_mut};
 use crate::{
     browser::Browser,
     frame::Frame,
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted},
     request::Request,
     resource_request_handler::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
     string::CefString,
@@ -102,7 +102,7 @@ impl RequestContextHandlerWrapper {
     pub(crate) fn wrap(
         delegate: Box<dyn RequestContextHandler>,
     ) -> *mut cef_request_context_handler_t {
-        let mut rc = RefCounted::new(
+        let rc = RefCounted::new(
             cef_request_context_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 on_request_context_initialized: Some(Self::request_context_initialized),

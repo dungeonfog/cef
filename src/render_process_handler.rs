@@ -3,17 +3,15 @@ use cef_sys::{
     cef_list_value_t, cef_load_handler_t, cef_process_id_t, cef_process_message_t,
     cef_render_process_handler_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
 };
-use std::{collections::HashMap, convert::TryFrom, ptr::null_mut, sync::Arc};
+use std::{collections::HashMap, ptr::null_mut};
 
 use crate::{
     browser::Browser,
-    browser_process_handler::BrowserProcessHandler,
     dom::DOMNode,
     frame::Frame,
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
-    ptr_hash::Hashed,
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted},
     v8context::{V8Context, V8Exception, V8StackTrace},
     values::{DictionaryValue, ListValue},
     StoredValue,

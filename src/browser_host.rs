@@ -8,12 +8,11 @@ use crate::{
     client::{Client, ClientWrapper},
     drag::{DragData, DragOperation},
     events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
-    file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
+    file_dialog::{FileDialogMode},
     image::Image,
     ime::CompositionUnderline,
     navigation::NavigationEntry,
     printing::PDFPrintSettings,
-    render_process_handler::RenderProcessHandler,
     request_context::RequestContext,
     string::CefString,
     values::{DictionaryValue, Point, Range, StoredValue},
@@ -70,7 +69,7 @@ impl BrowserHost {
                 CefString::new(url).as_ref(),
                 settings.get(),
                 extra_info
-                    .and_then(|mut ei| Some(ei.as_ptr()))
+                    .and_then(|ei| Some(ei.as_ptr()))
                     .unwrap_or_else(null_mut),
                 request_context
                     .and_then(|rc| Some(rc.as_ptr()))

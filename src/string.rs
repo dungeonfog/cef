@@ -4,7 +4,7 @@ use cef_sys::{
     cef_string_visitor_t,
 };
 
-use crate::refcounted::{RefCounted, RefCounter};
+use crate::refcounted::{RefCounted};
 
 #[repr(transparent)]
 pub(crate) struct CefString(cef_string_t);
@@ -157,7 +157,7 @@ pub(crate) struct StringVisitorWrapper();
 
 impl StringVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn StringVisitor>) -> *mut cef_string_visitor_t {
-        let mut rc = RefCounted::new(
+        let rc = RefCounted::new(
             cef_string_visitor_t {
                 base: unsafe { std::mem::zeroed() },
                 visit: Some(Self::visit),

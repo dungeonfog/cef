@@ -3,7 +3,6 @@ use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
 use crate::{
     browser::Browser,
     dom::{DOMVisitor, DOMVisitorWrapper},
-    refcounted::RefCountedPtr,
     request::Request,
     string::{CefString, StringVisitor, StringVisitorWrapper},
     url_request::{URLRequest, URLRequestClient, URLRequestClientWrapper},

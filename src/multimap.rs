@@ -2,7 +2,7 @@ use cef_sys::{
     cef_string_multimap_alloc, cef_string_multimap_append, cef_string_multimap_clear,
     cef_string_multimap_enumerate, cef_string_multimap_find_count, cef_string_multimap_free,
     cef_string_multimap_key, cef_string_multimap_size, cef_string_multimap_t,
-    cef_string_multimap_value, cef_string_t,
+    cef_string_multimap_value,
 };
 use std::collections::HashMap;
 
@@ -107,7 +107,7 @@ impl From<&HashMap<String, Vec<String>>> for MultiMap {
 
         for (key, list) in map.iter() {
             for value in list.iter() {
-                result.append(&key, &value);
+                result.append(&key, &value).ok();
             }
         }
 
@@ -120,7 +120,7 @@ impl Into<HashMap<String, Vec<String>>> for MultiMap {
         let mut result = HashMap::new();
         for idx in 0..self.len() {
             if let (Ok(key), Ok(value)) =
-                (unsafe { self.get_key(idx) }, unsafe { self.get_value(idx) })
+                (self.get_key(idx), self.get_value(idx))
             {
                 result.entry(key).or_insert_with(|| Vec::new()).push(value);
             }

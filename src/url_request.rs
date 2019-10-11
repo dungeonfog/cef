@@ -1,7 +1,6 @@
 use cef_sys::{
-    cef_auth_callback_t, cef_base_ref_counted_t, cef_browser_t, cef_callback_t,
-    cef_cookie_access_filter_t, cef_cookie_t, cef_frame_t, cef_request_callback_t,
-    cef_request_context_t, cef_request_t, cef_resource_handler_t, cef_resource_read_callback_t,
+    cef_auth_callback_t, cef_browser_t, cef_callback_t,
+    cef_cookie_access_filter_t, cef_cookie_t, cef_frame_t, cef_request_callback_t, cef_request_t, cef_resource_handler_t, cef_resource_read_callback_t,
     cef_resource_skip_callback_t, cef_response_filter_status_t, cef_response_filter_t,
     cef_response_t, cef_string_t, cef_urlrequest_client_t, cef_urlrequest_create,
     cef_urlrequest_status_t, cef_urlrequest_t,
@@ -15,13 +14,10 @@ use crate::{
     cookie::Cookie,
     frame::Frame,
     load_handler::ErrorCode,
-    refcounted::{RefCounted, RefCountedPtr, RefCounter},
+    refcounted::{RefCounted, RefCountedPtr},
     request::Request,
     request_context::RequestContext,
-    resource_request_handler::ResourceRequestHandler,
     string::CefString,
-    web_plugin::WebPluginInfo,
-    ReturnValue,
 };
 
 /// Flags that represent [URLRequest] status.
@@ -148,7 +144,7 @@ impl AuthCallback {
     }
     /// Cancel the authentication request.
     pub fn cancel(&self) {
-        if let Some(cancel) = unsafe { &*self.0 }.cancel {
+        if let Some(cancel) = self.0.cancel {
             unsafe {
                 cancel(self.as_ptr());
             }
@@ -223,7 +219,7 @@ impl URLRequestClientWrapper {
         self_: *mut cef_urlrequest_client_t,
         request: *mut cef_urlrequest_t,
     ) {
-        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_request_complete(unsafe { &URLRequest::from_ptr_unchecked(request) });
     }
     extern "C" fn upload_progress(
@@ -232,7 +228,7 @@ impl URLRequestClientWrapper {
         current: i64,
         total: i64,
     ) {
-        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_upload_progress(
             unsafe { &URLRequest::from_ptr_unchecked(request) },
             current,
@@ -245,7 +241,7 @@ impl URLRequestClientWrapper {
         current: i64,
         total: i64,
     ) {
-        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_download_progress(
             unsafe { &URLRequest::from_ptr_unchecked(request) },
             current,
@@ -258,7 +254,7 @@ impl URLRequestClientWrapper {
         data: *const std::os::raw::c_void,
         data_length: usize,
     ) {
-        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).on_download_data(
             unsafe { &URLRequest::from_ptr_unchecked(request) },
             unsafe { std::slice::from_raw_parts(data as *const u8, data_length) },
@@ -273,7 +269,7 @@ impl URLRequestClientWrapper {
         scheme: *const cef_string_t,
         callback: *mut cef_auth_callback_t,
     ) -> i32 {
-        let mut this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
+        let this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
         (*this).get_auth_credentials(
             is_proxy != 0,
             &CefString::copy_raw_to_string(host).unwrap(),

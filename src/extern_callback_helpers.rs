@@ -133,7 +133,7 @@ impl<'a> CToRustType for &'a mut CefString {
 impl<'a> CToRustType for URLRequestStatus {
     type CType = cef_sys::cef_urlrequest_status_t::Type;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        unsafe { Self::from_unchecked(c_type) }
+        Self::from_unchecked(c_type)
     }
 }
 

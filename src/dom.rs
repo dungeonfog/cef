@@ -2,10 +2,10 @@ use cef_sys::{
     cef_base_ref_counted_t, cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashMap, convert::TryFrom};
+use std::{collections::HashMap};
 
 use crate::{
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted},
     values::Rect,
 };
 
@@ -163,7 +163,7 @@ pub(crate) struct DOMVisitorWrapper;
 
 impl DOMVisitorWrapper {
     pub(crate) fn wrap(delegate: Box<dyn DOMVisitor>) -> *mut cef_domvisitor_t {
-        let mut rc = RefCounted::new(
+        let rc = RefCounted::new(
             cef_domvisitor_t {
                 base: unsafe { std::mem::zeroed() },
                 visit: Some(Self::visit),

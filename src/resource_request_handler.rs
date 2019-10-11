@@ -1,15 +1,14 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_browser_t, cef_cookie_access_filter_t, cef_frame_t,
+    cef_browser_t, cef_cookie_access_filter_t, cef_frame_t,
     cef_request_callback_t, cef_request_t, cef_resource_handler_t, cef_resource_request_handler_t,
-    cef_response_filter_t, cef_response_t, cef_return_value_t, cef_string_t,
-    cef_string_utf8_to_utf16, cef_urlrequest_status_t,
+    cef_response_filter_t, cef_response_t, cef_return_value_t, cef_string_t, cef_urlrequest_status_t,
 };
 use std::ptr::null_mut;
 
 use crate::{
     browser::Browser,
     frame::Frame,
-    refcounted::{RefCounted, RefCountedPtr, RefCounter},
+    refcounted::{RefCounted, RefCountedPtr},
     request::Request,
     string::CefString,
     url_request::{
@@ -158,7 +157,7 @@ impl ResourceRequestHandlerWrapper {
     pub(crate) fn wrap(
         delegate: Box<dyn ResourceRequestHandler>,
     ) -> *mut cef_resource_request_handler_t {
-        let mut rc = RefCounted::new(
+        let rc = RefCounted::new(
             cef_resource_request_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 get_cookie_access_filter: Some(Self::get_cookie_access_filter),

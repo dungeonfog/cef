@@ -7,7 +7,7 @@ use std::{
     sync::atomic::{AtomicUsize, Ordering},
 };
 
-use crate::ptr_hash::Hashed;
+
 
 /// # Safety
 /// This trait requires that a pointer to `Self` must also be a valid pointer to a
@@ -84,7 +84,7 @@ pub(crate) struct RefCountedPtr<C: RefCounter> {
 }
 
 impl<C: RefCounter> RefCountedPtr<C> {
-    pub(crate) fn wrap(mut cefobj: C, object: C::Wrapper) -> RefCountedPtr<C>
+    pub(crate) fn wrap(cefobj: C, object: C::Wrapper) -> RefCountedPtr<C>
     where
         C: RefCounterWrapped,
     {
@@ -99,12 +99,12 @@ impl<C: RefCounter> RefCountedPtr<C> {
     }
 
     pub unsafe fn from_ptr(ptr: *mut C) -> Option<RefCountedPtr<C>> {
-        let mut cef = NonNull::new(ptr)?;
+        let cef = NonNull::new(ptr)?;
         Some(RefCountedPtr { cef })
     }
 
     pub unsafe fn from_ptr_unchecked(ptr: *mut C) -> RefCountedPtr<C> {
-        let mut cef = NonNull::new_unchecked(ptr);
+        let cef = NonNull::new_unchecked(ptr);
         RefCountedPtr { cef }
     }
 
@@ -216,7 +216,7 @@ impl<C: RefCounterWrapped> DerefMut for RefCounted<C> {
 
 impl<C: RefCounterWrapped> RefCounted<C> {
     pub(crate) unsafe fn make_temp(ptr: *mut C) -> ManuallyDrop<Box<Self>> {
-        ManuallyDrop::new(unsafe { Box::from_raw(ptr as *mut Self) })
+        ManuallyDrop::new(Box::from_raw(ptr as *mut Self))
     }
 
     pub(crate) fn new(mut cefobj: C, object: C::Wrapper) -> *mut Self {
@@ -240,11 +240,11 @@ impl<C: RefCounterWrapped> RefCounted<C> {
     }
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
-        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
         this.refcount.fetch_add(1, Ordering::AcqRel);
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
         if this.refcount.fetch_sub(1, Ordering::AcqRel) < 1 {
             ManuallyDrop::into_inner(this);
             0
@@ -253,7 +253,7 @@ impl<C: RefCounterWrapped> RefCounted<C> {
         }
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
         let counter = this.refcount.load(Ordering::Acquire);
         if counter == 1 {
             1
@@ -262,7 +262,7 @@ impl<C: RefCounterWrapped> RefCounted<C> {
         }
     }
     extern "C" fn has_at_least_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let mut this = unsafe { Self::make_temp(ref_counted as *mut C) };
+        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
         let counter = this.refcount.load(Ordering::Acquire);
         if counter >= 1 {
             1

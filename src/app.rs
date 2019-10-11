@@ -4,15 +4,14 @@ use cef_sys::{
     cef_render_process_handler_t, cef_resource_bundle_handler_t, cef_run_message_loop,
     cef_set_osmodal_loop, cef_shutdown,
 };
-use std::{mem::ManuallyDrop, ptr::null_mut, sync::Arc};
-use winapi::shared::minwindef::HINSTANCE;
+use std::{ptr::null_mut};
+
 
 use crate::{
     browser_process_handler::{BrowserProcessHandler, BrowserProcessHandlerWrapper},
     command_line::CommandLine,
     main_args::MainArgs,
-    ptr_hash::Hashed,
-    refcounted::{RefCounted, RefCountedPtr, RefCounter},
+    refcounted::{RefCounted, RefCountedPtr},
     render_process_handler::{RenderProcessHandler, RenderProcessHandlerWrapper},
     resource_bundle_handler::{ResourceBundleHandler, ResourceBundleHandlerWrapper},
     scheme_registrar::SchemeRegistrar,
@@ -121,7 +120,7 @@ impl App {
     /// `windows_sandbox_info` parameter may be None (see [SandboxInfo] for details).
     #[cfg(target_os = "windows")]
     pub fn execute_process(
-        mut args: &MainArgs,
+        args: &MainArgs,
         application: Option<&App>,
         windows_sandbox_info: Option<&SandboxInfo>,
     ) -> i32 {

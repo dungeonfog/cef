@@ -5,7 +5,7 @@ use cef_sys::{
 };
 use std::{
     collections::HashMap,
-    convert::{TryFrom, TryInto},
+    convert::{TryFrom},
     io::Read,
 };
 

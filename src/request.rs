@@ -1,5 +1,5 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_post_data_create, cef_post_data_element_create,
+    cef_post_data_create, cef_post_data_element_create,
     cef_post_data_element_t, cef_post_data_t, cef_postdataelement_type_t, cef_referrer_policy_t,
     cef_request_create, cef_request_t, cef_resource_type_t, cef_string_userfree_utf16_free,
 };
@@ -186,7 +186,7 @@ impl Request {
         self.0
             .get_url
             .and_then(|get_url| {
-                let mut s = unsafe { get_url(self.0.as_ptr()) };
+                let s = unsafe { get_url(self.0.as_ptr()) };
                 let result = CefString::copy_raw_to_string(s);
                 unsafe {
                     cef_string_userfree_utf16_free(s);
@@ -283,7 +283,7 @@ impl Request {
     /// Get the header values. Will not include the Referer value if any.
     pub fn get_header_map(&self) -> HashMap<String, Vec<String>> {
         if let Some(get_header_map) = self.0.get_header_map {
-            let mut map = MultiMap::new();
+            let map = MultiMap::new();
             unsafe { get_header_map(self.0.as_ptr(), map.as_ptr()) };
             map.into()
         } else {

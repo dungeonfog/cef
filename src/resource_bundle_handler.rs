@@ -1,12 +1,10 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t,
-    cef_string_userfree_utf16_alloc, cef_string_utf16_set, cef_string_utf8_to_utf16,
+    cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t, cef_string_utf16_set,
 };
-use std::{convert::TryFrom, ptr::null_mut, sync::Arc};
+
 
 use crate::{
-    ptr_hash::Hashed,
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted},
     string::CefString,
 };
 

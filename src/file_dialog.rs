@@ -1,11 +1,11 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_file_dialog_mode_t, cef_run_file_dialog_callback_t,
+    cef_file_dialog_mode_t, cef_run_file_dialog_callback_t,
     cef_string_list_t,
 };
 use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
-    refcounted::{RefCounted, RefCounter},
+    refcounted::{RefCounted},
     string::from_string_list,
 };
 
@@ -61,7 +61,7 @@ impl TryFrom<i32> for FileDialogMode {
 
 impl Into<i32> for FileDialogMode {
     fn into(self) -> i32 {
-        let mut result = 0;
+        let result;
         let flags = match self {
             Self::Open(flags) => {
                 result = cef_file_dialog_mode_t::FILE_DIALOG_OPEN.0;

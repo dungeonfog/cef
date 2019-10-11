@@ -4,7 +4,6 @@ use crate::{
     browser_host::BrowserHost,
     color::Color,
     frame::Frame,
-    refcounted::RefCountedPtr,
     string::{CefString, CefStringList},
 };
 
@@ -125,7 +124,7 @@ impl Browser {
     }
     /// Returns the names of all existing frames.
     pub fn get_frame_names(&self) -> Vec<String> {
-        let mut list = CefStringList::default();
+        let list = CefStringList::default();
         unsafe {
             (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.get());
         }
