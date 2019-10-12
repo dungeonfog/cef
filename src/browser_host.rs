@@ -371,7 +371,7 @@ impl BrowserHost {
         unimplemented!()
     }
     /// Send a focus event to the browser.
-    pub fn senf_focus_event(&mut self, set_focus: bool) {
+    pub fn send_focus_event(&mut self, set_focus: bool) {
         unimplemented!()
     }
     /// Send a capture lost event to the browser.

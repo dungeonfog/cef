@@ -35,11 +35,11 @@ pub trait BrowserProcessHandler: Sync + Send {
         None
     }
     /// Called from any thread when work has been scheduled for the browser process
-    /// main (UI) thread. This callback is used in combination with [CefSettings].
-    /// external_message_pump and [cef_do_message_loop_work()] in cases where the CEF
+    /// main (UI) thread. This callback is used in combination with [CefSettings::external_message_pump]
+    /// and [App::do_message_loop_work] in cases where the CEF
     /// message loop must be integrated into an existing application message loop
-    /// (see additional comments and warnings on CefDoMessageLoopWork). This
-    /// callback should schedule a [cef_do_message_loop_work()] call to happen on the
+    /// (see additional comments and warnings on [App::do_message_loop_work]). This
+    /// callback should schedule a [App::cef_do_message_loop_work] call to happen on the
     /// main (UI) thread. `delay_ms` is the requested delay in milliseconds. If
     /// `delay_ms` is <= 0 then the call should happen reasonably soon. If
     /// `delay_ms` is > 0 then the call should be scheduled to happen after the

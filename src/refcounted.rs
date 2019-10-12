@@ -349,7 +349,6 @@ ref_counter!(cef_resource_skip_callback_t);
 ref_counter!(cef_resource_read_callback_t);
 // ref_counter!(cef_scheme_registrar_t); // doesn't seem to be ref-counted; investigate further as it also has base field
 ref_counter!(_cef_scheme_handler_factory_t);
-ref_counter!(cef_audio_handler_t);
 ref_counter!(_cef_menu_model_t);
 ref_counter!(_cef_run_context_menu_callback_t);
 ref_counter!(cef_context_menu_handler_t);
