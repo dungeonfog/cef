@@ -1,4 +1,4 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_image_t, cef_string_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, ptr::null_mut};
 use winapi::shared::minwindef::HINSTANCE;
@@ -265,7 +265,9 @@ impl BrowserHost {
     }
     /// Print the current browser contents.
     pub fn print(&self) {
-        unimplemented!()
+        if let Some(print) = self.0.print {
+            unsafe { print(self.0.as_ptr()); }
+        }
     }
     /// Print the current browser contents to the PDF file specified by `path` and
     /// execute `callback` on completion. The caller is responsible for deleting
@@ -273,14 +275,17 @@ impl BrowserHost {
     /// [PrintHandler::GetPdfPaperSize] function.
     ///
     /// On the callback, the first parameter is the output path. The second parameter
-    /// will be true if the printing completed successfully or false otherwise.
-    pub fn print_to_pdf<F: FnOnce(&str, bool)>(
+    /// will be true if the printing completed successfully or false otherwise. It
+    /// will be called on the browser process UI thread.
+    pub fn print_to_pdf(
         &self,
         path: &str,
         settings: PDFPrintSettings,
-        callback: F,
+        callback: impl FnOnce(&str, bool),
     ) {
-        unimplemented!()
+        if let Some(print_to_pdf) = self.0.print_to_pdf {
+            unsafe { print_to_pdf(self.0.as_ptr(), CefString::new(path).as_ref(), settings.as_ptr(), PDFPrintCallbackWrapper::new(callback)); }
+        }
     }
     /// Search for `searchText`. `identifier` must be a unique ID and these IDs
     /// must strictly increase so that newer requests always have greater IDs than
@@ -658,6 +663,30 @@ impl DownloadImageCallbackWrapper {
         let mut this = unsafe { RefCounted::<cef_download_image_callback_t>::make_temp(self_) };
         if let Some(callback) = this.take() {
             callback(unsafe { &CefString::copy_raw_to_string(image_url).unwrap_or_default() }, http_status_code as u16, unsafe { Image::from_ptr(image) });
+        }
+        // no longer needed
+        RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
+    }
+}
+
+pub(crate) struct PDFPrintCallbackWrapper(*mut cef_pdf_print_callback_t);
+
+impl PDFPrintCallbackWrapper {
+    pub(crate) fn new(callback: impl FnOnce(&str, bool) + 'static) -> *mut cef_pdf_print_callback_t {
+        let rc = RefCounted::new(
+            cef_pdf_print_callback_t {
+                base: unsafe { std::mem::zeroed() },
+                on_pdf_print_finished: Some(Self::pdf_print_finished),
+            },
+            Some(Box::new(callback)),
+        );
+        unsafe { rc.as_mut() }.unwrap().get_cef()
+    }
+
+    extern "C" fn pdf_print_finished(self_: *mut on_pdf_print_finished, path: *const cef_string_t, ok: std::os::raw::c_int) {
+        let mut this = unsafe { RefCounted::<cef_pdf_print_callback_t>::make_temp(self_) };
+        if let Some(callback) = this.take() {
+            callback(unsafe { &CefString::copy_raw_to_string(path).unwrap_or_default() }, ok != 0);
         }
         // no longer needed
         RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
