@@ -17,6 +17,7 @@ use crate::{
     string::CefString,
     values::{DictionaryValue, Point, Range, StoredValue},
     window::WindowInfo,
+    extension::Extension,
 };
 
 /// Paint element types.

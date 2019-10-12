@@ -319,7 +319,7 @@ ref_counter!(_cef_cookie_manager_t);
 ref_counter!(_cef_cookie_visitor_t);
 ref_counter!(_cef_set_cookie_callback_t);
 ref_counter!(_cef_delete_cookies_callback_t);
-ref_counter!(_cef_extension_t);
+ref_counter!(cef_extension_t);
 ref_counter!(_cef_get_extension_resource_callback_t);
 ref_counter!(_cef_extension_handler_t);
 ref_counter!(_cef_resolve_callback_t);

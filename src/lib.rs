@@ -81,6 +81,8 @@ mod ime;
 pub use ime::CompositionUnderline;
 mod navigation;
 pub use navigation::NavigationEntry;
+mod extension;
+pub use extension::Extension;
 
 /// Return value types.
 #[repr(i32)]
