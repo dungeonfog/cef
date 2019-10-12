@@ -4,18 +4,19 @@ use std::{collections::HashMap, ptr::null_mut};
 use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
-    browser::{Browser, BrowserSettings},
+    browser::{Browser, BrowserSettings, State},
     client::{Client, ClientWrapper},
     drag::{DragData, DragOperation},
     events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
-    file_dialog::{FileDialogMode},
+    file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
     image::Image,
     ime::CompositionUnderline,
     navigation::NavigationEntry,
     printing::PDFPrintSettings,
+    render_process_handler::RenderProcessHandler,
     request_context::RequestContext,
     string::CefString,
-    values::{DictionaryValue, Point, Range, StoredValue},
+    values::{DictionaryValue, Point, Size, Range, StoredValue},
     window::WindowInfo,
     extension::Extension,
 };
@@ -520,5 +521,42 @@ impl BrowserHost {
     pub fn get_visible_navigation_entry(&self) -> NavigationEntry {
         unimplemented!()
     }
+    /// Set accessibility state for all frames. If `accessibility_state` is [State::Default]
+    /// then accessibility will be disabled by default and the state may be further
+    /// controlled with the "force-renderer-accessibility" and "disable-renderer-
+    /// accessibility" command-line switches. If `accessibility_state` is
+    /// [State::Enabled] then accessibility will be enabled. If `accessibility_state
+    /// is [State::Disabled] then accessibility will be completely disabled.
+    ///
+    /// For windowed browsers accessibility will be enabled in Complete mode (which
+    /// corresponds to `kAccessibilityModeComplete` in Chromium). In this mode all
+    /// platform accessibility objects will be created and managed by Chromium's
+    /// internal implementation. The client needs only to detect the screen reader
+    /// and call this function appropriately. For example, on macOS the client can
+    /// handle the `@"AXEnhancedUserStructure"` accessibility attribute to detect
+    /// VoiceOver state changes and on Windows the client can handle `WM_GETOBJECT`
+    /// with `OBJID_CLIENT` to detect accessibility readers.
+    ///
+    /// For windowless browsers accessibility will be enabled in TreeOnly mode
+    /// (which corresponds to `kAccessibilityModeWebContentsOnly` in Chromium). In
+    /// this mode renderer accessibility is enabled, the full tree is computed, and
+    /// events are passed to [AccessibiltyHandler], but platform accessibility
+    /// objects are not created. The client may implement platform accessibility
+    /// objects using [AccessibiltyHandler] callbacks if desired.
+    pub fn set_accessibility_state(&mut self, accessibility_state: State) {
+        unimplemented!()
+    }
+    /// Enable notifications of auto resize via
+    /// [DisplayHandler::on_auto_resize]. Notifications are disabled by default.
+    /// `min_size` and `max_size` define the range of allowed sizes.
+    pub fn set_auto_resize_enabled(&mut self, enabled: bool, min_size: &Size, max_size: &Size) {
+        unimplemented!()
+    }
+    // Returns the extension hosted in this browser or None if no extension is
+    // hosted. See [RequestContest::load_extension] for details.
+    pub fn get_extension(&self) -> Option<Extension> {
+        unimplemented!()
+    }
+
     // TODO: continue
 }
