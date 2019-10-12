@@ -1,9 +1,11 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_image_t, cef_string_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, ptr::null_mut};
 use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
+    refcounted::RefCounted,
+    string::CefString,
     browser::{Browser, BrowserSettings, State},
     client::{Client, ClientWrapper},
     drag::{DragData, DragOperation},
@@ -15,7 +17,6 @@ use crate::{
     printing::PDFPrintSettings,
     render_process_handler::RenderProcessHandler,
     request_context::RequestContext,
-    string::CefString,
     values::{DictionaryValue, Point, Size, Range, StoredValue},
     window::WindowInfo,
     extension::Extension,
@@ -113,7 +114,7 @@ impl BrowserHost {
     }
     /// Returns the hosted browser object.
     pub fn get_browser(&self) -> Browser {
-        unimplemented!()
+        unsafe { Browser::from_ptr_unchecked(self.0.get_browser.unwrap()(self.0.as_ptr())) }
     }
     /// Request that the browser close. The JavaScript 'onbeforeunload' event will
     /// be fired. If `force_close` is false the event handler, if any, will be
@@ -123,8 +124,10 @@ impl BrowserHost {
     /// the event handler allows the close or if `force_close` is true. See
     /// [LifeSpanHandler::do_close] documentation for additional usage
     /// information.
-    pub fn close_browser(&self, force_close: bool) {
-        unimplemented!()
+    pub fn close_browser(&mut self, force_close: bool) {
+        if let Some(close_browser) = self.0.close_browser {
+            unsafe { close_browser(self.0.as_ptr(), force_close as i32); }
+        }
     }
     /// Helper for closing a browser. Call this function from the top-level window
     /// close handler. Internally this calls CloseBrowser(false) if the close
@@ -132,29 +135,44 @@ impl BrowserHost {
     /// is pending and true after the close has completed. See [close_browser]
     /// and [LifeSpanHandler::do_close] documentation for additional usage
     /// information. This function must be called on the browser process UI thread.
-    pub fn try_close_browser(&self) -> bool {
-        unimplemented!()
+    pub fn try_close_browser(&mut self) -> bool {
+        self.0.try_close_browser.map(|try_close_browser| {
+            unsafe { try_close_browser(self.0.as_ptr()) != 0}
+        }).unwrap_or(false)
     }
     /// Set whether the browser is focused.
     pub fn set_focus(&mut self, focus: bool) {
-        unimplemented!()
+        if let Some(set_focus) = self.0.set_focus {
+            unsafe { set_focus(self.0.as_ptr(), focus as i32); }
+        }
     }
     /// Retrieve the window handle for this browser. If this browser is wrapped in
     /// a [BrowserView] this function should be called on the browser process
     /// UI thread and it will return the handle for the top-level native window.
     pub fn get_window_handle(&self) -> WindowHandle {
-        unimplemented!()
+        self.0.get_window_handle.map(|get_window_handle| {
+            unsafe { get_window_handle(self.0.as_ptr()) as WindowHandle }
+        }).unwrap_or_else(null_mut)
     }
     /// Retrieve the window handle of the browser that opened this browser. Will
     /// return None for non-popup windows or if this browser is wrapped in a
     /// [BrowserView]. This function can be used in combination with custom
     /// handling of modal windows.
     pub fn get_opener_window_handle(&self) -> Option<WindowHandle> {
-        unimplemented!()
+        self.0.get_opener_window_handle.and_then(|get_opener_window_handle| {
+            let handle = unsafe { get_opener_window_handle(self.0.as_ptr()) };
+            if handle.is_null() {
+                None
+            } else {
+                Some(handle as WindowHandle)
+            }
+        })
     }
     /// Returns true if this browser is wrapped in a [BrowserView].
     pub fn has_view(&self) -> bool {
-        unimplemented!()
+        self.0.has_view.map(|has_view| {
+            unsafe { has_view(self.0.as_ptr()) != 0 }
+        }).unwrap_or(false)
     }
     /// Returns the client for this browser.
     pub fn get_client(&self) -> Option<Box<dyn Client>> {
@@ -162,18 +180,24 @@ impl BrowserHost {
     }
     /// Returns the request context for this browser.
     pub fn get_request_context(&self) -> RequestContext {
-        unimplemented!()
+        self.0.get_request_context.and_then(|get_request_context|
+            unsafe { RequestContext::from_ptr(get_request_context(self.0.as_ptr())) }
+        ).unwrap()
     }
     /// Get the current zoom level. The default zoom level is 0.0. This function
     /// can only be called on the UI thread.
     pub fn get_zoom_level(&self) -> f64 {
-        unimplemented!()
+        self.0.get_zoom_level.map(|get_zoom_level| {
+            unsafe { get_zoom_level(self.0.as_ptr()) }
+        }).unwrap_or(0.0)
     }
     /// Change the zoom level to the specified value. Specify 0.0 to reset the zoom
     /// level. If called on the UI thread the change will be applied immediately.
     /// Otherwise, the change will be applied asynchronously on the UI thread.
-    pub fn set_zoom_level(&mut self) {
-        unimplemented!()
+    pub fn set_zoom_level(&mut self, zoom_level: f64) {
+        if let Some(set_zoom_level) = self.0.set_zoom_level {
+            unsafe { set_zoom_level(self.0.as_ptr(), zoom_level); }
+        }
     }
     /// Call to run a file chooser dialog. Only a single file chooser dialog may be
     /// pending at any given time. `mode` represents the type of dialog to display.
@@ -208,7 +232,9 @@ impl BrowserHost {
     }
     /// Download the file at `url` using [DownloadHandler].
     pub fn start_download(&mut self, url: &str) {
-        unimplemented!()
+        if let Some(start_download) = self.0.start_download {
+            unsafe { start_download(self.0.as_ptr(), CefString::new(url).as_ref() ); }
+        }
     }
     /// Download `image_url` and execute `callback` on completion with the images
     /// received from the renderer. If `is_favicon` is true then cookies are
@@ -223,16 +249,19 @@ impl BrowserHost {
     ///
     /// On the callback, the first parameter is the URL that was downloaded, the
     /// second parameter is the resulting HTTP status code and the third is the
-    /// resulting image, possibly None if the download failed.
-    pub fn download_image<F: FnOnce(&str, u16, Option<Image>)>(
+    /// resulting image, possibly None if the download failed. It will be called
+    /// on the browser process UI thread.
+    pub fn download_image(
         &self,
         image_url: &str,
         is_favicon: bool,
         max_image_size: u32,
         bypass_cache: bool,
-        callback: F,
+        callback: impl FnOnce(&str, u16, Option<Image>) + 'static,
     ) {
-        unimplemented!()
+        if let Some(download_image) = self.0.download_image {
+            unsafe { download_image(self.0.as_ptr(), CefString::new(image_url).as_ref(), is_favicon as i32, max_image_size, bypass_cache as i32, DownloadImageCallbackWrapper::new(callback)); }
+        }
     }
     /// Print the current browser contents.
     pub fn print(&self) {
@@ -603,5 +632,34 @@ impl BrowserHost {
     // be called on the UI thread.
     pub fn is_audio_muted(&self) -> bool {
         unimplemented!()
+    }
+}
+
+pub(crate) struct DownloadImageCallbackWrapper(*mut cef_download_image_callback_t);
+
+impl DownloadImageCallbackWrapper {
+    pub(crate) fn new<F: FnOnce(&str, u16, Option<Image>) + 'static>(callback: F) -> *mut cef_download_image_callback_t {
+        let rc = RefCounted::new(
+            cef_download_image_callback_t {
+                base: unsafe { std::mem::zeroed() },
+                on_download_image_finished: Some(Self::download_image_finished),
+            },
+            Some(Box::new(callback)),
+        );
+        unsafe { rc.as_mut() }.unwrap().get_cef()
+    }
+
+    extern "C" fn download_image_finished(
+        self_: *mut cef_download_image_callback_t,
+        image_url: *const cef_string_t,
+        http_status_code: ::std::os::raw::c_int,
+        image: *mut cef_image_t,
+    ) {
+        let mut this = unsafe { RefCounted::<cef_download_image_callback_t>::make_temp(self_) };
+        if let Some(callback) = this.take() {
+            callback(&CefString::copy_raw_to_string(image_url).unwrap_or_default(), http_status_code as u16, unsafe { Image::from_ptr(image) });
+        }
+        // no longer needed
+        RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
     }
 }
