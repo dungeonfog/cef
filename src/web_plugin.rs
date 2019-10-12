@@ -29,28 +29,24 @@ impl WebPluginInfo {
     }
 }
 
-#[doc(hidden)]
-impl From<*mut cef_web_plugin_info_t> for WebPluginInfo {
-    fn from(info: *mut cef_web_plugin_info_t) -> Self {
-        let name = unsafe { (*info).get_name.unwrap()(info) };
-        let path = unsafe { (*info).get_path.unwrap()(info) };
-        let version = unsafe { (*info).get_version.unwrap()(info) };
-        let description = unsafe { (*info).get_description.unwrap()(info) };
+impl WebPluginInfo {
+    pub(crate) unsafe fn new(info: *mut cef_web_plugin_info_t) -> Self {
+        let name = (*info).get_name.unwrap()(info);
+        let path = (*info).get_path.unwrap()(info);
+        let version = (*info).get_version.unwrap()(info);
+        let description = (*info).get_description.unwrap()(info);
 
-        let result = {
-            Self {
-                name: CefString::copy_raw_to_string(name).unwrap(),
-                path: CefString::copy_raw_to_string(path).unwrap(),
-                version: CefString::copy_raw_to_string(version).unwrap(),
-                description: CefString::copy_raw_to_string(description).unwrap(),
-            }
+        let result = Self {
+            name: CefString::copy_raw_to_string(name).unwrap(),
+            path: CefString::copy_raw_to_string(path).unwrap(),
+            version: CefString::copy_raw_to_string(version).unwrap(),
+            description: CefString::copy_raw_to_string(description).unwrap(),
         };
-        unsafe {
-            cef_string_userfree_utf16_free(name);
-            cef_string_userfree_utf16_free(path);
-            cef_string_userfree_utf16_free(version);
-            cef_string_userfree_utf16_free(description);
-        }
+        cef_string_userfree_utf16_free(name);
+        cef_string_userfree_utf16_free(path);
+        cef_string_userfree_utf16_free(version);
+        cef_string_userfree_utf16_free(description);
+        
         result
     }
 }

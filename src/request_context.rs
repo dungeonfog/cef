@@ -133,23 +133,25 @@ impl RequestContextHandlerWrapper {
         plugin_info: *mut cef_web_plugin_info_t,
         plugin_policy: *mut cef_plugin_policy_t::Type,
     ) -> std::os::raw::c_int {
-        let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
-        if let Some(policy) = this.delegate.on_before_plugin_load(
-            &CefString::copy_raw_to_string(mime_type).unwrap(),
-            CefString::copy_raw_to_string(plugin_url)
-                .as_ref()
-                .and_then(|s| Some(s.as_str())),
-            is_main_frame != 0,
-            CefString::copy_raw_to_string(top_origin_url)
-                .as_ref()
-                .and_then(|s| Some(s.as_str())),
-            &WebPluginInfo::from(plugin_info),
-            unsafe { PluginPolicy::from_unchecked(*plugin_policy) },
-        ) {
-            unsafe { (*plugin_policy) = policy as cef_plugin_policy_t::Type };
-            1
-        } else {
-            0
+        unsafe {
+            let this = RefCounted::<cef_request_context_handler_t>::make_temp(self_);
+            if let Some(policy) = this.delegate.on_before_plugin_load(
+                &CefString::copy_raw_to_string(mime_type).unwrap(),
+                CefString::copy_raw_to_string(plugin_url)
+                    .as_ref()
+                    .and_then(|s| Some(s.as_str())),
+                is_main_frame != 0,
+                CefString::copy_raw_to_string(top_origin_url)
+                    .as_ref()
+                    .and_then(|s| Some(s.as_str())),
+                &WebPluginInfo::new(plugin_info),
+                PluginPolicy::from_unchecked(*plugin_policy),
+            ) {
+                (*plugin_policy) = policy as cef_plugin_policy_t::Type;
+                1
+            } else {
+                0
+            }
         }
     }
     extern "C" fn get_resource_request_handler(
@@ -170,7 +172,7 @@ impl RequestContextHandlerWrapper {
             unsafe { &Request::from_ptr_unchecked(request) },
             is_navigation != 0,
             is_download != 0,
-            CefString::copy_raw_to_string(request_initiator)
+            unsafe { CefString::copy_raw_to_string(request_initiator) }
                 .as_ref()
                 .and_then(|s| Some(s.as_str()))
                 .unwrap_or(""),

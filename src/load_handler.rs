@@ -1136,14 +1136,16 @@ impl LoadHandlerWrapper {
         error_text: *const cef_string_t,
         failed_url: *const cef_string_t,
     ) {
-        let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-        (*this).on_load_error(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            unsafe { &Frame::from_ptr_unchecked(frame) },
-            unsafe { ErrorCode::from_unchecked(error_code) },
-            &CefString::copy_raw_to_string(error_text).unwrap(),
-            &CefString::copy_raw_to_string(failed_url).unwrap(),
-        );
+        unsafe {
+            let this = RefCounted::<cef_load_handler_t>::make_temp(self_);
+            (*this).on_load_error(
+                &Browser::from_ptr_unchecked(browser),
+                &Frame::from_ptr_unchecked(frame),
+                ErrorCode::from_unchecked(error_code),
+                &CefString::copy_raw_to_string(error_text).unwrap(),
+                &CefString::copy_raw_to_string(failed_url).unwrap(),
+            );
+        }
     }
 
     pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut RefCounted<cef_load_handler_t> {

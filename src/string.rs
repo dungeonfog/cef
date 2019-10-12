@@ -31,14 +31,20 @@ impl CefString {
             );
         }
     }
-    pub fn copy_raw_to_string(source: *const cef_string_t) -> Option<String> {
+    pub unsafe fn copy_raw_to_string(source: *const cef_string_t) -> Option<String> {
         if source.is_null() {
             None
         } else {
-            Some(String::from_utf16_lossy(unsafe {
+            Some(String::from_utf16_lossy(
                 std::slice::from_raw_parts((*source).str, (*source).length)
-            }))
+            ))
         }
+    }
+    pub unsafe fn into_string(self) -> Option<String> {
+        Self::copy_raw_to_string(&self.0)
+    }
+    pub unsafe fn as_string(&self) -> Option<String> {
+        Self::copy_raw_to_string(&self.0)
     }
 
     pub unsafe fn from_mut_ptr<'a>(ptr: *mut cef_string_t) -> &'a mut CefString {
@@ -82,18 +88,6 @@ impl From<cef_string_t> for CefString {
     }
 }
 
-impl Into<String> for CefString {
-    fn into(self) -> String {
-        Self::copy_raw_to_string(&self.0).unwrap()
-    }
-}
-
-impl<'a> Into<String> for &'a CefString {
-    fn into(self) -> String {
-        CefString::copy_raw_to_string(&self.0).unwrap()
-    }
-}
-
 pub(crate) struct CefStringList(cef_string_list_t);
 
 impl Default for CefStringList {
@@ -116,12 +110,6 @@ impl Into<cef_string_list_t> for CefStringList {
     }
 }
 
-impl Into<Vec<String>> for CefStringList {
-    fn into(self) -> Vec<String> {
-        from_string_list(self.0)
-    }
-}
-
 impl CefStringList {
     pub fn new() -> Self {
         Self::default()
@@ -129,20 +117,21 @@ impl CefStringList {
     pub fn get(&self) -> cef_string_list_t {
         self.0
     }
+    pub unsafe fn into_vec(self) -> Vec<String> {
+        from_string_list(self.0)
+    }
 }
 
-pub(crate) fn from_string_list(list: cef_string_list_t) -> Vec<String> {
-    (0..unsafe { cef_string_list_size(list) })
+pub(crate) unsafe fn from_string_list(list: cef_string_list_t) -> Vec<String> {
+    (0..cef_string_list_size(list))
         .map(|index| {
             let item = CefString::default();
-            unsafe {
-                cef_string_list_value(
-                    list,
-                    index,
-                    item.as_ref() as *const cef_string_t as *mut cef_string_t,
-                );
-            }
-            item.into()
+            cef_string_list_value(
+                list,
+                index,
+                item.as_ref() as *const cef_string_t as *mut cef_string_t,
+            );
+            CefString::copy_raw_to_string(item.as_ref()).unwrap()
         })
         .collect()
 }
@@ -169,7 +158,7 @@ impl StringVisitorWrapper {
 
     extern "C" fn visit(self_: *mut cef_string_visitor_t, string: *const cef_string_t) {
         let mut this = unsafe { RefCounted::<cef_string_visitor_t>::make_temp(self_) };
-        if let Some(string) = CefString::copy_raw_to_string(string) {
+        if let Some(string) = unsafe { CefString::copy_raw_to_string(string) } {
             this.visit(&string);
         }
         // we're done here!

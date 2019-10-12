@@ -39,7 +39,7 @@ impl MultiMap {
                 &mut result,
             ) == 1
         } {
-            Ok(CefString::from(result).into())
+            Ok(unsafe { CefString::from(result).into_string().unwrap() })
         } else {
             Err(())
         }
@@ -48,7 +48,7 @@ impl MultiMap {
     pub(crate) fn get_key(&self, index: usize) -> Result<String, ()> {
         let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_key(self.0, index, &mut result) == 1 } {
-            Ok(CefString::from(result).into())
+            Ok(unsafe { CefString::from(result).into_string().unwrap() })
         } else {
             Err(())
         }
@@ -57,7 +57,7 @@ impl MultiMap {
     pub(crate) fn get_value(&self, index: usize) -> Result<String, ()> {
         let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_value(self.0, index, &mut result) == 1 } {
-            Ok(CefString::from(result).into())
+            Ok(unsafe { CefString::from(result).into_string().unwrap() })
         } else {
             Err(())
         }

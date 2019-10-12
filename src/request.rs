@@ -187,7 +187,7 @@ impl Request {
             .get_url
             .and_then(|get_url| {
                 let s = unsafe { get_url(self.0.as_ptr()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s);
                 }
@@ -210,7 +210,7 @@ impl Request {
             .get_method
             .and_then(|get_method| {
                 let s = unsafe { get_method(self.0.as_ptr()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s);
                 }
@@ -248,7 +248,7 @@ impl Request {
             .get_referrer_url
             .and_then(|get_referrer_url| {
                 let s = unsafe { get_referrer_url(self.0.as_ptr()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s);
                 }
@@ -297,7 +297,7 @@ impl Request {
         if let Some(get_header_by_name) = self.0.get_header_by_name {
             let header =
                 unsafe { get_header_by_name(self.0.as_ptr(), CefString::new(name).as_ref()) };
-            let result = CefString::copy_raw_to_string(header);
+            let result = unsafe { CefString::copy_raw_to_string(header) };
             if result.is_some() {
                 unsafe {
                     cef_string_userfree_utf16_free(header);
@@ -371,7 +371,7 @@ impl Request {
     pub fn get_first_party_for_cookies(&self) -> String {
         if let Some(get_first_party_for_cookies) = self.0.get_first_party_for_cookies {
             let url = unsafe { get_first_party_for_cookies(self.0.as_ptr()) };
-            let result = CefString::copy_raw_to_string(url);
+            let result = unsafe { CefString::copy_raw_to_string(url) };
             if result.is_some() {
                 unsafe {
                     cef_string_userfree_utf16_free(url);
@@ -572,7 +572,7 @@ impl PostDataElement {
     /// Return the file name.
     pub fn get_file(&self) -> String {
         let name = unsafe { (&*self.0).get_file.unwrap()(self.as_ptr()) };
-        if let Some(result) = CefString::copy_raw_to_string(name) {
+        if let Some(result) = unsafe { CefString::copy_raw_to_string(name) } {
             unsafe {
                 cef_string_userfree_utf16_free(name);
             }

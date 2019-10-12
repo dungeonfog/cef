@@ -185,7 +185,7 @@ impl Frame {
     pub fn get_name(&self) -> Option<String> {
         if let Some(get_name) = self.0.get_name {
             let name = unsafe { get_name(self.0.as_ptr()) };
-            let result = CefString::copy_raw_to_string(name);
+            let result = unsafe { CefString::copy_raw_to_string(name) };
             if result.is_some() {
                 unsafe {
                     cef_string_userfree_utf16_free(name);
@@ -223,7 +223,7 @@ impl Frame {
     pub fn get_url(&self) -> String {
         if let Some(get_url) = self.0.get_url {
             let url = unsafe { get_url(self.0.as_ptr()) };
-            let result = CefString::copy_raw_to_string(url);
+            let result = unsafe { CefString::copy_raw_to_string(url) };
             if let Some(result) = result {
                 unsafe {
                     cef_string_userfree_utf16_free(url);

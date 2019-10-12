@@ -36,7 +36,7 @@ impl ProcessMessage {
     pub fn get_name(&self) -> Option<String> {
         if let Some(get_name) = self.0.get_name {
             let name = unsafe { get_name(self.as_ptr()) };
-            let s = CefString::copy_raw_to_string(name);
+            let s = unsafe { CefString::copy_raw_to_string(name) };
             unsafe {
                 cef_string_userfree_utf16_free(name);
             }

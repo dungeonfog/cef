@@ -269,15 +269,17 @@ impl URLRequestClientWrapper {
         scheme: *const cef_string_t,
         callback: *mut cef_auth_callback_t,
     ) -> i32 {
-        let this = unsafe { RefCounted::<cef_urlrequest_client_t>::make_temp(self_) };
-        (*this).get_auth_credentials(
-            is_proxy != 0,
-            &CefString::copy_raw_to_string(host).unwrap(),
-            port as u16,
-            &CefString::copy_raw_to_string(realm).unwrap(),
-            &CefString::copy_raw_to_string(scheme).unwrap(),
-            unsafe { AuthCallback::from_ptr_unchecked(callback) },
-        ) as i32
+        unsafe {
+            let this = RefCounted::<cef_urlrequest_client_t>::make_temp(self_);
+            (*this).get_auth_credentials(
+                is_proxy != 0,
+                &CefString::copy_raw_to_string(host).unwrap(),
+                port as u16,
+                &CefString::copy_raw_to_string(realm).unwrap(),
+                &CefString::copy_raw_to_string(scheme).unwrap(),
+                AuthCallback::from_ptr_unchecked(callback),
+            ) as i32
+        }
     }
 }
 
@@ -379,7 +381,7 @@ impl CookieAccessFilterWrapper {
             browser.as_ref(),
             frame.as_ref(),
             unsafe { &Request::from_ptr_unchecked(request) },
-            Cookie::from(cookie),
+            unsafe { Cookie::new(cookie) },
         ) as std::os::raw::c_int
     }
 
@@ -399,7 +401,7 @@ impl CookieAccessFilterWrapper {
             frame.as_ref(),
             unsafe { &Request::from_ptr_unchecked(request) },
             unsafe { &Response::from_ptr_unchecked(response) },
-            Cookie::from(cookie),
+            unsafe { Cookie::new(cookie) },
         ) as std::os::raw::c_int
     }
 }

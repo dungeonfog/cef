@@ -31,21 +31,20 @@ pub struct Cookie {
     pub expires: Option<SystemTime>,
 }
 
-#[doc(hidden)]
-impl From<*const cef_cookie_t> for Cookie {
-    fn from(cookie: *const cef_cookie_t) -> Self {
-        let cookie = unsafe { cookie.as_ref() }.unwrap();
+impl Cookie {
+    pub(crate) unsafe fn new(cookie: *const cef_cookie_t) -> Self {
+        let cookie = cookie.as_ref().unwrap();
         let name = CefString::copy_raw_to_string(&cookie.name);
         let value = CefString::copy_raw_to_string(&cookie.value);
         let domain = CefString::copy_raw_to_string(&cookie.domain);
         let path = CefString::copy_raw_to_string(&cookie.path);
         let mut creation = 0.0;
-        unsafe { cef_time_to_doublet(&cookie.creation, &mut creation) };
+        cef_time_to_doublet(&cookie.creation, &mut creation);
         let mut last_access = 0.0;
-        unsafe { cef_time_to_doublet(&cookie.last_access, &mut last_access) };
+        cef_time_to_doublet(&cookie.last_access, &mut last_access);
         let mut expires = 0.0;
         if cookie.has_expires != 0 {
-            unsafe { cef_time_to_doublet(&cookie.expires, &mut expires) };
+            cef_time_to_doublet(&cookie.expires, &mut expires);
         }
 
         Self {

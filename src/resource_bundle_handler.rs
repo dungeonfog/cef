@@ -96,7 +96,7 @@ impl ResourceBundleHandlerWrapper {
         string: *mut cef_string_t,
     ) -> std::os::raw::c_int {
         let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
-        match this.get_localized_string(string_id, &CefString::copy_raw_to_string(string).unwrap())
+        match this.get_localized_string(string_id, unsafe { &CefString::copy_raw_to_string(string).unwrap() })
         {
             None => 0,
             Some(rstr) => {

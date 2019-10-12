@@ -25,7 +25,7 @@ impl Extension {
             .get_identifier
             .and_then(|get_identifier| {
                 let s = unsafe { get_identifier(self.0.as_ptr()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s);
                 }
@@ -42,7 +42,7 @@ impl Extension {
             .get_path
             .and_then(|get_path| {
                 let s = unsafe { get_path(self.0.as_ptr()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s);
                 }

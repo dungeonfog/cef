@@ -244,7 +244,7 @@ cef_callback_impl! {
             response: Response: *mut cef_response_t,
             new_url: &mut CefString: *mut cef_string_t,
         ) {
-            let mut new_url_rust = (&*new_url).into();
+            let mut new_url_rust = unsafe { (&*new_url).as_string() }.unwrap();
             self.delegate.on_resource_redirect(
                 browser.as_ref(),
                 frame.as_ref(),

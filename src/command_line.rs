@@ -93,7 +93,7 @@ impl CommandLine {
         unsafe {
             (self.0.get_argv.unwrap())(self.as_ptr(), list.get());
         }
-        list.into()
+        unsafe { list.into_vec() }
     }
     /// Constructs and returns the represented command line string. Use this
     /// function cautiously because quoting behavior is unclear.
@@ -168,11 +168,11 @@ impl CommandLine {
                 unsafe {
                     cef_string_map_key(switches, index, pair.0);
                     cef_string_map_value(switches, index, pair.1);
+                    (
+                        CefString::copy_raw_to_string(pair.0).unwrap(),
+                        CefString::copy_raw_to_string(pair.1),
+                    )
                 }
-                (
-                    CefString::copy_raw_to_string(pair.0).unwrap(),
-                    CefString::copy_raw_to_string(pair.1),
-                )
             })
             .collect();
 
@@ -207,7 +207,7 @@ impl CommandLine {
         unsafe {
             (self.0.get_arguments.unwrap())(self.as_ptr(), list.get());
         }
-        list.into()
+        unsafe { list.into_vec() }
     }
     /// Add an argument to the end of the command line.
     pub fn append_argument(&mut self, argument: &str) {

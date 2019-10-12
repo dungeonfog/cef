@@ -260,7 +260,7 @@ impl AppWrapper {
     ) {
         let this = unsafe { RefCounted::<cef_app_t>::make_temp(self_) };
         (**this).delegate.on_before_command_line_processing(
-            CefString::copy_raw_to_string(process_type)
+            unsafe { CefString::copy_raw_to_string(process_type) }
                 .as_ref()
                 .map(|s| &**s),
             unsafe { &CommandLine::from_ptr_unchecked(command_line) },

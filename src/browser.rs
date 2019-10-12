@@ -128,7 +128,7 @@ impl Browser {
         unsafe {
             (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.get());
         }
-        list.into()
+        unsafe { list.into_vec() }
     }
 }
 

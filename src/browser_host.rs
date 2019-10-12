@@ -657,7 +657,7 @@ impl DownloadImageCallbackWrapper {
     ) {
         let mut this = unsafe { RefCounted::<cef_download_image_callback_t>::make_temp(self_) };
         if let Some(callback) = this.take() {
-            callback(&CefString::copy_raw_to_string(image_url).unwrap_or_default(), http_status_code as u16, unsafe { Image::from_ptr(image) });
+            callback(unsafe { &CefString::copy_raw_to_string(image_url).unwrap_or_default() }, http_status_code as u16, unsafe { Image::from_ptr(image) });
         }
         // no longer needed
         RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);

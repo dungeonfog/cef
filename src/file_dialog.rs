@@ -116,7 +116,7 @@ impl RunFileDialogCallbackWrapper {
                 if file_paths.is_null() {
                     None
                 } else {
-                    Some(from_string_list(file_paths))
+                    Some(unsafe { from_string_list(file_paths) })
                 },
             );
         }

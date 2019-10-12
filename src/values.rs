@@ -130,7 +130,7 @@ impl Value {
             .get_string
             .and_then(|get_string| {
                 let s = unsafe { get_string(self.as_ptr()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s as *mut _);
                 }
@@ -560,7 +560,7 @@ impl DictionaryValue {
             .and_then(|get_keys| {
                 let list = CefStringList::new();
                 if unsafe { get_keys(self.as_ptr(), list.get()) } != 0 {
-                    Some(list.into())
+                    Some(unsafe { list.into_vec() })
                 } else {
                     None
                 }
@@ -644,7 +644,7 @@ impl DictionaryValue {
             .get_string
             .and_then(|get_string| {
                 let s = unsafe { get_string(self.as_ptr(), CefString::new(key).as_ref()) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s as *mut _);
                 }
@@ -983,7 +983,7 @@ impl ListValue {
             .get_string
             .and_then(|get_string| {
                 let s = unsafe { get_string(self.as_ptr(), index) };
-                let result = CefString::copy_raw_to_string(s);
+                let result = unsafe { CefString::copy_raw_to_string(s) };
                 unsafe {
                     cef_string_userfree_utf16_free(s);
                 }
