@@ -46,6 +46,13 @@ impl CefString {
     pub unsafe fn as_string(&self) -> Option<String> {
         Self::copy_raw_to_string(&self.0)
     }
+    pub fn into_raw(mut self) -> cef_string_t {
+        let result = cef_string_t {
+            ..self.0
+        };
+        self.0.dtor = None;
+        result
+    }
 
     pub unsafe fn from_mut_ptr<'a>(ptr: *mut cef_string_t) -> &'a mut CefString {
         assert_eq!(
