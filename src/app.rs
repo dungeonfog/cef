@@ -5,6 +5,7 @@ use cef_sys::{
     cef_set_osmodal_loop, cef_shutdown,
 };
 use std::{ptr::null_mut};
+use parking_lot::Mutex;
 
 
 use crate::{

@@ -1,10 +1,11 @@
 use cef_sys::cef_base_ref_counted_t;
 use std::{
+    cell::UnsafeCell,
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     os::raw::c_int,
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::Arc,
 };
 
 
@@ -58,6 +59,7 @@ impl<C: RefCounter> RefCountedPtr<C> {
     pub(crate) fn wrap(cefobj: C, object: C::Wrapper) -> RefCountedPtr<C>
     where
         C: RefCounterWrapped,
+        C::Wrapper: Send + Sync,
     {
         unsafe { RefCountedPtr::from_ptr_unchecked((*RefCounted::new(cefobj, object)).get_cef()) }
     }
@@ -162,16 +164,28 @@ impl<C: RefCounter> Clone for RefCountedPtr<C> {
 // this is true as long as everything is #[repr(C)] and the corresponding structs are the first in the list.
 // It might sound like a hack, but I think that CEF assumes that you do it like this. It's a C API after all.
 #[repr(C)]
-pub(crate) struct RefCounted<C: RefCounterWrapped> {
+pub(crate) struct RefCounted<C: RefCounterWrapped>
+    where C::Wrapper: Send + Sync
+{
     cefobj: C,
-    refcount: AtomicUsize,
     object: C::Wrapper,
 }
 
-unsafe impl<C: RefCounterWrapped> Sync for RefCounted<C> {}
-unsafe impl<C: RefCounterWrapped> Send for RefCounted<C> {}
+pub(crate) struct RefCountedSingleThread<C: RefCounterWrapped> {
+    cefobj: C,
+    object: UnsafeCell<C::Wrapper>,
+}
 
-impl<C: RefCounterWrapped> Deref for RefCounted<C> {
+unsafe impl<C: RefCounterWrapped> Sync for RefCounted<C>
+    where C::Wrapper: Send + Sync
+{}
+unsafe impl<C: RefCounterWrapped> Send for RefCounted<C>
+    where C::Wrapper: Send + Sync
+{}
+
+impl<C: RefCounterWrapped> Deref for RefCounted<C>
+    where C::Wrapper: Send + Sync
+{
     type Target = C::Wrapper;
 
     fn deref(&self) -> &Self::Target {
@@ -179,15 +193,23 @@ impl<C: RefCounterWrapped> Deref for RefCounted<C> {
     }
 }
 
-impl<C: RefCounterWrapped> DerefMut for RefCounted<C> {
+impl<C: RefCounterWrapped> DerefMut for RefCounted<C>
+    where C::Wrapper: Send + Sync
+{
     fn deref_mut(&mut self) -> &mut Self::Target {
         &mut self.object
     }
 }
 
-impl<C: RefCounterWrapped> RefCounted<C> {
-    pub(crate) unsafe fn make_temp(ptr: *mut C) -> ManuallyDrop<Box<Self>> {
-        ManuallyDrop::new(Box::from_raw(ptr as *mut Self))
+impl<C: RefCounterWrapped> RefCounted<C>
+    where C::Wrapper: Send + Sync
+{
+    pub(crate) unsafe fn to_arc(ptr: *mut C) -> ManuallyDrop<Arc<Self>> {
+        ManuallyDrop::new(Arc::from_raw(ptr as *mut Self))
+    }
+
+    pub(crate) unsafe fn get_wrapper<'a>(ptr: *mut C) -> &'a C::Wrapper {
+        &(*(ptr as *mut Self as *const Self)).object
     }
 
     pub(crate) fn new(mut cefobj: C, object: C::Wrapper) -> *mut Self {
@@ -199,47 +221,29 @@ impl<C: RefCounterWrapped> RefCounted<C> {
             has_at_least_one_ref: Some(Self::has_at_least_one_ref),
         };
 
-        Box::into_raw(Box::new(Self {
+        // TODO: SHOULD WE GIT RID OF THE POINTER CAST? THIS IS BEING SHARED ACROSS THREADS AFTER
+        // ALL
+        Arc::into_raw(Arc::new(Self {
             cefobj,
-            refcount: AtomicUsize::new(1),
             object,
-        }))
-    }
-
-    pub(crate) fn get_cef(&mut self) -> *mut C {
-        &mut self.cefobj as *mut C
+        })) as *mut Self
     }
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        this.refcount.fetch_add(1, Ordering::AcqRel);
+        let this = unsafe { Self::to_arc(ref_counted as *mut C) };
+        let _: ManuallyDrop<Arc<Self>> = this.clone();
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        if this.refcount.fetch_sub(1, Ordering::AcqRel) < 1 {
-            ManuallyDrop::into_inner(this);
-            0
-        } else {
-            1
-        }
+        let this: Arc<Self> = ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut C) });
+        (Arc::strong_count(&this) > 1) as c_int
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        let counter = this.refcount.load(Ordering::Acquire);
-        if counter == 1 {
-            1
-        } else {
-            0
-        }
+        let this = unsafe { Self::to_arc(ref_counted as *mut C) };
+        (Arc::strong_count(&this) == 1) as c_int
     }
     extern "C" fn has_at_least_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        let counter = this.refcount.load(Ordering::Acquire);
-        if counter >= 1 {
-            1
-        } else {
-            0
-        }
+        let this = unsafe { Self::to_arc(ref_counted as *mut C) };
+        (Arc::strong_count(&this) >= 1) as c_int
     }
 }
 

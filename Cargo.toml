@@ -7,6 +7,7 @@ edition = "2018"
 [dependencies]
 cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
 num_enum = "0.4"
+parking_lot = "0.9"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3" }
