@@ -156,7 +156,7 @@ impl Into<i32> for TransitionType {
 ///   800-899 DNS resolver errors
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, UnsafeFromPrimitive)]
-pub enum ErrorCode {
+pub enum ErrorCode { // this list is generated from cef_net_error_list.h using regex magic
     /// No error.
     None = cef_errorcode_t::ERR_NONE,
 
@@ -400,14 +400,6 @@ pub enum ErrorCode {
     /// The request throttler module cancelled this request to avoid DDOS.
     TemporarilyThrottled = cef_errorcode_t::ERR_TEMPORARILY_THROTTLED,
 
-    /// A request to create an SSL tunnel connection through the HTTPS proxy
-    /// received a 302 (temporary redirect) response.  The response body might
-    /// include a description of why the request failed.
-    ///
-    /// TODO(https:///crbug.com/928551): This is deprecated and should not be used by
-    /// new code.
-    HttpsProxyTunnelResponseRedirect = cef_errorcode_t::ERR_HTTPS_PROXY_TUNNEL_RESPONSE_REDIRECT,
-
     /// We were unable to sign the CertificateVerify data of an SSL client auth
     /// handshake with the client certificate's private key.
     ///
@@ -442,11 +434,6 @@ pub enum ErrorCode {
     /// Server request for client certificate did not contain any types we support.
     ClientAuthCertTypeUnsupported = cef_errorcode_t::ERR_CLIENT_AUTH_CERT_TYPE_UNSUPPORTED,
 
-    /// Server requested one type of cert, then requested a different type while the
-    /// first was still being generated.
-    OriginBoundCertGenerationTypeMismatch =
-        cef_errorcode_t::ERR_ORIGIN_BOUND_CERT_GENERATION_TYPE_MISMATCH,
-
     /// An SSL peer sent us a fatal decrypt_error alert. This typically occurs when
     /// a peer could not correctly verify a signature (in CertificateVerify or
     /// ServerKeyExchange) or validate a Finished message.
@@ -455,8 +442,6 @@ pub enum ErrorCode {
     /// There are too many pending WebSocketJob instances, so the new job was not
     /// pushed to the queue.
     WsThrottleQueueTooLarge = cef_errorcode_t::ERR_WS_THROTTLE_QUEUE_TOO_LARGE,
-
-    /// Error -155 was removed (TOO_MANY_SOCKET_STREAMS)
 
     /// The SSL server certificate changed in a renegotiation.
     SslServerCertChanged = cef_errorcode_t::ERR_SSL_SERVER_CERT_CHANGED,
@@ -662,9 +647,6 @@ pub enum ErrorCode {
     /// https:///g.co/chrome/symantecpkicerts
     CertSymantecLegacy = cef_errorcode_t::ERR_CERT_SYMANTEC_LEGACY,
 
-    /// The value immediately past the last certificate error code.
-    CertEnd = cef_errorcode_t::ERR_CERT_END,
-
     /// The URL is invalid.
     InvalidUrl = cef_errorcode_t::ERR_INVALID_URL,
 
@@ -775,9 +757,9 @@ pub enum ErrorCode {
     ResponseHeadersMultipleContentLength =
         cef_errorcode_t::ERR_RESPONSE_HEADERS_MULTIPLE_CONTENT_LENGTH,
 
-    /// SPDY Headers have been received, but not all of them - status or version
+    /// HTTP/2 headers have been received, but not all of them - status or version
     /// headers are missing, so we're expecting additional frames to complete them.
-    IncompleteSpdyHeaders = cef_errorcode_t::ERR_INCOMPLETE_SPDY_HEADERS,
+    IncompleteHttp2Headers = cef_errorcode_t::ERR_INCOMPLETE_HTTP2_HEADERS,
 
     /// No PAC URL configuration could be retrieved from DHCP. This can indicate
     /// either a failure to retrieve the DHCP configuration, or that there was no
@@ -796,10 +778,10 @@ pub enum ErrorCode {
     /// stream id corresponding to the request indicating that this request has not
     /// been processed yet, or a RST_STREAM frame with error code REFUSED_STREAM.
     /// Client MAY retry (on a different connection).  See RFC7540 Section 8.1.4.
-    SpdyServerRefusedStream = cef_errorcode_t::ERR_SPDY_SERVER_REFUSED_STREAM,
+    Http2ServerRefusedStream = cef_errorcode_t::ERR_HTTP2_SERVER_REFUSED_STREAM,
 
-    /// SPDY server didn't respond to the PING message.
-    SpdyPingFailed = cef_errorcode_t::ERR_SPDY_PING_FAILED,
+    /// HTTP/2 server didn't respond to the PING message.
+    Http2PingFailed = cef_errorcode_t::ERR_HTTP2_PING_FAILED,
 
     /// The HTTP response body transferred fewer bytes than were advertised by the
     /// Content-Length header when the connection is closed.
@@ -819,21 +801,20 @@ pub enum ErrorCode {
     /// to read any requests sent, so they may be resent.
     QuicHandshakeFailed = cef_errorcode_t::ERR_QUIC_HANDSHAKE_FAILED,
 
-    /// Transport security is inadequate for the SPDY version.
-    SpdyInadequateTransportSecurity = cef_errorcode_t::ERR_SPDY_INADEQUATE_TRANSPORT_SECURITY,
+    /// Transport security is inadequate for the HTTP/2 version.
+    Http2InadequateTransportSecurity = cef_errorcode_t::ERR_HTTP2_INADEQUATE_TRANSPORT_SECURITY,
 
-    /// The peer violated SPDY flow control.
-    SpdyFlowControlError = cef_errorcode_t::ERR_SPDY_FLOW_CONTROL_ERROR,
+    /// The peer violated HTTP/2 flow control.
+    Http2FlowControlError = cef_errorcode_t::ERR_HTTP2_FLOW_CONTROL_ERROR,
 
-    /// The peer sent an improperly sized SPDY frame.
-    SpdyFrameSizeError = cef_errorcode_t::ERR_SPDY_FRAME_SIZE_ERROR,
+    /// The peer sent an improperly sized HTTP/2 frame.
+    Http2FrameSizeError = cef_errorcode_t::ERR_HTTP2_FRAME_SIZE_ERROR,
 
-    /// Decoding or encoding of compressed SPDY headers failed.
-    SpdyCompressionError = cef_errorcode_t::ERR_SPDY_COMPRESSION_ERROR,
+    /// Decoding or encoding of compressed HTTP/2 headers failed.
+    Http2CompressionError = cef_errorcode_t::ERR_HTTP2_COMPRESSION_ERROR,
 
     /// Proxy Auth Requested without a valid Client Socket Handle.
-    ProxyAuthRequestedWithNoConnection =
-        cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
+    ProxyAuthRequestedWithNoConnection = cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
 
     /// HTTP_1_1_REQUIRED error code received on HTTP/2 session.
     Http11Required = cef_errorcode_t::ERR_HTTP_1_1_REQUIRED,
@@ -854,15 +835,14 @@ pub enum ErrorCode {
     /// Received HTTP/2 RST_STREAM frame with NO_ERROR error code.  This error should
     /// be handled internally by HTTP/2 code, and should not make it above the
     /// SpdyStream layer.
-    SpdyRstStreamNoErrorReceived = cef_errorcode_t::ERR_SPDY_RST_STREAM_NO_ERROR_RECEIVED,
+    Http2RstStreamNoErrorReceived = cef_errorcode_t::ERR_HTTP2_RST_STREAM_NO_ERROR_RECEIVED,
 
     /// The pushed stream claimed by the request is no longer available.
-    SpdyPushedStreamNotAvailable = cef_errorcode_t::ERR_SPDY_PUSHED_STREAM_NOT_AVAILABLE,
+    Http2PushedStreamNotAvailable = cef_errorcode_t::ERR_HTTP2_PUSHED_STREAM_NOT_AVAILABLE,
 
     /// A pushed stream was claimed and later reset by the server. When this happens,
     /// the request should be retried.
-    SpdyClaimedPushedStreamResetByServer =
-        cef_errorcode_t::ERR_SPDY_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER,
+    Http2ClaimedPushedStreamResetByServer = cef_errorcode_t::ERR_HTTP2_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER,
 
     /// An HTTP transaction was retried too many times due for authentication or
     /// invalid certificates. This may be due to a bug in the net stack that would
@@ -871,14 +851,14 @@ pub enum ErrorCode {
     TooManyRetries = cef_errorcode_t::ERR_TOO_MANY_RETRIES,
 
     /// Received an HTTP/2 frame on a closed stream.
-    SpdyStreamClosed = cef_errorcode_t::ERR_SPDY_STREAM_CLOSED,
+    Http2StreamClosed = cef_errorcode_t::ERR_HTTP2_STREAM_CLOSED,
 
     /// Client is refusing an HTTP/2 stream.
-    SpdyClientRefusedStream = cef_errorcode_t::ERR_SPDY_CLIENT_REFUSED_STREAM,
+    Http2ClientRefusedStream = cef_errorcode_t::ERR_HTTP2_CLIENT_REFUSED_STREAM,
 
     /// A pushed HTTP/2 stream was claimed by a request based on matching URL and
     /// request headers, but the pushed response headers do not match the request.
-    SpdyPushedResponseDoesNotMatch = cef_errorcode_t::ERR_SPDY_PUSHED_RESPONSE_DOES_NOT_MATCH,
+    Http2PushedResponseDoesNotMatch = cef_errorcode_t::ERR_HTTP2_PUSHED_RESPONSE_DOES_NOT_MATCH,
 
     /// The cache does not have the requested entry.
     CacheMiss = cef_errorcode_t::ERR_CACHE_MISS,
@@ -1008,8 +988,6 @@ pub enum ErrorCode {
 
     /// Key generation failed.
     KeyGenerationFailed = cef_errorcode_t::ERR_KEY_GENERATION_FAILED,
-
-    /// Error -711 was removed (ORIGIN_BOUND_CERT_GENERATION_FAILED)
 
     /// Failure to export private key.
     PrivateKeyExportFailed = cef_errorcode_t::ERR_PRIVATE_KEY_EXPORT_FAILED,
