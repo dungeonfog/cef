@@ -5,8 +5,7 @@ use cef_sys::{
 };
 use std::{
     collections::HashMap,
-    convert::{TryFrom},
-    io::Read,
+    convert::{TryFrom, TryInto},
 };
 
 use crate::string::{CefString, CefStringList};
@@ -147,8 +146,7 @@ impl Value {
     /// [set_binary()].
     pub(crate) fn try_to_binary(&self) -> Option<BinaryValue> {
         self.0.get_binary.and_then(|get_binary| {
-            unsafe { get_binary(self.as_ptr()).as_ref() }
-                .and_then(|binary| Some(BinaryValue(binary as *const _ as *mut _, 0)))
+            unsafe { BinaryValue::from_ptr(get_binary(self.as_ptr())) }
         })
     }
     /// Returns the underlying value as type dictionary. The returned reference may
@@ -222,12 +220,12 @@ impl Value {
     /// Sets the underlying value as type binary. Returns true if the value was
     /// set successfully. This object keeps a reference to |value| and ownership of
     /// the underlying data remains unchanged.
-    pub(crate) fn set_binary(&mut self, value: &BinaryValue) -> bool {
+    pub(crate) fn set_binary(&mut self, value: BinaryValue) -> bool {
         self.0
             .set_binary
             .and_then(|set_binary| {
                 Some(unsafe {
-                    set_binary(self.as_ptr(), value.as_ref() as *const _ as *mut _) != 0
+                    set_binary(self.as_ptr(), value.into_raw()) != 0
                 })
             })
             .unwrap_or(false)
@@ -235,21 +233,21 @@ impl Value {
     /// Sets the underlying value as type dict. Returns true if the value was
     /// set successfully. This object keeps a reference to `value` and ownership of
     /// the underlying data remains unchanged.
-    pub(crate) fn set_dictionary(&mut self, value: &DictionaryValue) -> bool {
+    pub(crate) fn set_dictionary(&mut self, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
             .and_then(|set_dictionary| {
-                Some(unsafe { set_dictionary(self.as_ptr(), value.as_ptr()) != 0 })
+                Some(unsafe { set_dictionary(self.as_ptr(), value.into_raw()) != 0 })
             })
             .unwrap_or(false)
     }
     /// Sets the underlying value as type list. Returns true if the value was
     /// set successfully. This object keeps a reference to `value` and ownership of
     /// the underlying data remains unchanged.
-    pub(crate) fn set_list(&mut self, value: &ListValue) -> bool {
+    pub(crate) fn set_list(&mut self, value: ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), value.as_ptr()) != 0 }))
+            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), value.into_raw()) != 0 }))
             .unwrap_or(false)
     }
 }
@@ -284,7 +282,7 @@ impl Into<StoredValue> for Value {
             ValueType::Binary => {
                 let mut binary = self.try_to_binary().unwrap();
                 let mut buffer = Vec::new();
-                binary.read_to_end(&mut buffer).unwrap();
+                binary.push_to_vec(&mut buffer);
                 StoredValue::Binary(buffer)
             }
             ValueType::Dictionary => {
@@ -323,9 +321,9 @@ impl TryFrom<StoredValue> for Value {
             StoredValue::Int(i) => value.set_int(i),
             StoredValue::Double(f) => value.set_double(f),
             StoredValue::String(s) => value.set_string(&s),
-            StoredValue::Binary(b) => value.set_binary(&BinaryValue::new(&b)),
-            StoredValue::Dictionary(d) => value.set_dictionary(&DictionaryValue::from(&d)),
-            StoredValue::List(l) => value.set_list(&{
+            StoredValue::Binary(b) => value.set_binary(BinaryValue::new(&b)),
+            StoredValue::Dictionary(d) => value.set_dictionary(DictionaryValue::from(&d)),
+            StoredValue::List(l) => value.set_list({
                 let mut list = ListValue::new();
                 let v: Vec<Value> = l
                     .into_iter()
@@ -347,8 +345,10 @@ impl TryFrom<StoredValue> for Value {
 }
 
 // TODO: convert to ref_counted_ptr
-#[derive(Eq)]
-pub(crate) struct BinaryValue(*mut cef_binary_value_t, usize);
+ref_counted_ptr!{
+    // #[derive(Eq)]
+    pub(crate) struct BinaryValue(*mut cef_binary_value_t);
+}
 
 unsafe impl Sync for BinaryValue {}
 unsafe impl Send for BinaryValue {}
@@ -357,107 +357,124 @@ impl BinaryValue {
     /// Creates a new object that is not owned by any other object. The specified
     /// `data` will be copied.
     pub(crate) fn new(data: &[u8]) -> Self {
-        Self(
-            unsafe {
+        unsafe {
+            Self::from_ptr_unchecked(
                 cef_binary_value_create(data.as_ptr() as *const std::os::raw::c_void, data.len())
-            },
-            0,
-        )
+            )
+        }
     }
     /// Returns true if this object is valid. This object may become invalid if
     /// the underlying data is owned by another object (e.g. list or dictionary)
     /// and that other object is then modified or destroyed. Do not call any other
     /// functions if this function returns false.
     pub(crate) fn is_valid(&self) -> bool {
-        self.as_ref()
+        self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.0) != 0 }))
+            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is owned by another object.
     pub(crate) fn is_owned(&self) -> bool {
-        self.as_ref()
+        self.0
             .is_owned
-            .and_then(|is_owned| Some(unsafe { is_owned(self.0) != 0 }))
+            .and_then(|is_owned| Some(unsafe { is_owned(self.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
     /// Returns true if this object and `that` object have the same underlying
     /// data.
     pub(crate) fn is_same(&self, that: &BinaryValue) -> bool {
-        self.as_ref()
+        self.0
             .is_same
-            .and_then(|is_same| Some(unsafe { is_same(self.0, that.0) != 0 }))
+            .and_then(|is_same| Some(unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
     /// Returns the data size.
     pub(crate) fn len(&self) -> usize {
-        self.as_ref()
+        self.0
             .get_size
-            .and_then(|get_size| Some(unsafe { get_size(self.0) }))
+            .and_then(|get_size| Some(unsafe { get_size(self.as_ptr()) }))
             .unwrap_or(0)
     }
-}
-
-impl std::convert::AsRef<cef_binary_value_t> for BinaryValue {
-    fn as_ref(&self) -> &cef_binary_value_t {
-        unsafe { self.0.as_ref().unwrap() }
-    }
-}
-
-impl Read for BinaryValue {
-    fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
-        self.as_ref()
-            .get_data
-            .and_then(|get_data| {
-                Some(unsafe {
-                    get_data(
-                        self.0,
-                        buf.as_mut_ptr() as *mut std::ffi::c_void,
-                        buf.len(),
-                        self.1,
-                    )
-                })
-            })
-            .and_then(|result| {
-                self.1 += result;
-                Some(result)
-            })
-            .ok_or_else(|| {
-                std::io::Error::new(
-                    std::io::ErrorKind::InvalidData,
-                    "cef_binary_value_t is invalid",
-                )
-            })
-    }
-}
-
-impl std::io::Seek for BinaryValue {
-    fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
-        self.1 = match pos {
-            std::io::SeekFrom::Start(offset) => usize::try_from(offset),
-            std::io::SeekFrom::Current(offset) => usize::try_from(self.1 as i64 + offset),
-            std::io::SeekFrom::End(offset) => {
-                if offset > self.1 as i64 {
-                    Ok(0)
-                } else {
-                    Ok((self.1 as i64 - offset) as usize)
-                }
-            }
+    pub(crate) fn push_to_vec(&mut self, vec: &mut Vec<u8>) {
+        let len = self.len();
+        let target_vec_len = vec.len() + len;
+        let reserve_additional = target_vec_len.checked_sub(vec.capacity());
+        if let Some(reserve) = reserve_additional {
+            vec.reserve(reserve);
         }
-        .map_err(|err| {
-            std::io::Error::new(std::io::ErrorKind::InvalidInput, "offset is out of range")
-        })?;
-        Ok(self.1 as u64)
+
+        assert!(vec.capacity() >= vec.len() + len);
+        let ptr = vec.as_mut_ptr();
+        unsafe {
+            let get_data = self.0.get_data.unwrap();
+            let bytes = get_data(
+                self.as_ptr(),
+                ptr.offset(vec.len().try_into().unwrap()) as *mut std::ffi::c_void,
+                vec.capacity() - vec.len(),
+                0
+            );
+            let new_len = vec.len() + bytes;
+            assert!(vec.capacity() >= new_len);
+            vec.set_len(new_len)
+        }
     }
 }
+
+// TODO: CREATE `BinaryValueCursor`
+// impl Read for BinaryValue {
+//     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+//         self.as_ref()
+//             .get_data
+//             .and_then(|get_data| {
+//                 Some(unsafe {
+//                     get_data(
+//                         self.0,
+//                         buf.as_mut_ptr() as *mut std::ffi::c_void,
+//                         buf.len(),
+//                         self.1,
+//                     )
+//                 })
+//             })
+//             .and_then(|result| {
+//                 self.1 += result;
+//                 Some(result)
+//             })
+//             .ok_or_else(|| {
+//                 std::io::Error::new(
+//                     std::io::ErrorKind::InvalidData,
+//                     "cef_binary_value_t is invalid",
+//                 )
+//             })
+//     }
+// }
+
+// impl std::io::Seek for BinaryValue {
+//     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+//         self.1 = match pos {
+//             std::io::SeekFrom::Start(offset) => usize::try_from(offset),
+//             std::io::SeekFrom::Current(offset) => usize::try_from(self.1 as i64 + offset),
+//             std::io::SeekFrom::End(offset) => {
+//                 if offset > self.1 as i64 {
+//                     Ok(0)
+//                 } else {
+//                     Ok((self.1 as i64 - offset) as usize)
+//                 }
+//             }
+//         }
+//         .map_err(|err| {
+//             std::io::Error::new(std::io::ErrorKind::InvalidInput, "offset is out of range")
+//         })?;
+//         Ok(self.1 as u64)
+//     }
+// }
 
 impl PartialEq for BinaryValue {
     /// Returns true if this object and `that` object have an equivalent
     /// underlying value but are not necessarily the same object.
     fn eq(&self, that: &Self) -> bool {
-        self.as_ref()
+        self.0
             .is_equal
-            .and_then(|is_equal| Some(unsafe { is_equal(self.0, that.0) != 0 }))
+            .and_then(|is_equal| Some(unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
 }
@@ -465,15 +482,7 @@ impl PartialEq for BinaryValue {
 impl Clone for BinaryValue {
     /// Returns a copy of this object. The underlying data will also be copied.
     fn clone(&self) -> Self {
-        Self(unsafe { (self.as_ref().copy.unwrap())(self.0) }, self.1)
-    }
-}
-
-impl Drop for BinaryValue {
-    fn drop(&mut self) {
-        unsafe {
-            (self.as_ref().base.release.unwrap())(&mut (*self.0).base);
-        }
+        unsafe{ Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
     }
 }
 
@@ -647,8 +656,7 @@ impl DictionaryValue {
     /// will reference existing data.
     pub(crate) fn try_get_binary(&self, key: &str) -> Option<BinaryValue> {
         self.0.get_binary.and_then(|get_binary| {
-            unsafe { get_binary(self.as_ptr(), CefString::new(key).as_ref()).as_ref() }
-                .and_then(|binary| Some(BinaryValue(binary as *const _ as *mut _, 0)))
+            unsafe { BinaryValue::from_ptr(get_binary(self.as_ptr(), CefString::new(key).as_ref())) }
         })
     }
     /// Returns the value at the specified key as type dictionary. The returned
@@ -759,7 +767,7 @@ impl DictionaryValue {
             .set_binary
             .and_then(|set_binary| {
                 Some(unsafe {
-                    set_binary(self.as_ptr(), CefString::new(key).as_ref(), value.0) != 0
+                    set_binary(self.as_ptr(), CefString::new(key).as_ref(), value.into_raw()) != 0
                 })
             })
             .unwrap_or(false)
@@ -987,8 +995,7 @@ impl ListValue {
     /// will reference existing data.
     pub(crate) fn try_get_binary(&self, index: usize) -> Option<BinaryValue> {
         self.0.get_binary.and_then(|get_binary| {
-            unsafe { get_binary(self.as_ptr(), index).as_ref() }
-                .and_then(|binary| Some(BinaryValue(binary as *const _ as *mut _, 0)))
+            unsafe { BinaryValue::from_ptr(get_binary(self.as_ptr(), index)) }
         })
     }
     /// Returns the value at the specified index as type dictionary. The returned
@@ -1075,7 +1082,7 @@ impl ListValue {
     pub(crate) fn set_binary(&mut self, index: usize, value: BinaryValue) -> bool {
         self.0
             .set_binary
-            .and_then(|set_binary| Some(unsafe { set_binary(self.as_ptr(), index, value.0) != 0 }))
+            .and_then(|set_binary| Some(unsafe { set_binary(self.as_ptr(), index, value.as_ptr()) != 0 }))
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type dict. Returns true if the
