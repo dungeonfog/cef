@@ -725,7 +725,7 @@ pub enum ErrorCode { // this list is generated from cef_net_error_list.h using r
     NoSupportedProxies = cef_errorcode_t::ERR_NO_SUPPORTED_PROXIES,
 
     /// There is a SPDY protocol error.
-    SpdyProtocolError = cef_errorcode_t::ERR_SPDY_PROTOCOL_ERROR,
+    Http2ProtocolError = cef_errorcode_t::ERR_HTTP2_PROTOCOL_ERROR,
 
     /// Credentials could not be established during HTTP Authentication.
     InvalidAuthCredentials = cef_errorcode_t::ERR_INVALID_AUTH_CREDENTIALS,
