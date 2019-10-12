@@ -1,6 +1,6 @@
 use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t};
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashMap, ptr::null_mut};
+use std::{collections::HashMap, ptr::{null_mut, null}};
 use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
@@ -304,11 +304,15 @@ impl BrowserHost {
         match_case: bool,
         find_next: bool,
     ) {
-        unimplemented!()
+        if let Some(find) = self.0.find {
+            unsafe { find(self.0.as_ptr(), identifier, CefString::new(search_text).as_ref(), forward as i32, match_case as i32, find_next as i32); }
+        }
     }
     /// Cancel all searches that are currently going on.
     pub fn stop_finding(&self, clear_selection: bool) {
-        unimplemented!()
+        if let Some(stop_finding) = self.0.stop_finding {
+            unsafe { stop_finding(self.0.as_ptr(), clear_selection as i32); }
+        }
     }
     /// Open developer tools (DevTools) in its own browser. The DevTools browser
     /// will remain associated with this browser. If the DevTools browser is
@@ -320,11 +324,14 @@ impl BrowserHost {
     pub fn show_dev_tools(
         &self,
         window_info: &WindowInfo,
-        client: Option<Box<dyn Client>>,
+        client: Option<impl Client + 'static>,
         settings: Option<BrowserSettings>,
         inspect_element_at: Point,
     ) {
-        unimplemented!()
+        if let Some(show_dev_tools) = self.0.show_dev_tools {
+            let client = client.map(ClientWrapper::wrap).unwrap_or_else(null_mut);
+            unsafe { show_dev_tools(self.0.as_ptr(), window_info.get(), client, settings.map(|s| s.get()).unwrap_or_else(null), &inspect_element_at.into()); }
+        }
     }
     /// Explicitly close the associated DevTools browser, if any.
     pub fn close_dev_tools(&self) {
