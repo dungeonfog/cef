@@ -1,4 +1,4 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_t, cef_paint_element_type_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, ptr::null_mut};
 use winapi::shared::minwindef::HINSTANCE;
@@ -77,6 +77,38 @@ impl BrowserHost {
                     .and_then(|rc| Some(rc.as_ptr()))
                     .unwrap_or_else(null_mut),
             ) != 0
+        }
+    }
+    /// Create a new browser window using the window parameters specified by
+    /// `windowInfo`. If `request_context` is None the global request context will be
+    /// used. This function can only be called on the browser process UI thread. The
+    /// optional `extra_info` parameter provides an opportunity to specify extra
+    /// information specific to the created browser that will be passed to
+    /// [RenderProcessHandler::on_browser_created] in the render process.
+    pub fn create_browser_sync<C: Client + 'static>(
+        window_info: &WindowInfo,
+        client: C,
+        url: &str,
+        settings: &BrowserSettings,
+        extra_info: Option<&HashMap<String, StoredValue>>,
+        request_context: Option<&RequestContext>,
+        ) -> Browser {
+        let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
+        let client = ClientWrapper::wrap(client);
+
+        unsafe {
+            Browser::from_ptr_unchecked(cef_browser_host_create_browser_sync(
+                window_info.get(),
+                client,
+                CefString::new(url).as_ref(),
+                settings.get(),
+                extra_info
+                    .and_then(|ei| Some(ei.as_ptr()))
+                    .unwrap_or_else(null_mut),
+                request_context
+                    .and_then(|rc| Some(rc.as_ptr()))
+                    .unwrap_or_else(null_mut),
+            ))
         }
     }
     /// Returns the hosted browser object.
@@ -555,6 +587,21 @@ impl BrowserHost {
     // Returns the extension hosted in this browser or None if no extension is
     // hosted. See [RequestContest::load_extension] for details.
     pub fn get_extension(&self) -> Option<Extension> {
+        unimplemented!()
+    }
+    /// Returns true if this browser is hosting an extension background script.
+    /// Background hosts do not have a window and are not displayable. See
+    /// [RequestContext::load_extension] for details.
+    pub fn is_background_host(&self) -> bool {
+        unimplemented!()
+    }
+    ///  Set whether the browser's audio is muted.
+    pub fn set_audio_muted(&mut self, mute: bool) {
+        unimplemented!()
+    }
+    // Returns true if the browser's audio is muted. This function can only
+    // be called on the UI thread.
+    pub fn is_audio_muted(&self) -> bool {
         unimplemented!()
     }
 
