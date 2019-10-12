@@ -604,6 +604,4 @@ impl BrowserHost {
     pub fn is_audio_muted(&self) -> bool {
         unimplemented!()
     }
-
-    // TODO: continue
 }
