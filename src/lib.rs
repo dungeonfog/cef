@@ -5,6 +5,7 @@ mod refcounted;
 #[macro_use]
 mod extern_callback_helpers;
 mod ptr_hash;
+mod cef_helper_traits;
 mod string;
 pub use string::StringVisitor;
 mod multimap;
