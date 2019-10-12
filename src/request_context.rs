@@ -122,7 +122,7 @@ impl RequestContextHandlerWrapper {
     ) {
         let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
         this.delegate
-            .on_request_context_initialized(&RequestContext(request_context));
+            .on_request_context_initialized(unsafe { &RequestContext::from_ptr_unchecked(request_context) });
     }
     extern "C" fn before_plugin_load(
         self_: *mut cef_request_context_handler_t,
@@ -204,31 +204,33 @@ impl RequestContextHandlerWrapper {
     }
 }
 
-/// A request context provides request handling for a set of related browser or
-/// URL request objects. A request context can be specified when creating a new
-/// browser via the [BrowserHost] static factory functions or when creating
-/// a new URL request via the [URLRequest] static factory functions. Browser
-/// objects with different request contexts will never be hosted in the same
-/// render process. Browser objects with the same request context may or may not
-/// be hosted in the same render process depending on the process model. Browser
-/// objects created indirectly via the JavaScript window.open function or
-/// targeted links will share the same render process and the same request
-/// context as the source browser. When running in single-process mode there is
-/// only a single render process (the main process) and so all browsers created
-/// in single-process mode will share the same request context. This will be the
-/// first request context passed into a [BrowserHost] static factory
-/// function and all other request context objects will be ignored.
-pub struct RequestContext(*mut cef_request_context_t);
+ref_counted_ptr! {
+    /// A request context provides request handling for a set of related browser or
+    /// URL request objects. A request context can be specified when creating a new
+    /// browser via the [BrowserHost] static factory functions or when creating
+    /// a new URL request via the [URLRequest] static factory functions. Browser
+    /// objects with different request contexts will never be hosted in the same
+    /// render process. Browser objects with the same request context may or may not
+    /// be hosted in the same render process depending on the process model. Browser
+    /// objects created indirectly via the JavaScript window.open function or
+    /// targeted links will share the same render process and the same request
+    /// context as the source browser. When running in single-process mode there is
+    /// only a single render process (the main process) and so all browsers created
+    /// in single-process mode will share the same request context. This will be the
+    /// first request context passed into a [BrowserHost] static factory
+    /// function and all other request context objects will be ignored.
+    pub struct RequestContext(*mut cef_request_context_t);
+}
 
 impl RequestContext {
     /// Returns the global context object.
     pub fn global() -> Self {
-        Self(unsafe { cef_request_context_get_global_context() })
+        unsafe { Self::from_ptr_unchecked(cef_request_context_get_global_context()) }
     }
     /// Creates a new context object that shares storage with `other` and uses an
     /// optional `handler`.
     pub fn new_shared(
-        other: &RequestContext,
+        other: RequestContext,
         handler: Option<Box<dyn RequestContextHandler>>,
     ) -> Self {
         let handler_ptr = if let Some(handler) = handler {
@@ -236,11 +238,7 @@ impl RequestContext {
         } else {
             null_mut()
         };
-        Self(unsafe { cef_create_context_shared(other.0, handler_ptr) })
-    }
-
-    pub(crate) fn as_ptr(&self) -> *mut cef_request_context_t {
-        self.0
+        unsafe { Self::from_ptr_unchecked(cef_create_context_shared(other.into_raw(), handler_ptr)) }
     }
 }
 
@@ -266,9 +264,11 @@ impl RequestContextBuilder {
         } else {
             null()
         };
-        RequestContext(unsafe {
-            cef_request_context_create_context(settings_ptr, handler_ptr as *mut _)
-        })
+        unsafe {
+            RequestContext::from_ptr_unchecked(
+                cef_request_context_create_context(settings_ptr, handler_ptr as *mut _)
+            )
+        }
     }
 
     fn get_settings(&mut self) -> &mut cef_request_context_settings_t {
