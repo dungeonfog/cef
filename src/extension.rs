@@ -2,7 +2,6 @@ use cef_sys::{cef_extension_t, cef_extension_handler_t, cef_string_userfree_utf1
 use std::collections::HashMap;
 
 use crate::{
-    refcounted::RefCountedPtr,
     string::CefString,
     values::{DictionaryValue, StoredValue},
     request_context::RequestContext,
@@ -25,7 +24,7 @@ impl Extension {
         self.0
             .get_identifier
             .and_then(|get_identifier| {
-                let mut s = unsafe { get_identifier(self.0.as_ptr()) };
+                let s = unsafe { get_identifier(self.0.as_ptr()) };
                 let result = CefString::copy_raw_to_string(s);
                 unsafe {
                     cef_string_userfree_utf16_free(s);
@@ -42,7 +41,7 @@ impl Extension {
         self.0
             .get_path
             .and_then(|get_path| {
-                let mut s = unsafe { get_path(self.0.as_ptr()) };
+                let s = unsafe { get_path(self.0.as_ptr()) };
                 let result = CefString::copy_raw_to_string(s);
                 unsafe {
                     cef_string_userfree_utf16_free(s);
