@@ -281,7 +281,7 @@ impl BrowserHost {
         &self,
         path: &str,
         settings: PDFPrintSettings,
-        callback: impl FnOnce(&str, bool),
+        callback: impl FnOnce(&str, bool) + 'static,
     ) {
         if let Some(print_to_pdf) = self.0.print_to_pdf {
             unsafe { print_to_pdf(self.0.as_ptr(), CefString::new(path).as_ref(), settings.as_ptr(), PDFPrintCallbackWrapper::new(callback)); }
@@ -683,7 +683,7 @@ impl PDFPrintCallbackWrapper {
         unsafe { rc.as_mut() }.unwrap().get_cef()
     }
 
-    extern "C" fn pdf_print_finished(self_: *mut on_pdf_print_finished, path: *const cef_string_t, ok: std::os::raw::c_int) {
+    extern "C" fn pdf_print_finished(self_: *mut cef_pdf_print_callback_t, path: *const cef_string_t, ok: std::os::raw::c_int) {
         let mut this = unsafe { RefCounted::<cef_pdf_print_callback_t>::make_temp(self_) };
         if let Some(callback) = this.take() {
             callback(unsafe { &CefString::copy_raw_to_string(path).unwrap_or_default() }, ok != 0);
