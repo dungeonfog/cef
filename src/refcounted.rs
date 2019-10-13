@@ -66,28 +66,28 @@ impl<C: RefCounter> RefCountedPtr<C> {
         unsafe { RefCountedPtr::from_ptr_unchecked((*RefCounted::new(cefobj, object)).get_cef()) }
     }
 
-    pub unsafe fn from_ptr_add_ref(ptr: *mut C) -> Option<RefCountedPtr<C>> {
+    pub(crate) unsafe fn from_ptr_add_ref(ptr: *mut C) -> Option<RefCountedPtr<C>> {
         let mut cef = NonNull::new(ptr)?;
         let add_ref = cef.as_ref().base().add_ref.unwrap();
         (add_ref)(cef.as_mut().base_mut());
         Some(RefCountedPtr { cef })
     }
 
-    pub unsafe fn from_ptr(ptr: *mut C) -> Option<RefCountedPtr<C>> {
+    pub(crate) unsafe fn from_ptr(ptr: *mut C) -> Option<RefCountedPtr<C>> {
         let cef = NonNull::new(ptr)?;
         Some(RefCountedPtr { cef })
     }
 
-    pub unsafe fn from_ptr_unchecked(ptr: *mut C) -> RefCountedPtr<C> {
+    pub(crate) unsafe fn from_ptr_unchecked(ptr: *mut C) -> RefCountedPtr<C> {
         let cef = NonNull::new_unchecked(ptr);
         RefCountedPtr { cef }
     }
 
-    pub fn as_ptr(&self) -> *mut C {
+    pub(crate) fn as_ptr(&self) -> *mut C {
         self.cef.as_ptr()
     }
 
-    pub fn into_raw(self) -> *mut C {
+    pub(crate) fn into_raw(self) -> *mut C {
         let ptr = self.cef.as_ptr();
         std::mem::forget(self);
         ptr
@@ -104,23 +104,23 @@ macro_rules! ref_counted_ptr {
         $vis struct $Struct(crate::refcounted::RefCountedPtr<cef_sys::$cef>);
 
         impl $Struct {
-            pub unsafe fn from_ptr_add_ref(ptr: *mut $cef) -> Option<$Struct> {
+            pub(crate) unsafe fn from_ptr_add_ref(ptr: *mut $cef) -> Option<$Struct> {
                 crate::refcounted::RefCountedPtr::from_ptr_add_ref(ptr).map(Self)
             }
 
-            pub unsafe fn from_ptr(ptr: *mut $cef) -> Option<$Struct> {
+            pub(crate) unsafe fn from_ptr(ptr: *mut $cef) -> Option<$Struct> {
                 crate::refcounted::RefCountedPtr::from_ptr(ptr).map(Self)
             }
 
-            pub unsafe fn from_ptr_unchecked(ptr: *mut $cef) -> $Struct {
+            pub(crate) unsafe fn from_ptr_unchecked(ptr: *mut $cef) -> $Struct {
                 Self(crate::refcounted::RefCountedPtr::from_ptr_unchecked(ptr))
             }
 
-            pub fn as_ptr(&self) -> *mut $cef {
+            pub(crate) fn as_ptr(&self) -> *mut $cef {
                 self.0.as_ptr()
             }
 
-            pub fn into_raw(self) -> *mut $cef {
+            pub(crate) fn into_raw(self) -> *mut $cef {
                 self.0.into_raw()
             }
         }
