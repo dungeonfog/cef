@@ -8,6 +8,7 @@ use std::{
 };
 
 use crate::{
+    client::Client,
     image::Image,
     navigation::NavigationEntry,
 };
@@ -48,6 +49,19 @@ macro_rules! ref_counter {
             }
         }
         impl RefCounterWrapped for cef_sys::$cef {
+            type Wrapper = $rust;
+        }
+    };
+    ($cef:ident = $rust:ty where $traitname:ident: $trait:path) => {
+        unsafe impl RefCounter for cef_sys::$cef {
+            fn base(&self) -> &cef_base_ref_counted_t {
+                &self.base
+            }
+            fn base_mut(&mut self) -> &mut cef_base_ref_counted_t {
+                &mut self.base
+            }
+        }
+        impl<$traitname> RefCounterWrapped for cef_sys::$cef where $traitname: $trait {
             type Wrapper = $rust;
         }
     };
@@ -251,10 +265,10 @@ ref_counter!(cef_app_t = crate::app::AppWrapper);
 ref_counter!(
     cef_browser_process_handler_t = crate::browser_process_handler::BrowserProcessHandlerWrapper
 );
-ref_counter!(cef_client_t = crate::client::ClientWrapper);
+ref_counter!(cef_client_t = crate::client::ClientWrapper<C> where C: Client);
 ref_counter!(cef_domvisitor_t = Box<dyn crate::dom::DOMVisitor>);
 ref_counter!(cef_run_file_dialog_callback_t = Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>);
-ref_counter!(cef_load_handler_t = Box<dyn crate::load_handler::LoadHandler>);
+ref_counter!(cef_load_handler_t = Box<dyn crate::load_handler::LoadHandler<C>> where C: Client);
 ref_counter!(
     cef_render_process_handler_t = crate::render_process_handler::RenderProcessHandlerWrapper
 );

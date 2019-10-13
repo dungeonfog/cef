@@ -12,16 +12,16 @@ ref_counted_ptr! {
     /// process the functions of this structure may be called on any thread unless
     /// otherwise indicated in the comments. When used in the render process the
     /// functions of this structure may only be called on the main thread.
-    pub struct Browser(*mut cef_browser_t);
+    pub struct Browser<C: Client>(*mut cef_browser_t);
 }
 
-unsafe impl Send for Browser {}
-unsafe impl Sync for Browser {}
+unsafe impl<C: Client> Send for Browser<C> {}
+unsafe impl<C: Client> Sync for Browser<C> {}
 
-impl Browser {
+impl<C> Browser<C> where C: Client {
     /// Returns the browser host object. This function can only be called in the
     /// browser process.
-    pub fn get_host(&self) -> BrowserHost {
+    pub fn get_host(&self) -> BrowserHost<C> {
         unsafe { BrowserHost::from_ptr_unchecked((self.0.get_host.unwrap())(self.0.as_ptr())) }
     }
     /// Returns true if the browser can navigate backwards.

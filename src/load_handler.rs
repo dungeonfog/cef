@@ -6,6 +6,7 @@ use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
+    client::Client,
     browser::Browser,
     frame::Frame,
     refcounted::{RefCounted},
@@ -1033,7 +1034,7 @@ pub enum ErrorCode { // this list is generated from cef_net_error_list.h using r
 /// Implement this trait to handle events related to browser load status. The
 /// functions of this trait will be called on the browser process UI thread
 /// or render process main thread ([ProcessId::Renderer]).
-pub trait LoadHandler: Send + Sync {
+pub trait LoadHandler<C>: Send + Sync where C: Client {
     /// Called when the loading state has changed. This callback will be executed
     /// twice -- once when loading is initiated either programmatically or by user
     /// action, and once when loading is terminated due to completion, cancellation
@@ -1041,7 +1042,7 @@ pub trait LoadHandler: Send + Sync {
     /// calls to [LoadHandler::on_load_error] and/or [LoadHandler::on_load_end].
     fn on_loading_state_change(
         &self,
-        browser: &Browser,
+        browser: &Browser<C>,
         is_loading: bool,
         can_go_back: bool,
         can_go_forward: bool,
@@ -1057,7 +1058,7 @@ pub trait LoadHandler: Send + Sync {
     /// called for same page navigations (fragments, history state, etc.) or for
     /// navigations that fail or are canceled before commit. For notification of
     /// overall browser load status use [LoadHandler::on_loading_state_change] instead.
-    fn on_load_start(&self, browser: &Browser, frame: &Frame, transition_type: TransitionType) {}
+    fn on_load_start(&self, browser: &Browser<C>, frame: &Frame<C>, transition_type: TransitionType) {}
     /// Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
     /// main frame. Multiple frames may be loading at the same time. Sub-frames may
     /// start or continue loading after the main frame load has ended. This
@@ -1065,7 +1066,7 @@ pub trait LoadHandler: Send + Sync {
     /// state, etc.) or for navigations that fail or are canceled before commit.
     /// For notification of overall browser load status use [LoadHandler::on_loading_state_change]
     /// instead.
-    fn on_load_end(&self, browser: &Browser, frame: &Frame, http_status_code: i32) {}
+    fn on_load_end(&self, browser: &Browser<C>, frame: &Frame<C>, http_status_code: i32) {}
     /// Called when a navigation fails or is canceled. This function may be called
     /// by itself if before commit or in combination with [LoadHandler::on_load_start]/[LoadHandler::on_load_end] if
     /// after commit. `error_code` is the error code number, `error_text` is the
@@ -1073,8 +1074,8 @@ pub trait LoadHandler: Send + Sync {
     /// net\base\net_error_list.h for complete descriptions of the error codes.
     fn on_load_error(
         &self,
-        browser: &Browser,
-        frame: &Frame,
+        browser: &Browser<C>,
+        frame: &Frame<C>,
         error_code: ErrorCode,
         error_text: &str,
         failed_url: &str,
@@ -1082,9 +1083,9 @@ pub trait LoadHandler: Send + Sync {
     }
 }
 
-pub(crate) struct LoadHandlerWrapper;
+pub(crate) struct LoadHandlerWrapper<C> where C: Client;
 
-impl LoadHandlerWrapper {
+impl<C> LoadHandlerWrapper<C> where C: Client {
     extern "C" fn loading_state_change(
         self_: *mut cef_load_handler_t,
         browser: *mut cef_browser_t,
@@ -1148,8 +1149,8 @@ impl LoadHandlerWrapper {
         }
     }
 
-    pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut RefCounted<cef_load_handler_t> {
-        RefCounted::new(
+    pub(crate) fn new(handler: Box<dyn LoadHandler<C>>) -> *mut cef_load_handler_t {
+        let rc = RefCounted::new(
             cef_load_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 on_loading_state_change: Some(Self::loading_state_change),
@@ -1158,6 +1159,7 @@ impl LoadHandlerWrapper {
                 on_load_error: Some(Self::load_error),
             },
             handler,
-        )
+        );
+        unsafe { &mut *rc }.get_cef()
     }
 }

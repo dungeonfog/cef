@@ -41,10 +41,10 @@ ref_counted_ptr! {
     /// The functions of this structure can only be called in the browser process.
     /// They may be called on any thread in that process unless otherwise indicated
     /// in the comments.
-    pub struct BrowserHost(*mut cef_browser_host_t);
+    pub struct BrowserHost<C: Client + 'static>(*mut cef_browser_host_t);
 }
 
-impl BrowserHost {
+impl BrowserHost<C: Client + 'static> {
     /// Create a new browser window using the window parameters specified by
     /// `window_info`. All values will be copied internally and the actual window will
     /// be created on the UI thread. If `request_context` is None the global request
@@ -53,7 +53,7 @@ impl BrowserHost {
     /// opportunity to specify extra information specific to the created browser that
     /// will be passed to [RenderProcessHandler::on_browser_created] in the
     /// render process.
-    pub fn create_browser<C: Client + 'static>(
+    pub fn create_browser(
         window_info: &WindowInfo,
         client: C,
         url: &str,
@@ -85,14 +85,14 @@ impl BrowserHost {
     /// optional `extra_info` parameter provides an opportunity to specify extra
     /// information specific to the created browser that will be passed to
     /// [RenderProcessHandler::on_browser_created] in the render process.
-    pub fn create_browser_sync<C: Client + 'static>(
+    pub fn create_browser_sync(
         window_info: &WindowInfo,
         client: C,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
-        ) -> Browser {
+        ) -> Browser<C> {
         let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
         let client = ClientWrapper::wrap(client);
 
@@ -112,7 +112,7 @@ impl BrowserHost {
         }
     }
     /// Returns the hosted browser object.
-    pub fn get_browser(&self) -> Browser {
+    pub fn get_browser(&self) -> Browser<C> {
         unsafe { Browser::from_ptr_unchecked(self.0.get_browser.unwrap()(self.0.as_ptr())) }
     }
     /// Request that the browser close. The JavaScript 'onbeforeunload' event will
@@ -174,8 +174,9 @@ impl BrowserHost {
         }).unwrap_or(false)
     }
     /// Returns the client for this browser.
-    pub fn get_client(&self) -> Option<Box<dyn Client>> {
-        unimplemented!()
+    pub fn get_client(&self) -> C {
+        let get_client = self.0.get_client.unwrap();
+        unsafe { Client::from_raw_unchecked(get_client(self.0.as_ptr())) }
     }
     /// Returns the request context for this browser.
     pub fn get_request_context(&self) -> RequestContext {
