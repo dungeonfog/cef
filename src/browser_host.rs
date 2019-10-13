@@ -512,11 +512,11 @@ impl BrowserHost {
             unsafe { get_windowless_frame_rate(self.0.as_ptr()) }
         }).unwrap_or(30)
     }
-    // Set the maximum rate in frames per second (fps) that [RenderHandler::on_paint]
-    // will be called for a windowless browser. The actual fps may be
-    // lower if the browser cannot generate frames at the requested rate. The
-    // minimum value is 1 and the maximum value is 60 (default 30). Can also be
-    // set at browser creation via [BrowserSettings::windowless_frame_rate].
+    /// Set the maximum rate in frames per second (fps) that [RenderHandler::on_paint]
+    /// will be called for a windowless browser. The actual fps may be
+    /// lower if the browser cannot generate frames at the requested rate. The
+    /// minimum value is 1 and the maximum value is 60 (default 30). Can also be
+    /// set at browser creation via [BrowserSettings::windowless_frame_rate].
     pub fn set_windowless_frame_rate(&mut self, frame_rate: i32) {
         if let Some(set_windowless_frame_rate) = self.0.set_windowless_frame_rate {
             unsafe { set_windowless_frame_rate(self.0.as_ptr(), frame_rate); }
@@ -701,8 +701,8 @@ impl BrowserHost {
             unsafe { set_auto_resize_enabled(self.0.as_ptr(), enabled as i32, min_size.as_ptr(), max_size.as_ptr()); }
         }
     }
-    // Returns the extension hosted in this browser or None if no extension is
-    // hosted. See [RequestContest::load_extension] for details.
+    /// Returns the extension hosted in this browser or None if no extension is
+    /// hosted. See [RequestContest::load_extension] for details.
     pub fn get_extension(&self) -> Option<Extension> {
         self.0.get_extension.and_then(|get_extension| {
             unsafe { Extension::from_ptr(get_extension(self.0.as_ptr())) }
@@ -722,8 +722,8 @@ impl BrowserHost {
             unsafe { set_audio_muted(self.0.as_ptr(), mute as i32); }
         }
     }
-    // Returns true if the browser's audio is muted. This function can only
-    // be called on the UI thread.
+    /// Returns true if the browser's audio is muted. This function can only
+    /// be called on the UI thread.
     pub fn is_audio_muted(&self) -> bool {
         self.0.is_audio_muted.map(|is_audio_muted| {
             unsafe { is_audio_muted(self.0.as_ptr()) != 0 }
