@@ -362,7 +362,7 @@ impl BrowserHost {
         current_only: bool,
     ) {
         if let Some(get_navigation_entries) = self.0.get_navigation_entries {
-            unsafe { get_navigation_entries(, current_only as i32); }
+            // unsafe { get_navigation_entries(, current_only as i32); }
         }
     }
     /// Set whether mouse cursor change is disabled.
