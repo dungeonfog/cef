@@ -27,3 +27,19 @@ is_same!(_cef_browser_t);
 is_same!(_cef_task_runner_t);
 is_same!(_cef_v8context_t);
 is_same!(_cef_v8value_t);
+
+pub trait IsValid {
+    fn is_valid(&self) -> bool;
+}
+
+macro_rules! is_valid {
+    ($cef:ident) => {
+        impl IsValid for RefCountedPtr<cef_sys::$cef> {
+            fn is_valid(&self) -> bool {
+                self.is_valid.map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 }).unwrap_or(false)
+            }
+        }
+    };
+}
+
+is_valid!(_cef_navigation_entry_t);
