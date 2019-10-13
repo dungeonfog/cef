@@ -6,6 +6,9 @@ use cef_sys::cef_color_t;
 pub struct Color(u32);
 
 impl Color {
+    pub(crate) fn wrap(value: u32) -> Self {
+        Self(value)
+    }
     /// Return a [Color] value with the specified component values in range 0.0 to 1.0.
     pub fn rgba(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self(

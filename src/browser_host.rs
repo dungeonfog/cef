@@ -477,20 +477,28 @@ impl BrowserHost {
     }
     /// Send a touch event to the browser for a windowless browser.
     pub fn send_touch_event(&mut self, event: &TouchEvent) {
-        unimplemented!()
+        if let Some(send_touch_event) = self.0.send_touch_event {
+            unsafe { send_touch_event(self.0.as_ptr(), event.as_ptr()); }
+        }
     }
     /// Send a focus event to the browser.
     pub fn send_focus_event(&mut self, set_focus: bool) {
-        unimplemented!()
+        if let Some(send_focus_event) = self.0.send_focus_event {
+            unsafe { send_focus_event(self.0.as_ptr(), set_focus as i32); }
+        }
     }
     /// Send a capture lost event to the browser.
     pub fn send_capture_lost_event(&mut self) {
-        unimplemented!()
+        if let Some(send_capture_lost_event) = self.0.send_capture_lost_event {
+            unsafe { send_capture_lost_event(self.0.as_ptr()); }
+        }
     }
     /// Notify the browser that the window hosting it is about to be moved or
     /// resized. This function is only used on Windows and Linux.
     pub fn notify_move_or_resize_started(&self) {
-        unimplemented!()
+        if let Some(notify_move_or_resize_started) = self.0.notify_move_or_resize_started {
+            unsafe { notify_move_or_resize_started(self.0.as_ptr()); }
+        }
     }
     /// Returns the maximum rate in frames per second (fps) that
     /// [RenderHandler::on_paint] will be called for a windowless browser. The
@@ -498,7 +506,9 @@ impl BrowserHost {
     /// requested rate. The minimum value is 1 and the maximum value is 60 (default
     /// 30). This function can only be called on the UI thread.
     pub fn get_windowless_frame_rate(&self) -> i32 {
-        unimplemented!()
+        self.0.get_windowless_frame_rate.map(|get_windowless_frame_rate| {
+            unsafe { get_windowless_frame_rate(self.0.as_ptr()) }
+        }).unwrap_or(30)
     }
     // Set the maximum rate in frames per second (fps) that [RenderHandler::on_paint]
     // will be called for a windowless browser. The actual fps may be
@@ -506,7 +516,9 @@ impl BrowserHost {
     // minimum value is 1 and the maximum value is 60 (default 30). Can also be
     // set at browser creation via [BrowserSettings::windowless_frame_rate].
     pub fn set_windowless_frame_rate(&mut self, frame_rate: i32) {
-        unimplemented!()
+        if let Some(set_windowless_frame_rate) = self.0.set_windowless_frame_rate {
+            unsafe { set_windowless_frame_rate(self.0.as_ptr(), frame_rate); }
+        }
     }
     /// Begins a new composition or updates the existing composition. Blink has a
     /// special node (a composition node) that allows the input function to change
@@ -534,10 +546,12 @@ impl BrowserHost {
         text: &str,
         underlines_count: usize,
         underlines: &CompositionUnderline,
-        replacement_range: Range,
-        selection_range: Range,
+        replacement_range: &Range,
+        selection_range: &Range,
     ) {
-        unimplemented!()
+        if let Some(ime_set_composition) = self.0.ime_set_composition {
+            unsafe { ime_set_composition(self.0.as_ptr(), CefString::new(text).as_ref(), underlines_count, underlines.as_ptr(), replacement_range.as_ptr(), selection_range.as_ptr()); }
+        }
     }
 
     /// Completes the existing composition by optionally inserting the specified
@@ -550,23 +564,30 @@ impl BrowserHost {
     pub fn ime_commit_text(
         &mut self,
         text: Option<&str>,
-        replacement_range: Option<Range>,
+        replacement_range: Option<&Range>,
         relative_cursor_pos: i32,
     ) {
-        unimplemented!()
+        if let Some(ime_commit_text) = self.0.ime_commit_text {
+            let text = text.map(|text| CefString::new(text));
+            unsafe { ime_commit_text(self.0.as_ptr(), text.map(|s| s.as_ptr()).unwrap_or_else(null), replacement_range.map(Range::as_ptr).unwrap_or_else(null), relative_cursor_pos); }
+        }
     }
     /// Completes the existing composition by applying the current composition node
     /// contents. If `keep_selection` is false the current selection, if any,
     /// will be discarded. See comments on [BrowserHost::ime_set_composition] for usage. This
     /// function is only used when window rendering is disabled.
     pub fn ime_finish_composing_text(&mut self, keep_selection: bool) {
-        unimplemented!()
+        if let Some(ime_finish_composing_text) = self.0.ime_finish_composing_text {
+            unsafe { ime_finish_composing_text(self.0.as_ptr(), keep_selection as i32); }
+        }
     }
     /// Cancels the existing composition and discards the composition node contents
     /// without applying them. See comments on ImeSetComposition for usage. This
     /// function is only used when window rendering is disabled.
     pub fn ime_cancel_composition(&mut self) {
-        unimplemented!()
+        if let Some(ime_cancel_composition) = self.0.ime_cancel_composition {
+            unsafe { ime_cancel_composition(self.0.as_ptr()); }
+        }
     }
     /// Call this function when the user drags the mouse into the web view (before
     /// calling [BrowserHost::drag_target_drag_over]/[BrowserHost::drag_target_leave]/[BrowserHost::drag_target_drop]). `drag_data`
@@ -581,20 +602,26 @@ impl BrowserHost {
         event: &MouseEvent,
         allowed_ops: &[DragOperation],
     ) {
-        unimplemented!()
+        if let Some(drag_target_drag_enter) = self.0.drag_target_drag_enter {
+            unsafe { drag_target_drag_enter(self.0.as_ptr(), drag_data.as_ptr(), event.as_ptr(), DragOperation::as_mask(allowed_ops.iter())); }
+        }
     }
     /// Call this function each time the mouse is moved across the web view during
     /// a drag operation (after calling [BrowserHost::drag_target_drag_enter] and before calling
     /// [BrowserHost::drag_target_drag_leave]/[BrowserHost::drag_target_drop]). This function is only used when window
     /// rendering is disabled.
     pub fn drag_target_drag_over(&mut self, event: &MouseEvent, allowed_ops: &[DragOperation]) {
-        unimplemented!()
+        if let Some(drag_target_drag_over) = self.0.drag_target_drag_over {
+            unsafe { drag_target_drag_over(self.0.as_ptr(), event.as_ptr(), DragOperation::as_mask(allowed_ops.iter())); }
+        }
     }
     /// Call this function when the user drags the mouse out of the web view (after
     /// calling [BrowserHost::drag_target_drag_enter]). This function is only used when window
     /// rendering is disabled.
     pub fn drag_target_drag_leave(&mut self) {
-        unimplemented!()
+        if let Some(drag_target_drag_leave) = self.0.drag_target_drag_leave {
+            unsafe { drag_target_drag_leave(self.0.as_ptr()); }
+        }
     }
     /// Call this function when the user completes the drag operation by dropping
     /// the object onto the web view (after calling [BrowserHost::drag_target_drag_enter]). The
@@ -602,7 +629,9 @@ impl BrowserHost {
     /// [BrowserHost::drag_target_drag_enter] call. This function is only used when window rendering
     /// is disabled.
     pub fn drag_target_drop(&mut self, event: &MouseEvent) {
-        unimplemented!()
+        if let Some(drag_target_drop) = self.0.drag_target_drop {
+            unsafe { drag_target_drop(self.0.as_ptr(), event.as_ptr()); }
+        }
     }
     /// Call this function when the drag operation started by a
     /// [RenderHandler::start_dragging] call has ended either in a drop or by
@@ -612,7 +641,9 @@ impl BrowserHost {
     /// drag_source_* methods. This function is only used when window rendering is
     /// disabled.
     pub fn drag_source_ended_at(&mut self, x: i32, y: i32, op: &[DragOperation]) {
-        unimplemented!()
+        if let Some(drag_source_ended_at) = self.0.drag_source_ended_at {
+            unsafe { drag_source_ended_at(self.0.as_ptr(), x, y, DragOperation::as_mask(op.iter())); }
+        }
     }
     /// Call this function when the drag operation started by a
     /// [RenderHandler::start_dragging] call has completed. This function may
@@ -621,12 +652,17 @@ impl BrowserHost {
     /// then all drag_target_* functions should be called before drag_source_* methods.
     /// This function is only used when window rendering is disabled.
     pub fn drag_source_system_drag_ended(&mut self) {
-        unimplemented!()
+        if let Some(drag_source_system_drag_ended) = self.0.drag_source_system_drag_ended {
+            unsafe { drag_source_system_drag_ended(self.0.as_ptr()); }
+        }
     }
     /// Returns the current visible navigation entry for this browser. This
     /// function can only be called on the UI thread.
     pub fn get_visible_navigation_entry(&self) -> NavigationEntry {
-        unimplemented!()
+        let get_visible_navigation_entry = self.0.get_visible_navigation_entry.unwrap();
+        unsafe {
+            NavigationEntry::from_ptr_unchecked(get_visible_navigation_entry(self.0.as_ptr()))
+        }
     }
     /// Set accessibility state for all frames. If `accessibility_state` is [State::Default]
     /// then accessibility will be disabled by default and the state may be further
@@ -651,33 +687,45 @@ impl BrowserHost {
     /// objects are not created. The client may implement platform accessibility
     /// objects using [AccessibiltyHandler] callbacks if desired.
     pub fn set_accessibility_state(&mut self, accessibility_state: State) {
-        unimplemented!()
+        if let Some(set_accessibility_state) = self.0.set_accessibility_state {
+            unsafe { set_accessibility_state(self.0.as_ptr(), accessibility_state as i32); }
+        }
     }
     /// Enable notifications of auto resize via
     /// [DisplayHandler::on_auto_resize]. Notifications are disabled by default.
     /// `min_size` and `max_size` define the range of allowed sizes.
     pub fn set_auto_resize_enabled(&mut self, enabled: bool, min_size: &Size, max_size: &Size) {
-        unimplemented!()
+        if let Some(set_auto_resize_enabled) = self.0.set_auto_resize_enabled {
+            unsafe { set_auto_resize_enabled(self.0.as_ptr(), enabled as i32, min_size.as_ptr(), max_size.as_ptr()); }
+        }
     }
     // Returns the extension hosted in this browser or None if no extension is
     // hosted. See [RequestContest::load_extension] for details.
     pub fn get_extension(&self) -> Option<Extension> {
-        unimplemented!()
+        self.0.get_extension.and_then(|get_extension| {
+            unsafe { Extension::from_ptr(get_extension(self.0.as_ptr())) }
+        })
     }
     /// Returns true if this browser is hosting an extension background script.
     /// Background hosts do not have a window and are not displayable. See
     /// [RequestContext::load_extension] for details.
     pub fn is_background_host(&self) -> bool {
-        unimplemented!()
+        self.0.is_background_host.map(|is_background_host| {
+            unsafe { is_background_host(self.0.as_ptr()) != 0 }
+        }).unwrap_or(false)
     }
     ///  Set whether the browser's audio is muted.
     pub fn set_audio_muted(&mut self, mute: bool) {
-        unimplemented!()
+        if let Some(set_audio_muted) = self.0.set_audio_muted {
+            unsafe { set_audio_muted(self.0.as_ptr(), mute as i32); }
+        }
     }
     // Returns true if the browser's audio is muted. This function can only
     // be called on the UI thread.
     pub fn is_audio_muted(&self) -> bool {
-        unimplemented!()
+        self.0.is_audio_muted.map(|is_audio_muted| {
+            unsafe { is_audio_muted(self.0.as_ptr()) != 0 }
+        }).unwrap_or(false)
     }
 }
 

@@ -1,7 +1,7 @@
 use cef_sys::{
     cef_binary_value_create, cef_binary_value_t, cef_dictionary_value_create,
     cef_dictionary_value_t, cef_list_value_create, cef_list_value_t,
-    cef_string_userfree_utf16_free, cef_value_create, cef_value_t, cef_value_type_t, cef_point_t,
+    cef_string_userfree_utf16_free, cef_value_create, cef_value_t, cef_value_type_t, cef_point_t, cef_range_t, cef_size_t,
 };
 use std::{
     collections::HashMap,
@@ -1165,17 +1165,86 @@ pub struct Rect {
 }
 
 /// Structure representing a size.
-#[derive(Clone, Debug)]
-pub struct Size {
-    width: i32,
-    height: i32,
+pub struct Size(cef_size_t);
+
+impl Size {
+    pub fn new() -> Self {
+        Self(cef_size_t {
+            width: 0,
+            height: 0,
+        })
+    }
+    pub(crate) fn wrap(size: cef_size_t) -> Self {
+        Self(size)
+    }
+    pub fn set_width(&mut self, width: i32) {
+        self.0.width = width;
+    }
+    pub fn width(&self) -> i32 {
+        self.0.width
+    }
+    pub fn set_height(&mut self, height: i32) {
+        self.0.height = height;
+    }
+    pub fn height(&self) -> i32 {
+        self.0.height
+    }
+
+    pub(crate) fn as_ptr(&self) -> *const cef_size_t {
+        &self.0
+    }
+}
+
+impl Clone for Size {
+    fn clone(&self) -> Self {
+        Self(cef_size_t {
+            width: self.0.width,
+            height: self.0.height,
+        })
+    }
 }
 
 /// Structure representing a range.
-#[derive(Clone, Debug)]
-pub struct Range {
-    from: i32,
-    to: i32,
+pub struct Range(cef_range_t);
+
+impl Range {
+    pub fn new() -> Self {
+        Self(unsafe { std::mem::zeroed() })
+    }
+    pub(crate) fn wrap(range: cef_range_t) -> Self {
+        Self(range)
+    }
+    pub fn set_from(&mut self, from: i32) {
+        self.0.from = from;
+    }
+    pub fn from(&self) -> i32 {
+        self.0.from
+    }
+    pub fn set_to(&mut self, to: i32) {
+        self.0.to = to;
+    }
+    pub fn to(&self) -> i32 {
+        self.0.to
+    }
+
+    pub(crate) fn as_ptr(&self) -> *const cef_range_t {
+        &self.0
+    }
+}
+
+impl Clone for Range {
+    fn clone(&self) -> Self {
+        Self(cef_range_t {
+            from: self.0.from,
+            to: self.0.to,
+        })
+    }
+}
+
+impl Into<cef_range_t> for Range {
+    fn into(self) -> cef_range_t {
+        self.0
+    }
 }
 
 /// Structure representing insets.

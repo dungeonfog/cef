@@ -34,6 +34,9 @@ impl DragOperation {
         .cloned()
         .collect()
     }
+    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a DragOperation>>(operations: I) -> cef_drag_operations_mask_t {
+        cef_drag_operations_mask_t(operations.fold(0, |mask, op| mask | (*op as i32)))
+    }
 }
 
 ref_counted_ptr! {
