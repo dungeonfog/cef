@@ -367,37 +367,51 @@ impl BrowserHost {
     }
     /// Set whether mouse cursor change is disabled.
     pub fn set_mouse_cursor_change_disabled(&mut self, disabled: bool) {
-        unimplemented!()
+        if let Some(set_mouse_cursor_change_disabled) = self.0.set_mouse_cursor_change_disabled {
+            unsafe { set_mouse_cursor_change_disabled(self.0.as_ptr(), disabled as i32); }
+        }
     }
     /// Returns true if mouse cursor change is disabled.
     pub fn is_mouse_cursor_change_disabled(&self) -> bool {
-        unimplemented!()
+        self.0.is_mouse_cursor_change_disabled.map(|is_mouse_cursor_change_disabled| {
+            unsafe { is_mouse_cursor_change_disabled(self.0.as_ptr()) != 0 }
+        }).unwrap_or(false)
     }
     /// If a misspelled word is currently selected in an editable node calling this
     /// function will replace it with the specified `word`.
     pub fn replace_misspelling(&mut self, word: &str) {
-        unimplemented!()
+        if let Some(replace_misspelling) = self.0.replace_misspelling {
+            unsafe { replace_misspelling(self.0.as_ptr(), CefString::new(word).as_ref()); }
+        }
     }
     /// Add the specified `word` to the spelling dictionary.
     pub fn add_word_to_dictionary(&mut self, word: &str) {
-        unimplemented!()
+        if let Some(add_word_to_dictionary) = self.0.add_word_to_dictionary {
+            unsafe { add_word_to_dictionary(self.0.as_ptr(), CefString::new(word).as_ref()); }
+        }
     }
     /// Returns true if window rendering is disabled.
     pub fn is_window_rendering_disabled(&self) -> bool {
-        unimplemented!()
+        self.0.is_window_rendering_disabled.map(|is_window_rendering_disabled| {
+            unsafe { is_window_rendering_disabled(self.0.as_ptr()) != 0 }
+        }).unwrap_or(false)
     }
     /// Notify the browser that the widget has been resized. The browser will first
     /// call [RenderHandler::get_view_rect] to get the new size and then call
     /// [RenderHandler::on_paint] asynchronously with the updated regions. This
     /// function is only used when window rendering is disabled.
     pub fn was_resized(&self) {
-        unimplemented!()
+        if let Some(was_resized) = self.0.was_resized {
+            unsafe { was_resized(self.0.as_ptr()); }
+        }
     }
     /// Notify the browser that it has been hidden or shown. Layouting and
     /// [RenderHandler::on_paint] notification will stop when the browser is
     /// hidden. This function is only used when window rendering is disabled.
     pub fn was_hidden(&self, hidden: bool) {
-        unimplemented!()
+        if let Some(was_hidden) = self.0.was_hidden {
+            unsafe { was_hidden(self.0.as_ptr(), hidden as i32); }
+        }
     }
     /// Send a notification to the browser that the screen info has changed. The
     /// browser will then call [RenderHandler::get_screen_info] to update the
@@ -406,22 +420,30 @@ impl BrowserHost {
     /// current display. This function is only used when window rendering is
     /// disabled.
     pub fn notify_screen_info_changed(&self) {
-        unimplemented!()
+        if let Some(notify_screen_info_changed) = self.0.notify_screen_info_changed {
+            unsafe { notify_screen_info_changed(self.0.as_ptr()); }
+        }
     }
     /// Invalidate the view. The browser will call [RenderHandler::on_paint]
     /// asynchronously. This function is only used when window rendering is
     /// disabled.
     pub fn invalidate(&mut self, element_type: PaintElementType) {
-        unimplemented!()
+        if let Some(invalidate) = self.0.invalidate {
+            unsafe { invalidate(self.0.as_ptr(), element_type as i32); }
+        }
     }
     /// Issue a BeginFrame request to Chromium.  Only valid when
     /// [WindowInfo::external_begin_frame_enabled] is set to true.
-    pub fn send_external_begin_frame(&mut self) {
-        unimplemented!()
+    pub fn send_external_begin_frame(&self) {
+        if let Some(send_external_begin_frame) = self.0.send_external_begin_frame {
+            unsafe { send_external_begin_frame(self.0.as_ptr()); }
+        }
     }
     /// Send a key event to the browser.
     pub fn send_key_event(&mut self, event: &KeyEvent) {
-        unimplemented!()
+        if let Some(send_key_event) = self.0.send_key_event {
+            unsafe { send_key_event(self.0.as_ptr(), event.as_ptr()); }
+        }
     }
     /// Send a mouse click event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view.
@@ -432,12 +454,16 @@ impl BrowserHost {
         mouse_up: bool,
         click_count: i32,
     ) {
-        unimplemented!()
+        if let Some(send_mouse_click_event) = self.0.send_mouse_click_event {
+            unsafe { send_mouse_click_event(self.0.as_ptr(), event.as_ptr(), button_type as i32, mouse_up as i32, click_count); }
+        }
     }
     /// Send a mouse move event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view.
     pub fn send_mouse_move_event(&mut self, event: &MouseEvent, mouse_leave: bool) {
-        unimplemented!()
+        if let Some(send_mouse_move_event) = self.0.send_mouse_move_event {
+            unsafe { send_mouse_move_event(self.0.as_ptr(), event.as_ptr(), mouse_leave as i32); }
+        }
     }
     /// Send a mouse wheel event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view. The `deltaX` and `deltaY`
@@ -445,7 +471,9 @@ impl BrowserHost {
     /// In order to scroll inside select popups with window rendering disabled
     /// [RenderHandler::get_screen_point] should be implemented properly.
     pub fn send_mouse_wheel_event(&mut self, event: &MouseEvent, delta_x: i32, delta_y: i32) {
-        unimplemented!()
+        if let Some(send_mouse_wheel_event) = self.0.send_mouse_wheel_event {
+            unsafe { send_mouse_wheel_event(self.0.as_ptr(), event.as_ptr(), delta_x, delta_y); }
+        }
     }
     /// Send a touch event to the browser for a windowless browser.
     pub fn send_touch_event(&mut self, event: &TouchEvent) {

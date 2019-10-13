@@ -1,6 +1,6 @@
 use cef_sys::{
     cef_event_flags_t, cef_key_event_t, cef_key_event_type_t, cef_mouse_button_type_t,
-    cef_pointer_type_t, cef_touch_event_type_t,
+    cef_pointer_type_t, cef_touch_event_type_t, cef_mouse_event_t,
 };
 use num_enum::UnsafeFromPrimitive;
 
@@ -150,6 +150,10 @@ impl KeyEvent {
     pub fn focus_on_editable_field(&self) -> bool {
         self.0.focus_on_editable_field != 0
     }
+
+    pub(crate) fn as_ptr(&self) -> *const cef_key_event_t {
+        &self.0
+    }
 }
 
 impl Into<cef_key_event_t> for KeyEvent {
@@ -167,7 +171,58 @@ pub enum MouseButtonType {
     Right = cef_mouse_button_type_t::MBT_RIGHT,
 }
 
-pub struct MouseEvent();
+/// Structure representing mouse event information.
+pub struct MouseEvent(cef_mouse_event_t);
+
+impl MouseEvent {
+    /// Set X coordinate relative to the left side of the view.
+    pub fn set_x(&mut self, x: i32) {
+        self.0.x = x;
+    }
+    /// Set Y coordinate relative to the top side of the view.
+    pub fn set_y(&mut self, y: i32) {
+        self.0.y = y;
+    }
+    /// X coordinate relative to the left side of the view.
+    pub fn x(&self) -> i32 {
+        self.0.x
+    }
+    /// Y coordinate relative to the top side of the view.
+    pub fn y(&self) -> i32 {
+        self.0.y
+    }
+    /// Set list describing any pressed modifier keys.
+    pub fn set_modifiers(&mut self, modifiers: &[EventFlags]) {
+        self.0.modifiers = modifiers
+            .iter()
+            .fold(0, |flags, flag| flags | (*flag as i32 as u32));
+    }
+    /// Vector describing any pressed modifier keys.
+    pub fn modifiers(&self) -> Vec<EventFlags> {
+        [
+            EventFlags::CapsLockOn,
+            EventFlags::ShiftDown,
+            EventFlags::ControlDown,
+            EventFlags::AltDown,
+            EventFlags::LeftMouseButton,
+            EventFlags::MiddleMouseButton,
+            EventFlags::RightMouseButton,
+            EventFlags::CommandDown,
+            EventFlags::NumLockOn,
+            EventFlags::IsKeyPad,
+            EventFlags::IsLeft,
+            EventFlags::IsRight,
+        ]
+        .iter()
+        .filter(|flag| ((**flag) as u32 & self.0.modifiers) != 0)
+        .cloned()
+        .collect()
+    }
+
+    pub(crate) fn as_ptr(&self) -> *const cef_mouse_event_t {
+        &self.0
+    }
+}
 
 /// Touch points states types.
 #[repr(i32)]
