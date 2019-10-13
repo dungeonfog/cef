@@ -217,14 +217,14 @@ impl BrowserHost {
     /// selected from `accept_filters`. The second parameter will be a single value
     /// or a list of values depending on the dialog mode. If the selection was
     /// cancelled it will be None.
-    pub fn run_file_dialog<F: FnOnce(usize, Option<Vec<String>>) + 'static>(
+    pub fn run_file_dialog(
         &self,
         mode: FileDialogMode,
         title: Option<&str>,
         default_file_path: Option<&str>,
         accept_filters: &[&str],
         selected_accept_filter: i32,
-        callback: F,
+        callback: impl FnOnce(usize, Option<Vec<String>>) + 'static,
     ) {
         if let Some(run_file_dialog) = self.0.run_file_dialog {
             let title = title.map(CefString::new);
