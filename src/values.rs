@@ -1,7 +1,7 @@
 use cef_sys::{
     cef_binary_value_create, cef_binary_value_t, cef_dictionary_value_create,
     cef_dictionary_value_t, cef_list_value_create, cef_list_value_t,
-    cef_string_userfree_utf16_free, cef_value_create, cef_value_t, cef_value_type_t,
+    cef_string_userfree_utf16_free, cef_value_create, cef_value_t, cef_value_type_t, cef_point_t,
 };
 use std::{
     collections::HashMap,
@@ -1142,8 +1142,17 @@ impl Clone for ListValue {
 /// Structure representing a point.
 #[derive(Clone, Debug)]
 pub struct Point {
-    x: i32,
-    y: i32,
+    pub x: i32,
+    pub y: i32,
+}
+
+impl Into<cef_point_t> for Point {
+    fn into(self) -> cef_point_t {
+        cef_point_t {
+            x: self.x,
+            y: self.y,
+        }
+    }
 }
 
 /// Structure representing a rectangle.

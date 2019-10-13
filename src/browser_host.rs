@@ -335,12 +335,16 @@ impl BrowserHost {
     }
     /// Explicitly close the associated DevTools browser, if any.
     pub fn close_dev_tools(&self) {
-        unimplemented!()
+        if let Some(close_dev_tools) = self.0.close_dev_tools {
+            unsafe { close_dev_tools(self.0.as_ptr()); }
+        }
     }
     /// Returns true if this browser currently has an associated DevTools
     /// browser. Must be called on the browser process UI thread.
     pub fn has_dev_tools(&self) -> bool {
-        unimplemented!()
+        self.0.has_dev_tools.map(|has_dev_tools| {
+            unsafe { has_dev_tools(self.0.as_ptr()) != 0 }
+        }).unwrap_or(false)
     }
     /// Retrieve a snapshot of current navigation entries as values sent to the
     /// specified visitor. If `current_only` is true only the current
@@ -352,12 +356,14 @@ impl BrowserHost {
     /// third parameter. The second parameter indicates whether it's the currently
     /// loaded navigation entry and the fourth parameter is the total number of
     /// entries. Return true to continue visiting entries or false to stop.
-    pub fn get_navigation_entries<F: Fn(&NavigationEntry, bool, usize, usize) -> bool>(
+    pub fn get_navigation_entries(
         &self,
-        visitor: F,
+        visitor: impl Fn(&NavigationEntry, bool, usize, usize) -> bool,
         current_only: bool,
     ) {
-        unimplemented!()
+        if let Some(get_navigation_entries) = self.0.get_navigation_entries {
+            unsafe { get_navigation_entries(, current_only as i32); }
+        }
     }
     /// Set whether mouse cursor change is disabled.
     pub fn set_mouse_cursor_change_disabled(&mut self, disabled: bool) {
