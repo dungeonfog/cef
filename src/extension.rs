@@ -1,4 +1,4 @@
-use cef_sys::{cef_extension_t, cef_extension_handler_t, cef_string_userfree_utf16_free};
+use cef_sys::{cef_extension_t, cef_string_userfree_utf16_free};
 use std::collections::HashMap;
 
 use crate::{

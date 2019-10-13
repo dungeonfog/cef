@@ -1,4 +1,4 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t, cef_file_dialog_mode_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, ptr::{null_mut, null}};
 use winapi::shared::minwindef::HINSTANCE;
@@ -15,7 +15,6 @@ use crate::{
     ime::CompositionUnderline,
     navigation::NavigationEntry,
     printing::PDFPrintSettings,
-    render_process_handler::RenderProcessHandler,
     request_context::RequestContext,
     values::{DictionaryValue, Point, Size, Range, StoredValue},
     window::WindowInfo,
