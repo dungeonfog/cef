@@ -17,6 +17,12 @@ impl WindowInfo {
     pub fn set_ex_style(&mut self, style: u32) {
         self.0.ex_style = style;
     }
+    /// The initial title of the window, to be set when the window is created.
+    /// On Linux, some layout managers (e.g., Compiz) can look at the window title
+    /// in order to decide where to place the window when it is
+    /// created. When this attribute is not empty, the window title will
+    /// be set before the window is mapped to the dispay. Otherwise the
+    /// title will be initially empty.
     pub fn set_window_name(&mut self, name: &str) {
         unsafe {
             cef_string_utf8_to_utf16(
@@ -38,6 +44,7 @@ impl WindowInfo {
     pub fn set_height(&mut self, height: i32) {
         self.0.height = height;
     }
+    /// Set pointer for the parent window.
     pub fn set_parent_window(&mut self, parent: std::os::windows::raw::HANDLE) {
         self.0.parent_window = parent as cef_sys::HWND;
     }
@@ -57,14 +64,14 @@ impl WindowInfo {
     pub fn enable_windowless_rendering(&mut self) {
         self.0.windowless_rendering_enabled = 1;
     }
-    // Call to enable shared textures for windowless rendering. Only
-    // valid if [WindowInfo::enable_windowless_rendering} above is also called. Currently
-    // only supported on Windows (D3D11).
+    /// Call to enable shared textures for windowless rendering. Only
+    /// valid if [WindowInfo::enable_windowless_rendering} above is also called. Currently
+    /// only supported on Windows (D3D11).
     pub fn enable_shared_texture(&mut self) {
         self.0.shared_texture_enabled = 1;
     }
-    // Call to enable the ability to issue begin_frame requests from the
-    // client application by calling [BrowserHost::send_external_begin_frame].
+    /// Call to enable the ability to issue begin_frame requests from the
+    /// client application by calling [BrowserHost::send_external_begin_frame].
     pub fn enable_external_begin_frame(&mut self) {
         self.0.external_begin_frame_enabled = 1;
     }
