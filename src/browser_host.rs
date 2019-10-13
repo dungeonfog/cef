@@ -1,11 +1,11 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t, cef_file_dialog_mode_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, ptr::{null_mut, null}};
 use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
     refcounted::RefCounted,
-    string::CefString,
+    string::{CefString, CefStringList},
     browser::{Browser, BrowserSettings, State},
     client::{Client, ClientWrapper},
     drag::{DragData, DragOperation},
@@ -218,7 +218,7 @@ impl BrowserHost {
     /// selected from `accept_filters`. The second parameter will be a single value
     /// or a list of values depending on the dialog mode. If the selection was
     /// cancelled it will be None.
-    pub fn run_file_dialog<F: FnOnce(usize, Option<Vec<String>>)>(
+    pub fn run_file_dialog<F: FnOnce(usize, Option<Vec<String>>) + 'static>(
         &self,
         mode: FileDialogMode,
         title: Option<&str>,
@@ -227,8 +227,11 @@ impl BrowserHost {
         selected_accept_filter: i32,
         callback: F,
     ) {
-        // RunFileDialogCallbackWrapper!
-        unimplemented!()
+        if let Some(run_file_dialog) = self.0.run_file_dialog {
+            let title = title.map(CefString::new);
+            let default_file_path = default_file_path.map(CefString::new);
+            unsafe { run_file_dialog(self.0.as_ptr(), mode.into(), title.map(|s| s.as_ptr()).unwrap_or_else(null), default_file_path.map(|s| s.as_ptr()).unwrap_or_else(null), CefStringList::from(accept_filters).into(), selected_accept_filter, RunFileDialogCallbackWrapper::new(callback)); }
+        }
     }
     /// Download the file at `url` using [DownloadHandler].
     pub fn start_download(&mut self, url: &str) {

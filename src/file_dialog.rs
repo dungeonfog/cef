@@ -33,34 +33,34 @@ pub enum FileDialogMode {
     Save(HashSet<FileDialogModeFlags>),
 }
 
-impl TryFrom<i32> for FileDialogMode {
+impl TryFrom<cef_file_dialog_mode_t> for FileDialogMode {
     type Error = ();
 
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
-        let base = value & cef_file_dialog_mode_t::FILE_DIALOG_TYPE_MASK.0;
+    fn try_from(value: cef_file_dialog_mode_t) -> Result<Self, Self::Error> {
+        let base = value & cef_file_dialog_mode_t::FILE_DIALOG_TYPE_MASK;
         let mut flags = HashSet::new();
-        if value & cef_file_dialog_mode_t::FILE_DIALOG_OVERWRITEPROMPT_FLAG.0 != 0 {
+        if (value & cef_file_dialog_mode_t::FILE_DIALOG_OVERWRITEPROMPT_FLAG).0 != 0 {
             flags.insert(FileDialogModeFlags::OverwritePrompt);
         }
-        if value & cef_file_dialog_mode_t::FILE_DIALOG_HIDEREADONLY_FLAG.0 != 0 {
+        if (value & cef_file_dialog_mode_t::FILE_DIALOG_HIDEREADONLY_FLAG).0 != 0 {
             flags.insert(FileDialogModeFlags::HideReadOnly);
         }
         match base {
-            x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN.0 => Ok(Self::Open(flags)),
-            x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN_MULTIPLE.0 => {
+            x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN => Ok(Self::Open(flags)),
+            x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN_MULTIPLE => {
                 Ok(Self::OpenMultiple(flags))
             }
-            x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN_FOLDER.0 => {
+            x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN_FOLDER => {
                 Ok(Self::OpenFolder(flags))
             }
-            x if x == cef_file_dialog_mode_t::FILE_DIALOG_SAVE.0 => Ok(Self::Save(flags)),
+            x if x == cef_file_dialog_mode_t::FILE_DIALOG_SAVE => Ok(Self::Save(flags)),
             _ => Err(()),
         }
     }
 }
 
-impl Into<i32> for FileDialogMode {
-    fn into(self) -> i32 {
+impl Into<cef_file_dialog_mode_t> for FileDialogMode {
+    fn into(self) -> cef_file_dialog_mode_t {
         let result;
         let flags = match self {
             Self::Open(flags) => {
@@ -80,9 +80,9 @@ impl Into<i32> for FileDialogMode {
                 flags
             }
         };
-        flags
+        cef_file_dialog_mode_t(flags
             .into_iter()
-            .fold(result, |result, flag| result | flag as i32)
+            .fold(result, |result, flag| result | flag as i32))
     }
 }
 

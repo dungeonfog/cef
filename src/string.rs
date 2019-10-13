@@ -1,6 +1,6 @@
 use cef_sys::{
     cef_base_ref_counted_t, cef_string_list_alloc, cef_string_list_free, cef_string_list_size,
-    cef_string_list_t, cef_string_list_value, cef_string_t, cef_string_utf8_to_utf16,
+    cef_string_list_t, cef_string_list_value, cef_string_list_append, cef_string_t, cef_string_utf8_to_utf16,
     cef_string_visitor_t,
 };
 
@@ -147,6 +147,17 @@ pub(crate) unsafe fn from_string_list(list: cef_string_list_t) -> Vec<String> {
             CefString::copy_raw_to_string(item.as_ref()).unwrap()
         })
         .collect()
+}
+
+impl<'a, I: 'a + IntoIterator<Item = &'a &'a str>> From<I> for CefStringList {
+    fn from(iter: I) -> Self {
+        let result = Self::new();
+        for s in iter {
+            let cefstr = CefString::new(s);
+            unsafe { cef_string_list_append(result.0, cefstr.as_ptr()); }
+        }
+        result
+    }
 }
 
 /// Implement this trait to receive string values asynchronously.
