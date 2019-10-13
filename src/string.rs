@@ -53,6 +53,12 @@ impl CefString {
         self.0.dtor = None;
         result
     }
+    pub fn as_ptr(&self) -> *const cef_string_t {
+        &self.0
+    }
+    pub fn as_ptr_mut(&mut self) -> *mut cef_string_t {
+        &mut self.0
+    }
 
     pub unsafe fn from_mut_ptr<'a>(ptr: *mut cef_string_t) -> &'a mut CefString {
         assert_eq!(
