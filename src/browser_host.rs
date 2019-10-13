@@ -1,4 +1,4 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, ptr::{null_mut, null}};
 use winapi::shared::minwindef::HINSTANCE;
@@ -358,11 +358,11 @@ impl BrowserHost {
     /// entries. Return true to continue visiting entries or false to stop.
     pub fn get_navigation_entries(
         &self,
-        visitor: impl Fn(&NavigationEntry, bool, usize, usize) -> bool,
+        visitor: impl Fn(&NavigationEntry, bool, usize, usize) -> bool + 'static,
         current_only: bool,
     ) {
         if let Some(get_navigation_entries) = self.0.get_navigation_entries {
-            // unsafe { get_navigation_entries(, current_only as i32); }
+            unsafe { get_navigation_entries(self.0.as_ptr(), NavigationEntryVisitorWrapper::new(visitor), current_only as i32); }
         }
     }
     /// Set whether mouse cursor change is disabled.
@@ -703,5 +703,31 @@ impl PDFPrintCallbackWrapper {
         }
         // no longer needed
         RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
+    }
+}
+
+pub(crate) struct NavigationEntryVisitorWrapper(*mut cef_navigation_entry_visitor_t);
+
+impl NavigationEntryVisitorWrapper {
+    pub(crate) fn new(callback: impl Fn(&NavigationEntry, bool, usize, usize) -> bool + 'static) -> *mut cef_navigation_entry_visitor_t {
+        let rc = RefCounted::new(
+            cef_navigation_entry_visitor_t {
+                base: unsafe { std::mem::zeroed() },
+                visit: Some(Self::visit),
+            },
+            Box::new(callback),
+        );
+        unsafe { rc.as_mut() }.unwrap().get_cef()
+    }
+
+    extern "C" fn visit(self_: *mut cef_navigation_entry_visitor_t, entry: *mut cef_navigation_entry_t, current: std::os::raw::c_int, index: std::os::raw::c_int, total: std::os::raw::c_int) -> std::os::raw::c_int {
+        let mut this = unsafe { RefCounted::<cef_navigation_entry_visitor_t>::make_temp(self_) };
+        if !(*this)(unsafe { &NavigationEntry::from_ptr_unchecked(entry) }, current != 0, index as usize, total as usize) {
+            // no longer needed
+            RefCounted::<cef_navigation_entry_visitor_t>::release(this.get_cef() as *mut _);
+            0
+        } else {
+            1
+        }
     }
 }

@@ -9,6 +9,7 @@ use std::{
 
 use crate::{
     image::Image,
+    navigation::NavigationEntry,
 };
 
 
@@ -299,7 +300,6 @@ ref_counter!(_cef_extension_handler_t);
 ref_counter!(_cef_resolve_callback_t);
 ref_counter!(cef_request_context_t);
 ref_counter!(cef_browser_t);
-ref_counter!(_cef_navigation_entry_visitor_t);
 ref_counter!(cef_browser_host_t);
 ref_counter!(_cef_print_settings_t);
 ref_counter!(_cef_print_dialog_callback_t);
@@ -353,3 +353,4 @@ ref_counter!(cef_web_plugin_unstable_callback_t);
 ref_counter!(cef_register_cdm_callback_t);
 ref_counter!(cef_download_image_callback_t = Option<Box<dyn FnOnce(&str, u16, Option<Image>) + 'static>>);
 ref_counter!(cef_pdf_print_callback_t = Option<Box<dyn FnOnce(&str, bool) + 'static>>);
+ref_counter!(cef_navigation_entry_visitor_t = Box<dyn Fn(&NavigationEntry, bool, usize, usize) -> bool + 'static>);
