@@ -5,8 +5,8 @@ use cef_sys::{
 use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
-    refcounted::{RefCounted},
-    string::from_string_list,
+    string::CefStringList,
+    refcounted::{RefCounted, RefCountedPtr},
 };
 
 #[repr(i32)]
@@ -86,21 +86,23 @@ impl Into<cef_file_dialog_mode_t> for FileDialogMode {
     }
 }
 
-pub(crate) struct RunFileDialogCallbackWrapper(*mut cef_run_file_dialog_callback_t);
+ref_counted_ptr!{
+    pub(crate) struct RunFileDialogCallback(*mut cef_run_file_dialog_callback_t);
+}
+pub(crate) struct RunFileDialogCallbackWrapper(Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>);
 
-impl RunFileDialogCallbackWrapper {
-    pub(crate) fn new<F>(callback: F) -> *mut cef_run_file_dialog_callback_t
+impl RunFileDialogCallback {
+    pub(crate) fn new<F>(callback: F) -> RefCountedPtr<cef_run_file_dialog_callback_t>
     where
         F: 'static + FnOnce(usize, Option<Vec<String>>),
     {
-        let rc = RefCounted::new(
+        RefCountedPtr::wrap(
             cef_run_file_dialog_callback_t {
                 base: unsafe { std::mem::zeroed() },
                 on_file_dialog_dismissed: Some(Self::file_dialog_dismissed),
             },
-            Some(Box::new(callback)),
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
+            RunFileDialogCallbackWrapper(Some(Box::new(callback))),
+        )
     }
 
     extern "C" fn file_dialog_dismissed(
@@ -109,14 +111,14 @@ impl RunFileDialogCallbackWrapper {
         file_paths: cef_string_list_t,
     ) {
         let mut this = unsafe { RefCounted::<cef_run_file_dialog_callback_t>::make_temp(self_) };
-        if let Some(callback) = this.take() {
+        if let Some(callback) = this.0.take() {
             // we can only call FnOnce once, so it has to be consumed here
             callback(
                 selected_accept_filter as usize,
                 if file_paths.is_null() {
                     None
                 } else {
-                    Some(unsafe { from_string_list(file_paths) })
+                    Some(unsafe{ CefStringList::from_raw(file_paths) }.into())
                 },
             );
         }

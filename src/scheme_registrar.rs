@@ -97,7 +97,7 @@ impl SchemeRegistrar {
         unsafe {
             ((*self.0).add_custom_scheme.unwrap())(
                 self.0,
-                CefString::new(scheme_name).as_ref(),
+                CefString::new(scheme_name).as_ptr(),
                 options,
             ) != 0
         }

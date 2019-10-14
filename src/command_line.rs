@@ -74,7 +74,7 @@ impl CommandLine {
         unsafe {
             (instance.0.init_from_string.unwrap())(
                 instance.as_ptr(),
-                CefString::new(command_line).as_ref(),
+                CefString::new(command_line).as_ptr(),
             );
         }
         instance
@@ -91,9 +91,9 @@ impl CommandLine {
     pub fn get_argv(&self) -> Vec<String> {
         let list = CefStringList::new();
         unsafe {
-            (self.0.get_argv.unwrap())(self.as_ptr(), list.get());
+            (self.0.get_argv.unwrap())(self.as_ptr(), list.as_ptr());
         }
-        unsafe { list.into_vec() }
+        list.into()
     }
     /// Constructs and returns the represented command line string. Use this
     /// function cautiously because quoting behavior is unclear.
@@ -125,7 +125,7 @@ impl CommandLine {
     pub fn set_program(&mut self, program: &str) {
         let program = CefString::new(program);
         unsafe {
-            (self.0.set_program.unwrap())(self.as_ptr(), program.as_ref());
+            (self.0.set_program.unwrap())(self.as_ptr(), program.as_ptr());
         }
     }
     /// Returns true if the command line has switches.
@@ -134,13 +134,13 @@ impl CommandLine {
     }
     /// Returns true if the command line contains the given switch.
     pub fn has_switch(&self, name: &str) -> bool {
-        unsafe { (self.0.has_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ref()) != 0 }
+        unsafe { (self.0.has_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ptr()) != 0 }
     }
     /// Returns the value associated with the given switch. If the switch has no
     /// value or isn't present this function returns None.
     pub fn get_switch_value(&self, name: &str) -> Option<String> {
         let value = unsafe {
-            (self.0.get_switch_value.unwrap())(self.as_ptr(), CefString::new(name).as_ref())
+            (self.0.get_switch_value.unwrap())(self.as_ptr(), CefString::new(name).as_ptr())
         };
         if value.is_null() {
             return None;
@@ -169,8 +169,8 @@ impl CommandLine {
                     cef_string_map_key(switches, index, pair.0);
                     cef_string_map_value(switches, index, pair.1);
                     (
-                        CefString::copy_raw_to_string(pair.0).unwrap(),
-                        CefString::copy_raw_to_string(pair.1),
+                        String::from(CefString::from_ptr_unchecked(pair.0)),
+                        CefString::from_ptr(pair.1).map(String::from),
                     )
                 }
             })
@@ -184,7 +184,7 @@ impl CommandLine {
     /// Add a switch to the end of the command line.
     pub fn append_switch(&mut self, name: &str) {
         unsafe {
-            (self.0.append_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ref());
+            (self.0.append_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ptr());
         }
     }
     /// Add a switch with the specified value to the end of the command line.
@@ -192,8 +192,8 @@ impl CommandLine {
         unsafe {
             (self.0.append_switch_with_value.unwrap())(
                 self.as_ptr(),
-                CefString::new(name).as_ref(),
-                CefString::new(value).as_ref(),
+                CefString::new(name).as_ptr(),
+                CefString::new(value).as_ptr(),
             );
         }
     }
@@ -205,21 +205,21 @@ impl CommandLine {
     pub fn get_arguments(&self) -> Vec<String> {
         let list = CefStringList::new();
         unsafe {
-            (self.0.get_arguments.unwrap())(self.as_ptr(), list.get());
+            (self.0.get_arguments.unwrap())(self.as_ptr(), list.as_ptr());
         }
-        unsafe { list.into_vec() }
+        list.into()
     }
     /// Add an argument to the end of the command line.
     pub fn append_argument(&mut self, argument: &str) {
         unsafe {
-            (self.0.append_argument.unwrap())(self.as_ptr(), CefString::new(argument).as_ref());
+            (self.0.append_argument.unwrap())(self.as_ptr(), CefString::new(argument).as_ptr());
         }
     }
     /// Insert a command before the current command. Common for debuggers, like
     /// "valgrind" or "`gdb --args`".
     pub fn prepend_wrapper(&mut self, wrapper: &str) {
         unsafe {
-            (self.0.prepend_wrapper.unwrap())(self.as_ptr(), CefString::new(wrapper).as_ref());
+            (self.0.prepend_wrapper.unwrap())(self.as_ptr(), CefString::new(wrapper).as_ptr());
         }
     }
 }

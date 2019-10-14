@@ -136,14 +136,16 @@ impl RequestContextHandlerWrapper {
         unsafe {
             let this = RefCounted::<cef_request_context_handler_t>::make_temp(self_);
             if let Some(policy) = this.delegate.on_before_plugin_load(
-                &CefString::copy_raw_to_string(mime_type).unwrap(),
-                CefString::copy_raw_to_string(plugin_url)
+                &String::from( CefString::from_ptr_unchecked(mime_type)),
+                CefString::from_ptr(plugin_url)
+                    .map(String::from)
                     .as_ref()
-                    .and_then(|s| Some(s.as_str())),
+                    .map(|s| &**s),
                 is_main_frame != 0,
-                CefString::copy_raw_to_string(top_origin_url)
+                CefString::from_ptr(top_origin_url)
+                    .map(String::from)
                     .as_ref()
-                    .and_then(|s| Some(s.as_str())),
+                    .map(|s| &**s),
                 &WebPluginInfo::new(plugin_info),
                 PluginPolicy::from_unchecked(*plugin_policy),
             ) {
@@ -172,10 +174,7 @@ impl RequestContextHandlerWrapper {
             unsafe { &Request::from_ptr_unchecked(request) },
             is_navigation != 0,
             is_download != 0,
-            unsafe { CefString::copy_raw_to_string(request_initiator) }
-                .as_ref()
-                .and_then(|s| Some(s.as_str()))
-                .unwrap_or(""),
+            &String::from(unsafe { CefString::from_ptr_unchecked(request_initiator) }),
             &mut local_disable_default_handling,
         ) {
             if local_disable_default_handling {

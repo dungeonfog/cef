@@ -134,8 +134,8 @@ impl AuthCallback {
             unsafe {
                 cont(
                     self.as_ptr(),
-                    CefString::new(username).as_ref(),
-                    CefString::new(password).as_ref(),
+                    CefString::new(username).as_ptr(),
+                    CefString::new(password).as_ptr(),
                 );
             }
         }
@@ -273,10 +273,10 @@ impl URLRequestClientWrapper {
             let this = RefCounted::<cef_urlrequest_client_t>::make_temp(self_);
             (*this).get_auth_credentials(
                 is_proxy != 0,
-                &CefString::copy_raw_to_string(host).unwrap(),
+                &String::from(CefString::from_ptr_unchecked(host)),
                 port as u16,
-                &CefString::copy_raw_to_string(realm).unwrap(),
-                &CefString::copy_raw_to_string(scheme).unwrap(),
+                &String::from(CefString::from_ptr_unchecked(realm)),
+                &String::from(CefString::from_ptr_unchecked(scheme)),
                 AuthCallback::from_ptr_unchecked(callback),
             ) as i32
         }

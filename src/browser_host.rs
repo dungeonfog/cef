@@ -1,6 +1,6 @@
 use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t};
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashMap, ptr::{null_mut, null}};
+use std::{collections::HashMap, iter::FromIterator, ptr::{null_mut, null}};
 use winapi::shared::minwindef::HINSTANCE;
 
 use crate::{
@@ -10,7 +10,7 @@ use crate::{
     client::{Client, ClientWrapper},
     drag::{DragData, DragOperation},
     events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
-    file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
+    file_dialog::{FileDialogMode, RunFileDialogCallback},
     image::Image,
     ime::CompositionUnderline,
     navigation::NavigationEntry,
@@ -68,7 +68,7 @@ impl BrowserHost {
             cef_browser_host_create_browser(
                 window_info.get(),
                 client,
-                CefString::new(url).as_ref(),
+                CefString::new(url).as_ptr(),
                 settings.get(),
                 extra_info
                     .and_then(|ei| Some(ei.as_ptr()))
@@ -100,7 +100,7 @@ impl BrowserHost {
             Browser::from_ptr_unchecked(cef_browser_host_create_browser_sync(
                 window_info.get(),
                 client,
-                CefString::new(url).as_ref(),
+                CefString::new(url).as_ptr(),
                 settings.get(),
                 extra_info
                     .and_then(|ei| Some(ei.as_ptr()))
@@ -229,13 +229,23 @@ impl BrowserHost {
         if let Some(run_file_dialog) = self.0.run_file_dialog {
             let title = title.map(CefString::new);
             let default_file_path = default_file_path.map(CefString::new);
-            unsafe { run_file_dialog(self.0.as_ptr(), mode.into(), title.map(|s| s.as_ptr()).unwrap_or_else(null), default_file_path.map(|s| s.as_ptr()).unwrap_or_else(null), CefStringList::from(accept_filters).into(), selected_accept_filter, RunFileDialogCallbackWrapper::new(callback)); }
+            unsafe {
+                run_file_dialog(
+                    self.0.as_ptr(),
+                    mode.into(),
+                    title.map(|s| s.as_ptr()).unwrap_or_else(null),
+                    default_file_path.map(|s| s.as_ptr()).unwrap_or_else(null),
+                    CefStringList::from_iter(accept_filters.into_iter().cloned()).into_raw(),
+                    selected_accept_filter,
+                    RunFileDialogCallback::new(callback).into_raw()
+                );
+            }
         }
     }
     /// Download the file at `url` using [DownloadHandler].
     pub fn start_download(&mut self, url: &str) {
         if let Some(start_download) = self.0.start_download {
-            unsafe { start_download(self.0.as_ptr(), CefString::new(url).as_ref() ); }
+            unsafe { start_download(self.0.as_ptr(), CefString::new(url).as_ptr() ); }
         }
     }
     /// Download `image_url` and execute `callback` on completion with the images
@@ -262,7 +272,7 @@ impl BrowserHost {
         callback: impl FnOnce(&str, u16, Option<Image>) + 'static,
     ) {
         if let Some(download_image) = self.0.download_image {
-            unsafe { download_image(self.0.as_ptr(), CefString::new(image_url).as_ref(), is_favicon as i32, max_image_size, bypass_cache as i32, DownloadImageCallbackWrapper::new(callback)); }
+            unsafe { download_image(self.0.as_ptr(), CefString::new(image_url).as_ptr(), is_favicon as i32, max_image_size, bypass_cache as i32, DownloadImageCallbackWrapper::new(callback)); }
         }
     }
     /// Print the current browser contents.
@@ -286,7 +296,7 @@ impl BrowserHost {
         callback: impl FnOnce(&str, bool) + 'static,
     ) {
         if let Some(print_to_pdf) = self.0.print_to_pdf {
-            unsafe { print_to_pdf(self.0.as_ptr(), CefString::new(path).as_ref(), settings.as_ptr(), PDFPrintCallbackWrapper::new(callback)); }
+            unsafe { print_to_pdf(self.0.as_ptr(), CefString::new(path).as_ptr(), settings.as_ptr(), PDFPrintCallbackWrapper::new(callback)); }
         }
     }
     /// Search for `searchText`. `identifier` must be a unique ID and these IDs
@@ -307,7 +317,7 @@ impl BrowserHost {
         find_next: bool,
     ) {
         if let Some(find) = self.0.find {
-            unsafe { find(self.0.as_ptr(), identifier, CefString::new(search_text).as_ref(), forward as i32, match_case as i32, find_next as i32); }
+            unsafe { find(self.0.as_ptr(), identifier, CefString::new(search_text).as_ptr(), forward as i32, match_case as i32, find_next as i32); }
         }
     }
     /// Cancel all searches that are currently going on.
@@ -383,13 +393,13 @@ impl BrowserHost {
     /// function will replace it with the specified `word`.
     pub fn replace_misspelling(&mut self, word: &str) {
         if let Some(replace_misspelling) = self.0.replace_misspelling {
-            unsafe { replace_misspelling(self.0.as_ptr(), CefString::new(word).as_ref()); }
+            unsafe { replace_misspelling(self.0.as_ptr(), CefString::new(word).as_ptr()); }
         }
     }
     /// Add the specified `word` to the spelling dictionary.
     pub fn add_word_to_dictionary(&mut self, word: &str) {
         if let Some(add_word_to_dictionary) = self.0.add_word_to_dictionary {
-            unsafe { add_word_to_dictionary(self.0.as_ptr(), CefString::new(word).as_ref()); }
+            unsafe { add_word_to_dictionary(self.0.as_ptr(), CefString::new(word).as_ptr()); }
         }
     }
     /// Returns true if window rendering is disabled.
@@ -552,7 +562,7 @@ impl BrowserHost {
         selection_range: &Range,
     ) {
         if let Some(ime_set_composition) = self.0.ime_set_composition {
-            unsafe { ime_set_composition(self.0.as_ptr(), CefString::new(text).as_ref(), underlines_count, underlines.as_ptr(), replacement_range.as_ptr(), selection_range.as_ptr()); }
+            unsafe { ime_set_composition(self.0.as_ptr(), CefString::new(text).as_ptr(), underlines_count, underlines.as_ptr(), replacement_range.as_ptr(), selection_range.as_ptr()); }
         }
     }
 
@@ -753,7 +763,7 @@ impl DownloadImageCallbackWrapper {
     ) {
         let mut this = unsafe { RefCounted::<cef_download_image_callback_t>::make_temp(self_) };
         if let Some(callback) = this.take() {
-            callback(unsafe { &CefString::copy_raw_to_string(image_url).unwrap_or_default() }, http_status_code as u16, unsafe { Image::from_ptr(image) });
+            callback(&String::from(unsafe { CefString::from_ptr_unchecked(image_url) }), http_status_code as u16, unsafe { Image::from_ptr(image) });
         }
         // no longer needed
         RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
@@ -777,7 +787,7 @@ impl PDFPrintCallbackWrapper {
     extern "C" fn pdf_print_finished(self_: *mut cef_pdf_print_callback_t, path: *const cef_string_t, ok: std::os::raw::c_int) {
         let mut this = unsafe { RefCounted::<cef_pdf_print_callback_t>::make_temp(self_) };
         if let Some(callback) = this.take() {
-            callback(unsafe { &CefString::copy_raw_to_string(path).unwrap_or_default() }, ok != 0);
+            callback(&String::from(unsafe { CefString::from_ptr_unchecked(path) }), ok != 0);
         }
         // no longer needed
         RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);

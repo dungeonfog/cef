@@ -126,7 +126,7 @@ owned_casts_no_transform!(impl for u64);
 impl<'a> CToRustType for &'a mut CefString {
     type CType = *mut cef_sys::cef_string_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        CefString::from_mut_ptr(c_type)
+        CefString::from_mut_ptr_unchecked(c_type)
     }
 }
 

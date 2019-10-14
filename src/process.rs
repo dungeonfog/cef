@@ -34,16 +34,13 @@ impl ProcessMessage {
             .unwrap_or(true)
     }
     pub fn get_name(&self) -> Option<String> {
-        if let Some(get_name) = self.0.get_name {
-            let name = unsafe { get_name(self.as_ptr()) };
-            let s = unsafe { CefString::copy_raw_to_string(name) };
-            unsafe {
-                cef_string_userfree_utf16_free(name);
-            }
-            s
-        } else {
-            None
-        }
+        self.0.get_name
+            .and_then(|get_name| unsafe{ get_name(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
+            })
     }
     pub fn get_argument_list(&self) -> Vec<StoredValue> {
         unsafe { ListValue::from_ptr_unchecked(self.0.get_argument_list.unwrap()(self.as_ptr())) }

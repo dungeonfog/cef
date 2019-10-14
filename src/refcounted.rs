@@ -253,7 +253,7 @@ ref_counter!(
 );
 ref_counter!(cef_client_t = crate::client::ClientWrapper);
 ref_counter!(cef_domvisitor_t = Box<dyn crate::dom::DOMVisitor>);
-ref_counter!(cef_run_file_dialog_callback_t = Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>);
+ref_counter!(cef_run_file_dialog_callback_t = crate::file_dialog::RunFileDialogCallbackWrapper);
 ref_counter!(cef_load_handler_t = Box<dyn crate::load_handler::LoadHandler>);
 ref_counter!(
     cef_render_process_handler_t = crate::render_process_handler::RenderProcessHandlerWrapper

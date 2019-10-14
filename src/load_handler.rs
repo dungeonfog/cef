@@ -1142,8 +1142,8 @@ impl LoadHandlerWrapper {
                 &Browser::from_ptr_unchecked(browser),
                 &Frame::from_ptr_unchecked(frame),
                 ErrorCode::from_unchecked(error_code),
-                &CefString::copy_raw_to_string(error_text).unwrap(),
-                &CefString::copy_raw_to_string(failed_url).unwrap(),
+                &String::from(CefString::from_ptr_unchecked(error_text)),
+                &String::from(CefString::from_ptr_unchecked(failed_url)),
             );
         }
     }

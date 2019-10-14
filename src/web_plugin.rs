@@ -37,16 +37,16 @@ impl WebPluginInfo {
         let description = (*info).get_description.unwrap()(info);
 
         let result = Self {
-            name: CefString::copy_raw_to_string(name).unwrap(),
-            path: CefString::copy_raw_to_string(path).unwrap(),
-            version: CefString::copy_raw_to_string(version).unwrap(),
-            description: CefString::copy_raw_to_string(description).unwrap(),
+            name: CefString::from_ptr_unchecked(name).into(),
+            path: CefString::from_ptr_unchecked(path).into(),
+            version: CefString::from_ptr_unchecked(version).into(),
+            description: CefString::from_ptr_unchecked(description).into(),
         };
         cef_string_userfree_utf16_free(name);
         cef_string_userfree_utf16_free(path);
         cef_string_userfree_utf16_free(version);
         cef_string_userfree_utf16_free(description);
-        
+
         result
     }
 }

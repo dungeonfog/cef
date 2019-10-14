@@ -183,38 +183,32 @@ impl Request {
     }
     /// Get the fully qualified URL.
     pub fn get_url(&self) -> String {
-        self.0
-            .get_url
-            .and_then(|get_url| {
-                let s = unsafe { get_url(self.0.as_ptr()) };
-                let result = unsafe { CefString::copy_raw_to_string(s) };
-                unsafe {
-                    cef_string_userfree_utf16_free(s);
-                }
-                result
+        self.0.get_url
+            .and_then(|get_url| unsafe{ get_url(self.as_ptr()).as_mut() })
+            .map(|url| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(url));
+                cef_string_userfree_utf16_free(url);
+                s
             })
-            .unwrap_or("".to_owned())
+            .unwrap_or_default()
     }
     /// Set the fully qualified URL.
     pub fn set_url(&mut self, url: &str) {
         if let Some(set_url) = self.0.set_url {
             unsafe {
-                set_url(self.0.as_ptr(), CefString::new(url).as_ref());
+                set_url(self.0.as_ptr(), CefString::new(url).as_ptr());
             }
         }
     }
     /// Get the request function type. The value will default to POST if post data
     /// is provided and GET otherwise.
     pub fn get_method(&self) -> String {
-        self.0
-            .get_method
-            .and_then(|get_method| {
-                let s = unsafe { get_method(self.0.as_ptr()) };
-                let result = unsafe { CefString::copy_raw_to_string(s) };
-                unsafe {
-                    cef_string_userfree_utf16_free(s);
-                }
-                result
+        self.0.get_method
+            .and_then(|get_method| unsafe{ get_method(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
             })
             .unwrap_or("GET".to_owned())
     }
@@ -222,7 +216,7 @@ impl Request {
     pub fn set_method(&mut self, method: &str) {
         if let Some(set_method) = self.0.set_method {
             unsafe {
-                set_method(self.0.as_ptr(), CefString::new(method).as_ref());
+                set_method(self.0.as_ptr(), CefString::new(method).as_ptr());
             }
         }
     }
@@ -235,7 +229,7 @@ impl Request {
                 unsafe {
                     set_referrer(
                         self.0.as_ptr(),
-                        CefString::new(referrer_url).as_ref(),
+                        CefString::new(referrer_url).as_ptr(),
                         policy.into(),
                     );
                 }
@@ -244,17 +238,14 @@ impl Request {
     }
     /// Get the referrer URL.
     pub fn get_referrer_url(&self) -> String {
-        self.0
-            .get_referrer_url
-            .and_then(|get_referrer_url| {
-                let s = unsafe { get_referrer_url(self.0.as_ptr()) };
-                let result = unsafe { CefString::copy_raw_to_string(s) };
-                unsafe {
-                    cef_string_userfree_utf16_free(s);
-                }
-                result
+        self.0.get_referrer_url
+            .and_then(|get_referrer_url| unsafe{ get_referrer_url(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
             })
-            .unwrap_or("".to_owned())
+            .unwrap_or_default()
     }
     /// Get the referrer policy.
     pub fn get_referrer_policy(&self) -> ReferrerPolicy {
@@ -294,19 +285,13 @@ impl Request {
     /// Will not return the Referer value if any. Use [Request::get_header_map] instead if
     /// `name` might have multiple values.
     pub fn get_header_by_name(&self, name: &str) -> Option<String> {
-        if let Some(get_header_by_name) = self.0.get_header_by_name {
-            let header =
-                unsafe { get_header_by_name(self.0.as_ptr(), CefString::new(name).as_ref()) };
-            let result = unsafe { CefString::copy_raw_to_string(header) };
-            if result.is_some() {
-                unsafe {
-                    cef_string_userfree_utf16_free(header);
-                }
-            }
-            result
-        } else {
-            None
-        }
+        self.0.get_header_by_name
+            .and_then(|get_header_by_name| unsafe{ get_header_by_name(self.as_ptr(), CefString::new(name).as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
+            })
     }
     /// Set the header `name` to `value`. if `overwrite` is true any existing
     /// values will be replaced with the new value. if `overwrite` is false any
@@ -317,8 +302,8 @@ impl Request {
             unsafe {
                 set_header_by_name(
                     self.0.as_ptr(),
-                    CefString::new(name).as_ref(),
-                    CefString::new(value).as_ref(),
+                    CefString::new(name).as_ptr(),
+                    CefString::new(value).as_ptr(),
                     overwrite as i32,
                 );
             }
@@ -340,8 +325,8 @@ impl Request {
             unsafe {
                 set(
                     self.0.as_ptr(),
-                    url.as_ref(),
-                    method.as_ref(),
+                    url.as_ptr(),
+                    method.as_ptr(),
                     post_data.into_raw(),
                     header_map.as_ptr(),
                 );
@@ -369,25 +354,21 @@ impl Request {
     /// Get the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn get_first_party_for_cookies(&self) -> String {
-        if let Some(get_first_party_for_cookies) = self.0.get_first_party_for_cookies {
-            let url = unsafe { get_first_party_for_cookies(self.0.as_ptr()) };
-            let result = unsafe { CefString::copy_raw_to_string(url) };
-            if result.is_some() {
-                unsafe {
-                    cef_string_userfree_utf16_free(url);
-                }
-            }
-            result.unwrap_or_else(|| "".to_owned())
-        } else {
-            "".to_owned()
-        }
+        self.0.get_first_party_for_cookies
+            .and_then(|get_first_party_for_cookies| unsafe{ get_first_party_for_cookies(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
+            })
+            .unwrap_or_default()
     }
     /// Set the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn set_first_party_for_cookies(&mut self, url: &str) {
         if let Some(set_first_party_for_cookies) = self.0.set_first_party_for_cookies {
             unsafe {
-                set_first_party_for_cookies(self.0.as_ptr(), CefString::new(url).as_ref());
+                set_first_party_for_cookies(self.0.as_ptr(), CefString::new(url).as_ptr());
             }
         }
     }
@@ -544,7 +525,7 @@ impl PostDataElement {
     pub fn set_to_file(&mut self, file_name: &str) {
         if let Some(set_to_file) = self.0.set_to_file {
             unsafe {
-                set_to_file(self.0.as_ptr(), CefString::new(file_name).as_ref());
+                set_to_file(self.0.as_ptr(), CefString::new(file_name).as_ptr());
             }
         }
     }
@@ -571,15 +552,14 @@ impl PostDataElement {
     }
     /// Return the file name.
     pub fn get_file(&self) -> String {
-        let name = unsafe { (&*self.0).get_file.unwrap()(self.as_ptr()) };
-        if let Some(result) = unsafe { CefString::copy_raw_to_string(name) } {
-            unsafe {
-                cef_string_userfree_utf16_free(name);
-            }
-            result
-        } else {
-            "".to_owned()
-        }
+        self.0.get_file
+            .and_then(|get_file| unsafe{ get_file(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
+            })
+            .unwrap_or_default()
     }
     /// Return the number of bytes.
     pub fn get_bytes_count(&self) -> usize {

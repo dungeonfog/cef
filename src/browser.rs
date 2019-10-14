@@ -101,7 +101,7 @@ impl Browser {
         unsafe {
             Frame::from_ptr((self.0.get_frame.unwrap())(
                 self.0.as_ptr(),
-                CefString::new(name).as_ref(),
+                CefString::new(name).as_ptr(),
             ))
         }
     }
@@ -126,9 +126,9 @@ impl Browser {
     pub fn get_frame_names(&self) -> Vec<String> {
         let list = CefStringList::default();
         unsafe {
-            (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.get());
+            (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.as_ptr());
         }
-        unsafe { list.into_vec() }
+        Vec::from(list)
     }
 }
 

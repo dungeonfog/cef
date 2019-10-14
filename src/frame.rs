@@ -126,7 +126,7 @@ impl Frame {
     pub fn load_url(&mut self, url: &str) {
         if let Some(load_url) = self.0.load_url {
             unsafe {
-                load_url(self.0.as_ptr(), CefString::new(url).as_ref());
+                load_url(self.0.as_ptr(), CefString::new(url).as_ptr());
             }
         }
     }
@@ -138,8 +138,8 @@ impl Frame {
             unsafe {
                 load_string(
                     self.0.as_ptr(),
-                    CefString::new(string_val).as_ref(),
-                    CefString::new(url).as_ref(),
+                    CefString::new(string_val).as_ptr(),
+                    CefString::new(url).as_ptr(),
                 );
             }
         }
@@ -154,8 +154,8 @@ impl Frame {
             unsafe {
                 execute_java_script(
                     self.0.as_ptr(),
-                    CefString::new(code).as_ref(),
-                    CefString::new(script_url).as_ref(),
+                    CefString::new(code).as_ptr(),
+                    CefString::new(script_url).as_ptr(),
                     start_line,
                 );
             }
@@ -185,7 +185,7 @@ impl Frame {
     pub fn get_name(&self) -> Option<String> {
         if let Some(get_name) = self.0.get_name {
             let name = unsafe { get_name(self.0.as_ptr()) };
-            let result = unsafe { CefString::copy_raw_to_string(name) };
+            let result = unsafe { CefString::from_ptr(name) }.map(String::from);
             if result.is_some() {
                 unsafe {
                     cef_string_userfree_utf16_free(name);
@@ -221,20 +221,14 @@ impl Frame {
     }
     /// Returns the URL currently loaded in this frame.
     pub fn get_url(&self) -> String {
-        if let Some(get_url) = self.0.get_url {
-            let url = unsafe { get_url(self.0.as_ptr()) };
-            let result = unsafe { CefString::copy_raw_to_string(url) };
-            if let Some(result) = result {
-                unsafe {
-                    cef_string_userfree_utf16_free(url);
-                }
-                result
-            } else {
-                "".to_owned()
-            }
-        } else {
-            "".to_owned()
-        }
+        self.0.get_url
+            .and_then(|get_url| unsafe{ get_url(self.as_ptr()).as_mut() })
+            .map(|url| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(url));
+                cef_string_userfree_utf16_free(url);
+                s
+            })
+            .unwrap_or_default()
     }
     /// Returns the browser that this frame belongs to.
     pub fn get_browser(&self) -> Browser {

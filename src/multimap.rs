@@ -26,7 +26,7 @@ impl MultiMap {
     }
     /// Return the number of values with the specified key.
     pub(crate) fn find_count(&self, key: &str) -> usize {
-        unsafe { cef_string_multimap_find_count(self.0, CefString::new(key).as_ref()) }
+        unsafe { cef_string_multimap_find_count(self.0, CefString::new(key).as_ptr()) }
     }
     /// Return the value_index-th value with the specified key.
     pub(crate) fn enumerate(&self, key: &str, value_index: usize) -> Result<String, ()> {
@@ -34,12 +34,12 @@ impl MultiMap {
         if unsafe {
             cef_string_multimap_enumerate(
                 self.0,
-                CefString::new(key).as_ref(),
+                CefString::new(key).as_ptr(),
                 value_index,
                 &mut result,
             ) == 1
         } {
-            Ok(unsafe { CefString::from(result).into_string().unwrap() })
+            Ok(CefString::from(result).into())
         } else {
             Err(())
         }
@@ -48,7 +48,7 @@ impl MultiMap {
     pub(crate) fn get_key(&self, index: usize) -> Result<String, ()> {
         let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_key(self.0, index, &mut result) == 1 } {
-            Ok(unsafe { CefString::from(result).into_string().unwrap() })
+            Ok(CefString::from(result).into())
         } else {
             Err(())
         }
@@ -57,7 +57,7 @@ impl MultiMap {
     pub(crate) fn get_value(&self, index: usize) -> Result<String, ()> {
         let mut result = unsafe { std::mem::zeroed() };
         if unsafe { cef_string_multimap_value(self.0, index, &mut result) == 1 } {
-            Ok(unsafe { CefString::from(result).into_string().unwrap() })
+            Ok(CefString::from(result).into())
         } else {
             Err(())
         }
@@ -67,8 +67,8 @@ impl MultiMap {
         if unsafe {
             cef_string_multimap_append(
                 self.0,
-                CefString::new(key).as_ref(),
-                CefString::new(value).as_ref(),
+                CefString::new(key).as_ptr(),
+                CefString::new(value).as_ptr(),
             ) == 1
         } {
             Ok(())

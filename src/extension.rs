@@ -21,34 +21,28 @@ impl Extension {
     /// extension public key, if available, or on the extension path. See
     /// https://developer.chrome.com/extensions/manifest/key for details.
     pub fn get_identifier(&self) -> String {
-        self.0
-            .get_identifier
-            .and_then(|get_identifier| {
-                let s = unsafe { get_identifier(self.0.as_ptr()) };
-                let result = unsafe { CefString::copy_raw_to_string(s) };
-                unsafe {
-                    cef_string_userfree_utf16_free(s);
-                }
-                result
+        self.0.get_identifier
+            .and_then(|get_identifier| unsafe{ get_identifier(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
             })
-            .unwrap_or("".to_owned())
+            .unwrap_or_default()
     }
-    
+
     /// Returns the absolute path to the extension directory on disk. This value
     /// will be prefixed with PK_DIR_RESOURCES if a relative path was passed to
     /// [RequestContext::load_extension].
     pub fn get_path(&self) -> String {
-        self.0
-            .get_path
-            .and_then(|get_path| {
-                let s = unsafe { get_path(self.0.as_ptr()) };
-                let result = unsafe { CefString::copy_raw_to_string(s) };
-                unsafe {
-                    cef_string_userfree_utf16_free(s);
-                }
-                result
+        self.0.get_path
+            .and_then(|get_path| unsafe{ get_path(self.as_ptr()).as_mut() })
+            .map(|cef_string| unsafe {
+                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                cef_string_userfree_utf16_free(cef_string);
+                s
             })
-            .unwrap_or("".to_owned())
+            .unwrap_or_default()
     }
     // Returns the extension manifest contents as a dictionary object.
     // See https://developer.chrome.com/extensions/manifest for details.
