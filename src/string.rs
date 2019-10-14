@@ -3,6 +3,7 @@ use cef_sys::{
     cef_string_list_t, cef_string_list_value, cef_string_list_append, cef_string_t, cef_string_utf8_to_utf16,
     cef_string_visitor_t,
 };
+use std::ptr::null_mut;
 
 use crate::refcounted::{RefCounted};
 
@@ -70,6 +71,18 @@ impl CefString {
 
     pub unsafe fn from_raw(raw: cef_string_t) -> CefString {
         CefString(raw)
+    }
+
+    pub unsafe fn move_to(&mut self, destination: *mut cef_string_t) {
+        if let Some(dtor) = destination.dtor {
+            unsafe { dtor(destination.str); }
+        }
+        destination.str = self.0.str;
+        destination.length = self.0.length;
+        destination.dtor = self.0.dtor;
+        self.0.str = null_mut();
+        self.0.length = 0;
+        self.0.dtor = null_mut();
     }
 }
 
