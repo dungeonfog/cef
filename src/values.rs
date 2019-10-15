@@ -363,6 +363,9 @@ impl BinaryValue {
             )
         }
     }
+    pub(crate) unsafe fn wrap(value: *mut cef_binary_value_t) {
+        Self(value)
+    }
     /// Returns true if this object is valid. This object may become invalid if
     /// the underlying data is owned by another object (e.g. list or dictionary)
     /// and that other object is then modified or destroyed. Do not call any other
@@ -417,6 +420,15 @@ impl BinaryValue {
             assert!(vec.capacity() >= new_len);
             vec.set_len(new_len)
         }
+    }
+    pub(crate) fn to_vec(&self) -> Vec<u8> {
+        self.0.get_data.map(|get_data| {
+            let len = self.len();
+            let mut result = vec![0; len];
+            let out_len = unsafe { get_data(self.as_ptr(), result.as_mut_ptr(), len, 0) };
+            result.truncate(out_len);
+            result
+        }).unwrap_or_default()
     }
 }
 
