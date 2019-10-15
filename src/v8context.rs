@@ -1,4 +1,4 @@
-use cef_sys::{cef_string_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t, cef_v8value_t, cef_v8value_create_undefined, cef_v8value_create_null, cef_v8value_create_bool, cef_v8value_create_int, cef_v8value_create_uint, cef_v8value_create_double, cef_v8value_create_date, cef_time_from_doublet, cef_v8value_create_string, cef_v8accessor_t, cef_v8interceptor_t, cef_v8value_create_object, cef_v8value_create_array, cef_v8value_create_array_buffer, cef_v8array_buffer_release_callback_t, cef_v8value_create_function, cef_v8handler_t, cef_register_extension, cef_v8_propertyattribute_t, cef_v8_accesscontrol_t, cef_base_ref_counted_t, cef_v8context_get_current_context, cef_v8context_get_entered_context, cef_v8context_in_context};
+use cef_sys::{cef_string_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t, cef_v8stack_frame_t, cef_v8value_t, cef_v8value_create_undefined, cef_v8value_create_null, cef_v8value_create_bool, cef_v8value_create_int, cef_v8value_create_uint, cef_v8value_create_double, cef_v8value_create_date, cef_time_from_doublet, cef_v8value_create_string, cef_v8accessor_t, cef_v8interceptor_t, cef_v8value_create_object, cef_v8value_create_array, cef_v8value_create_array_buffer, cef_v8array_buffer_release_callback_t, cef_v8value_create_function, cef_v8handler_t, cef_register_extension, cef_v8_propertyattribute_t, cef_v8_accesscontrol_t, cef_base_ref_counted_t, cef_v8context_get_current_context, cef_v8context_get_entered_context, cef_v8context_in_context, cef_v8stack_trace_get_current};
 use std::{
     time::{SystemTime, SystemTimeError},
     convert::TryFrom,
@@ -187,6 +187,18 @@ impl<C> V8Context<C> where C: Client {
             Err(unsafe { V8Exception::from_ptr_unchecked(exception) })
         }
     }
+
+    /// Returns the stack trace for the currently active context. `frame_limit` is
+    /// the maximum number of frames that will be captured.
+    pub fn get_current_stacktrace(frame_limit: i32) -> Vec<V8StackFrame> {
+        let frames = unsafe { cef_v8stack_trace_get_current(frame_limit) };
+        let count = frames.get_frame_count.map(|get_frame_count| unsafe { get_frame_count(frames) }).unwrap_or(0);
+        if let Some(get_frame) = frames.get_frame {
+            (0..count).map(|idx| unsafe { V8StackFrame::from_ptr_unchecked(get_frame(frames, idx)) }).collect()
+        } else {
+            Vec::new()
+        }
+    }
 }
 
 ref_counted_ptr! {
@@ -253,7 +265,11 @@ impl V8Exception {
 }
 
 ref_counted_ptr! {
-    pub struct V8StackTrace(*mut cef_v8stack_trace_t);
+    pub struct V8StackFrame(*mut cef_v8stack_frame_t);
+}
+
+impl V8StackFrame {
+
 }
 
 /// V8 property attribute values.
