@@ -5,6 +5,7 @@ use crate::{
     refcounted::{RefCounted},
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
+    request_handler::RequestHandler,
 };
 
 /// Implement this trait to provide handler implementations.
@@ -37,8 +38,8 @@ pub trait Client: 'static + Sync + Send {
     fn get_load_handler(&self) -> Option<Box<dyn LoadHandler<Self>>> { None }
     // /// Return the handler for off-screen rendering events.
     // fn get_render_handler(&self) -> Option<Box<dyn RenderHandler>> { None }
-    // /// Return the handler for browser request events.
-    // fn get_request_handler(&self) -> Option<Box<dyn RequestHandler>> { None }
+    /// Return the handler for browser request events.
+    fn get_request_handler(&self) -> Option<Box<dyn RequestHandler>> { None }
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
     fn on_process_message_received(&self, browser: &Browser<Self>, frame: &Frame<Self>, process_id: ProcessId, message: &ProcessMessage) -> bool { false }
