@@ -265,11 +265,61 @@ impl V8Exception {
 }
 
 ref_counted_ptr! {
+    /// Structure representing a V8 stack frame handle. V8 handles can only be
+    /// accessed from the thread on which they are created. Valid threads for
+    /// creating a V8 handle include the render process main thread (TID_RENDERER)
+    /// and WebWorker threads. A task runner for posting tasks on the associated
+    /// thread can be retrieved via the [V8Context::get_task_runner] function.
     pub struct V8StackFrame(*mut cef_v8stack_frame_t);
 }
 
 impl V8StackFrame {
-
+    /// Returns true if the underlying handle is valid and it can be accessed
+    /// on the current thread. Do not call any other functions if this function
+    /// returns false.
+    pub fn is_valid(&self) -> bool {
+        self.0.is_valid.map(|is_valid| {
+            unsafe { is_valid(self.as_ptr()) }
+        }).unwrap_or(false)
+    }
+    /// Returns the name of the resource script that contains the function.
+    pub fn get_script_name(&self) -> String {
+        self.0.get_script_name.and_then(|get_script_name| unsafe { CefString::from_mut_ptr(get_script_name(self.as_ptr())) }.into_string())
+            .unwrap_or_default()
+    }
+    /// Returns the name of the resource script that contains the function or the
+    /// sourceURL value if the script name is undefined and its source ends with a
+    /// `"//@ sourceURL=..."` string.
+    pub fn get_script_name_or_source_url(&self) -> String {
+        self.0.get_script_name_or_source_url.and_then(|get_script_name_or_source_url| unsafe { CefString::from_mut_ptr(get_script_name_or_source_url(self.as_ptr())) }.into_string())
+            .unwrap_or_default()
+    }
+    /// Returns the name of the function.
+    pub fn get_function_name(&self) -> String {
+        self.0.get_function_name.and_then(|get_function_name| unsafe { CefString::from_mut_ptr(get_function_name(self.as_ptr())) }.into_string())
+            .unwrap_or_default()
+    }
+    /// Returns the 1-based line number for the function call or 0 if unknown.
+    pub fn get_line_number(&self) -> i32 {
+        self.0.get_line_number.and_then(|get_line_number| unsafe { get_line_number(self.as_ptr()) })
+            .unwrap_or_default()
+    }
+    /// Returns the 1-based column offset on the line for the function call or 0 if
+    /// unknown.
+    pub fn get_column(&self) -> i32 {
+        self.0.get_column.and_then(|get_column| unsafe { get_column(self.as_ptr()) })
+            .unwrap_or_default()
+    }
+    /// Returns true if the function was compiled using eval().
+    pub fn is_eval(&self) -> bool {
+        self.0.is_eval.and_then(|is_eval| unsafe { is_eval(self.as_ptr()) != 0 })
+            .unwrap_or_default()
+    }
+    /// Returns true if the function was called as a constructor via "new".
+    pub fn is_constructor(&self) -> bool {
+        self.0.is_constructor.and_then(|is_constructor| unsafe { is_constructor(self.as_ptr()) != 0 })
+            .unwrap_or_default()
+    }
 }
 
 /// V8 property attribute values.
