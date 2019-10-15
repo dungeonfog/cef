@@ -84,6 +84,10 @@ impl Into<cef_scheme_options_t::Type> for SchemeOptions {
 pub struct SchemeRegistrar(*mut cef_scheme_registrar_t);
 
 impl SchemeRegistrar {
+    pub unsafe fn from_ptr_unchecked(ptr: *mut cef_scheme_registrar_t) -> SchemeRegistrar {
+        SchemeRegistrar(ptr)
+    }
+
     /// Register a custom scheme. This function should not be called for the built-
     /// in HTTP, HTTPS, FILE, FTP, ABOUT and DATA schemes.
     ///
@@ -104,12 +108,13 @@ impl SchemeRegistrar {
     }
 }
 
-#[doc(hidden)]
-impl From<*mut cef_scheme_registrar_t> for SchemeRegistrar {
-    fn from(obj: *mut cef_scheme_registrar_t) -> Self {
-        Self(obj)
-    }
-}
-
 unsafe impl Send for SchemeRegistrar {}
 unsafe impl Sync for SchemeRegistrar {}
+
+impl Drop for SchemeRegistrar {
+    fn drop(&mut self) {
+        unsafe {
+            ((*self.0).base.del.unwrap())(&mut (*self.0).base)
+        }
+    }
+}

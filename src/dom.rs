@@ -1,11 +1,14 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t,
+    cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashMap};
+use std::{
+    collections::HashMap,
+    sync::Arc,
+};
 
 use crate::{
-    refcounted::{RefCounted},
+    refcounted::{RefCountedPtr, Wrapper},
     values::Rect,
 };
 
@@ -156,27 +159,48 @@ pub trait DOMVisitor: Send + Sync {
     /// Method executed for visiting the DOM. The document object passed to this
     /// function represents a snapshot of the DOM at the time this function is
     /// executed.
-    fn visit(&self, document: &DOMDocument);
+    fn visit(&self, document: DOMDocument);
 }
 
-pub(crate) struct DOMVisitorWrapper;
+pub(crate) struct DOMVisitorWrapper {
+    delegate: Arc<dyn DOMVisitor>,
+}
 
-impl DOMVisitorWrapper {
-    pub(crate) fn wrap(delegate: Box<dyn DOMVisitor>) -> *mut cef_domvisitor_t {
-        let rc = RefCounted::new(
+impl std::borrow::Borrow<Arc<dyn DOMVisitor>> for DOMVisitorWrapper {
+    fn borrow(&self) -> &Arc<dyn DOMVisitor> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for DOMVisitorWrapper {
+    type Cef = cef_domvisitor_t;
+    type Inner = dyn DOMVisitor;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_domvisitor_t {
                 base: unsafe { std::mem::zeroed() },
                 visit: Some(Self::visit),
             },
-            delegate,
-        );
-        unsafe { &mut *rc }.get_cef()
+            self,
+        )
     }
+}
 
-    extern "C" fn visit(self_: *mut cef_domvisitor_t, document: *mut cef_domdocument_t) {
-        let mut this = unsafe { RefCounted::<cef_domvisitor_t>::make_temp(self_) };
-        this.visit(unsafe { &DOMDocument::from_ptr_unchecked(document) });
-        // we're done here!
-        RefCounted::<cef_domvisitor_t>::release(this.get_cef() as *mut cef_base_ref_counted_t);
+impl DOMVisitorWrapper {
+    pub(crate) fn new(delegate: Arc<dyn DOMVisitor>) -> DOMVisitorWrapper {
+        DOMVisitorWrapper {
+            delegate,
+        }
+    }
+}
+
+cef_callback_impl!{
+    impl DOMVisitorWrapper: cef_domvisitor_t {
+        fn visit(
+            &self,
+            document: DOMDocument: *mut cef_domdocument_t,
+        ) {
+            self.delegate.visit(document);
+        }
     }
 }

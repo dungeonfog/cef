@@ -1,5 +1,5 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_string_list_alloc, cef_string_list_free, cef_string_list_size,
+    cef_string_list_alloc, cef_string_list_free, cef_string_list_size,
     cef_string_list_t, cef_string_list_value, cef_string_list_append, cef_string_t, cef_string_utf8_to_utf16,
     cef_string_visitor_t,
 };
@@ -8,9 +8,10 @@ use std::{
     iter::FromIterator,
     ops::Range,
     mem,
+    sync::Arc
 };
 
-use crate::refcounted::{RefCounted};
+use crate::refcounted::{RefCountedPtr, Wrapper};
 
 #[repr(transparent)]
 pub(crate) struct CefString(cef_string_t);
@@ -299,26 +300,45 @@ pub trait StringVisitor: Send + Sync {
     fn visit(&self, string: &str);
 }
 
-pub(crate) struct StringVisitorWrapper();
+pub(crate) struct StringVisitorWrapper {
+    delegate: Arc<dyn StringVisitor>,
+}
 
-impl StringVisitorWrapper {
-    pub(crate) fn wrap(delegate: Box<dyn StringVisitor>) -> *mut cef_string_visitor_t {
-        let rc = RefCounted::new(
+impl std::borrow::Borrow<Arc<dyn StringVisitor>> for StringVisitorWrapper {
+    fn borrow(&self) -> &Arc<dyn StringVisitor> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for StringVisitorWrapper {
+    type Cef = cef_string_visitor_t;
+    type Inner = dyn StringVisitor;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_string_visitor_t {
                 base: unsafe { std::mem::zeroed() },
                 visit: Some(Self::visit),
             },
-            delegate,
-        );
-        unsafe { &mut *rc }.get_cef()
+            self,
+        )
     }
+}
 
-    extern "C" fn visit(self_: *mut cef_string_visitor_t, string: *const cef_string_t) {
-        let mut this = unsafe { RefCounted::<cef_string_visitor_t>::make_temp(self_) };
-        if let Some(string) = unsafe { CefString::from_ptr(string).map(String::from) } {
-            this.visit(&string);
+impl StringVisitorWrapper {
+    pub(crate) fn new(delegate: Arc<dyn StringVisitor>) -> StringVisitorWrapper {
+        StringVisitorWrapper {
+            delegate,
         }
-        // we're done here!
-        RefCounted::<cef_string_visitor_t>::release(this.get_cef() as *mut cef_base_ref_counted_t);
+    }
+}
+
+cef_callback_impl!{
+    impl StringVisitorWrapper: cef_string_visitor_t {
+        fn visit(
+            &self,
+            string: &CefString: *const cef_string_t
+        ) {
+            self.delegate.visit(&String::from(string))
+        }
     }
 }

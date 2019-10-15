@@ -1,16 +1,13 @@
 use cef_sys::cef_base_ref_counted_t;
 use std::{
+    borrow::Borrow,
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     os::raw::c_int,
     ptr::NonNull,
-    sync::atomic::{AtomicUsize, Ordering},
+    sync::Arc,
 };
 
-use crate::{
-    image::Image,
-    navigation::NavigationEntry,
-};
 
 
 /// # Safety
@@ -24,7 +21,13 @@ pub(crate) unsafe trait RefCounter: Sized {
 }
 
 pub(crate) trait RefCounterWrapped: RefCounter {
-    type Wrapper;
+    type Wrapper: Wrapper<Cef=Self>;
+}
+
+pub(crate) trait Wrapper: Sized {
+    type Cef: RefCounterWrapped<Wrapper=Self>;
+    type Inner: ?Sized;
+    fn wrap(self) -> RefCountedPtr<Self::Cef>;
 }
 
 macro_rules! ref_counter {
@@ -58,12 +61,24 @@ pub(crate) struct RefCountedPtr<C: RefCounter> {
     cef: NonNull<C>,
 }
 
+pub(crate) struct RefCountedPtrCache<C>
+    where C: RefCounterWrapped,
+          C::Wrapper: Borrow<Arc<<C::Wrapper as Wrapper>::Inner>>
+{
+    pub ptr: RefCountedPtr<C>,
+    pub arc: Arc<<C::Wrapper as Wrapper>::Inner>,
+}
+
+unsafe impl<C: RefCounter> Send for RefCountedPtr<C> {}
+unsafe impl<C: RefCounter> Sync for RefCountedPtr<C> {}
+
 impl<C: RefCounter> RefCountedPtr<C> {
     pub(crate) fn wrap(cefobj: C, object: C::Wrapper) -> RefCountedPtr<C>
     where
         C: RefCounterWrapped,
+        C::Wrapper: Send + Sync,
     {
-        unsafe { RefCountedPtr::from_ptr_unchecked((*RefCounted::new(cefobj, object)).get_cef()) }
+        unsafe { RefCountedPtr::from_ptr_unchecked(RefCounted::new(cefobj, object) as *mut C) }
     }
 
     pub(crate) unsafe fn from_ptr_add_ref(ptr: *mut C) -> Option<RefCountedPtr<C>> {
@@ -94,6 +109,26 @@ impl<C: RefCounter> RefCountedPtr<C> {
     }
 }
 
+impl<C> RefCountedPtrCache<C>
+    where C: RefCounterWrapped,
+          C::Wrapper: Borrow<Arc<<C::Wrapper as Wrapper>::Inner>>
+{
+    pub fn new(wrapper: C::Wrapper) -> Self {
+        RefCountedPtrCache {
+            arc: wrapper.borrow().clone(),
+            ptr: wrapper.wrap(),
+        }
+    }
+
+    pub fn get_ptr_or_rewrap(&mut self, wrapper: C::Wrapper) -> RefCountedPtr<C> {
+        if !Arc::ptr_eq(&self.arc, wrapper.borrow()) {
+            self.arc = wrapper.borrow().clone();
+            self.ptr = wrapper.wrap();
+        }
+        self.ptr.clone()
+    }
+}
+
 macro_rules! ref_counted_ptr {
     (
         $(#[$meta:meta])*
@@ -102,6 +137,9 @@ macro_rules! ref_counted_ptr {
         $(#[$meta])*
         #[repr(transparent)]
         $vis struct $Struct(crate::refcounted::RefCountedPtr<cef_sys::$cef>);
+
+        unsafe impl Send for $Struct {}
+        unsafe impl Sync for $Struct {}
 
         impl $Struct {
             pub(crate) unsafe fn from_ptr_add_ref(ptr: *mut $cef) -> Option<$Struct> {
@@ -165,33 +203,32 @@ impl<C: RefCounter> Clone for RefCountedPtr<C> {
 // The code for RefCounted<C,R> assumes that it can cast *mut cef_base_ref_counted_t to *mut C to *mut RefCounted<C,R>
 // this is true as long as everything is #[repr(C)] and the corresponding structs are the first in the list.
 // It might sound like a hack, but I think that CEF assumes that you do it like this. It's a C API after all.
+
 #[repr(C)]
-pub(crate) struct RefCounted<C: RefCounterWrapped> {
+pub(crate) struct RefCounted<C: RefCounterWrapped>
+    where C::Wrapper: Send + Sync
+{
     cefobj: C,
-    refcount: AtomicUsize,
     object: C::Wrapper,
 }
 
-unsafe impl<C: RefCounterWrapped> Sync for RefCounted<C> {}
-unsafe impl<C: RefCounterWrapped> Send for RefCounted<C> {}
 
-impl<C: RefCounterWrapped> Deref for RefCounted<C> {
-    type Target = C::Wrapper;
+unsafe impl<C: RefCounterWrapped> Sync for RefCounted<C>
+    where C::Wrapper: Send + Sync
+{}
+unsafe impl<C: RefCounterWrapped> Send for RefCounted<C>
+    where C::Wrapper: Send + Sync
+{}
 
-    fn deref(&self) -> &Self::Target {
-        &self.object
+impl<C: RefCounterWrapped> RefCounted<C>
+    where C::Wrapper: Send + Sync
+{
+    pub(crate) unsafe fn wrapper<'a>(ptr: *mut C) -> &'a C::Wrapper {
+        &(*(ptr as *const C as *const Self)).object
     }
-}
 
-impl<C: RefCounterWrapped> DerefMut for RefCounted<C> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        &mut self.object
-    }
-}
-
-impl<C: RefCounterWrapped> RefCounted<C> {
-    pub(crate) unsafe fn make_temp(ptr: *mut C) -> ManuallyDrop<Box<Self>> {
-        ManuallyDrop::new(Box::from_raw(ptr as *mut Self))
+    pub(crate) unsafe fn to_arc(ptr: *mut C) -> ManuallyDrop<Arc<Self>> {
+        ManuallyDrop::new(Arc::from_raw(ptr as *mut Self))
     }
 
     pub(crate) fn new(mut cefobj: C, object: C::Wrapper) -> *mut Self {
@@ -203,48 +240,31 @@ impl<C: RefCounterWrapped> RefCounted<C> {
             has_at_least_one_ref: Some(Self::has_at_least_one_ref),
         };
 
-        Box::into_raw(Box::new(Self {
+        // TODO: SHOULD WE GIT RID OF THE POINTER CAST? THIS IS BEING SHARED ACROSS THREADS AFTER
+        // ALL
+        Arc::into_raw(Arc::new(Self {
             cefobj,
-            refcount: AtomicUsize::new(1),
             object,
-        }))
-    }
-
-    pub(crate) fn get_cef(&mut self) -> *mut C {
-        &mut self.cefobj as *mut C
+        })) as *mut Self
     }
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        this.refcount.fetch_add(1, Ordering::AcqRel);
+        let this = unsafe { Self::to_arc(ref_counted as *mut C) };
+        let _: ManuallyDrop<Arc<Self>> = this.clone();
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        if this.refcount.fetch_sub(1, Ordering::AcqRel) < 1 {
-            ManuallyDrop::into_inner(this);
-            0
-        } else {
-            1
-        }
+        let this: Arc<Self> = ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut C) });
+        (Arc::strong_count(&this) > 1) as c_int
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        let counter = this.refcount.load(Ordering::Acquire);
-        if counter == 1 {
-            1
-        } else {
-            0
-        }
+        let this = unsafe { Self::to_arc(ref_counted as *mut C) };
+        (Arc::strong_count(&this) == 1) as c_int
     }
     extern "C" fn has_at_least_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::make_temp(ref_counted as *mut C) };
-        let counter = this.refcount.load(Ordering::Acquire);
-        if counter >= 1 {
-            1
-        } else {
-            0
-        }
+        let this = unsafe { Self::to_arc(ref_counted as *mut C) };
+        (Arc::strong_count(&this) >= 1) as c_int
     }
+
 }
 
 ref_counter!(cef_app_t = crate::app::AppWrapper);
@@ -252,22 +272,29 @@ ref_counter!(
     cef_browser_process_handler_t = crate::browser_process_handler::BrowserProcessHandlerWrapper
 );
 ref_counter!(cef_client_t = crate::client::ClientWrapper);
-ref_counter!(cef_domvisitor_t = Box<dyn crate::dom::DOMVisitor>);
+ref_counter!(cef_domvisitor_t = crate::dom::DOMVisitorWrapper);
 ref_counter!(cef_run_file_dialog_callback_t = crate::file_dialog::RunFileDialogCallbackWrapper);
-ref_counter!(cef_load_handler_t = Box<dyn crate::load_handler::LoadHandler>);
+ref_counter!(cef_load_handler_t = crate::load_handler::LoadHandlerWrapper);
 ref_counter!(
     cef_render_process_handler_t = crate::render_process_handler::RenderProcessHandlerWrapper
 );
-ref_counter!(cef_request_context_handler_t = crate::request_context::RequestContextHandlerWrapper);
-ref_counter!(cef_resource_bundle_handler_t = Box<dyn crate::resource_bundle_handler::ResourceBundleHandler>);
+ref_counter!(
+    cef_request_context_handler_t = crate::request_context::RequestContextHandlerWrapper
+);
+ref_counter!(
+    cef_resource_bundle_handler_t = crate::resource_bundle_handler::ResourceBundleHandlerWrapper
+);
 ref_counter!(
     cef_resource_request_handler_t = crate::resource_request_handler::ResourceRequestHandlerWrapper
 );
-ref_counter!(cef_string_visitor_t = Box<dyn crate::string::StringVisitor>);
-ref_counter!(cef_urlrequest_client_t = Box<dyn crate::url_request::URLRequestClient>);
-ref_counter!(cef_cookie_access_filter_t = Box<dyn crate::url_request::CookieAccessFilter>);
-ref_counter!(cef_response_filter_t = Box<dyn crate::url_request::ResponseFilter>);
-ref_counter!(cef_resource_handler_t = Box<dyn crate::url_request::ResourceHandler>);
+ref_counter!(cef_string_visitor_t = crate::string::StringVisitorWrapper);
+ref_counter!(cef_urlrequest_client_t = crate::url_request::URLRequestClientWrapper);
+ref_counter!(cef_cookie_access_filter_t = crate::url_request::CookieAccessFilterWrapper);
+ref_counter!(cef_response_filter_t = crate::url_request::ResponseFilterWrapper);
+ref_counter!(cef_resource_handler_t = crate::url_request::ResourceHandlerWrapper);
+ref_counter!(cef_download_image_callback_t = crate::browser_host::DownloadImageCallbackWrapper);
+ref_counter!(cef_pdf_print_callback_t = crate::browser_host::PDFPrintCallbackWrapper);
+ref_counter!(cef_navigation_entry_visitor_t = crate::browser_host::NavigationEntryVisitorWrapper);
 ref_counter!(cef_command_line_t);
 ref_counter!(cef_value_t);
 ref_counter!(cef_binary_value_t);
@@ -351,6 +378,3 @@ ref_counter!(cef_web_plugin_info_t);
 ref_counter!(cef_web_plugin_info_visitor_t);
 ref_counter!(cef_web_plugin_unstable_callback_t);
 ref_counter!(cef_register_cdm_callback_t);
-ref_counter!(cef_download_image_callback_t = Option<Box<dyn FnOnce(&str, u16, Option<Image>) + 'static>>);
-ref_counter!(cef_pdf_print_callback_t = Option<Box<dyn FnOnce(&str, bool) + 'static>>);
-ref_counter!(cef_navigation_entry_visitor_t = Box<dyn Fn(&NavigationEntry, bool, usize, usize) -> bool + 'static>);

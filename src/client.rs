@@ -1,11 +1,11 @@
 use cef_sys::{cef_client_t};
-
+use std::sync::Arc;
 use crate::{
-    refcounted::{RefCounted},
+    refcounted::{RefCountedPtr, Wrapper},
 };
 
 /// Implement this trait to provide handler implementations.
-pub trait Client {
+pub trait Client: Send + Sync {
     // /// Return the handler for audio rendering events.
     // fn get_audio_handler(&self) -> Option<Box<dyn AudioHandler>> { None }
     // /// Return the handler for context menus. If no handler is provided the default
@@ -44,20 +44,33 @@ pub trait Client {
 }
 
 pub(crate) struct ClientWrapper {
-    delegate: Box<dyn Client>,
+    delegate: Arc<dyn Client>,
 }
 
-impl ClientWrapper {
-    pub(crate) fn wrap<C: Client + 'static>(delegate: C) -> *mut cef_client_t {
-        let rc = RefCounted::new(
+impl std::borrow::Borrow<Arc<dyn Client>> for ClientWrapper {
+    fn borrow(&self) -> &Arc<dyn Client> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for ClientWrapper {
+    type Cef = cef_client_t;
+    type Inner = dyn Client;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_client_t {
                 base: unsafe { std::mem::zeroed() },
                 ..unsafe { std::mem::zeroed() }
             },
-            Self {
-                delegate: Box::new(delegate),
-            },
-        );
-        unsafe { &mut *rc }.get_cef()
+            self,
+        )
+    }
+}
+
+impl ClientWrapper {
+    pub(crate) fn new<C: Client + 'static>(delegate: C) -> ClientWrapper {
+        ClientWrapper {
+            delegate: Arc::new(delegate),
+        }
     }
 }

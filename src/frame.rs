@@ -1,9 +1,10 @@
 use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
-
+use std::sync::Arc;
 use crate::{
     browser::Browser,
     dom::{DOMVisitor, DOMVisitorWrapper},
     request::Request,
+    refcounted::Wrapper,
     string::{CefString, StringVisitor, StringVisitorWrapper},
     url_request::{URLRequest, URLRequestClient, URLRequestClientWrapper},
     v8context::V8Context,
@@ -16,9 +17,6 @@ ref_counted_ptr! {
     /// the functions of this structure may only be called on the main thread.
     pub struct Frame(*mut cef_frame_t);
 }
-
-unsafe impl Send for Frame {}
-unsafe impl Sync for Frame {}
 
 impl Frame {
     /// True if this object is currently attached to a valid frame.
@@ -96,21 +94,21 @@ impl Frame {
     }
     /// Retrieve this frame's HTML source as a string sent to the specified
     /// visitor.
-    pub fn get_source(&self, visitor: Box<dyn StringVisitor>) {
+    pub fn get_source(&self, visitor: Arc<dyn StringVisitor>) {
         if let Some(get_source) = self.0.get_source {
-            let visitor = StringVisitorWrapper::wrap(visitor);
+            let visitor = StringVisitorWrapper::new(visitor).wrap();
             unsafe {
-                get_source(self.0.as_ptr(), visitor);
+                get_source(self.0.as_ptr(), visitor.into_raw());
             }
         }
     }
     /// Retrieve this frame's display text as a string sent to the specified
     /// visitor.
-    pub fn get_text(&self, visitor: Box<dyn StringVisitor>) {
+    pub fn get_text(&self, visitor: Arc<dyn StringVisitor>) {
         if let Some(get_text) = self.0.get_text {
-            let visitor = StringVisitorWrapper::wrap(visitor);
+            let visitor = StringVisitorWrapper::new(visitor).wrap();
             unsafe {
-                get_text(self.0.as_ptr(), visitor);
+                get_text(self.0.as_ptr(), visitor.into_raw());
             }
         }
     }
@@ -243,10 +241,10 @@ impl Frame {
     }
     /// Visit the DOM document. This function can only be called from the render
     /// process.
-    pub fn visit_dom(&self, visitor: Box<dyn DOMVisitor>) {
+    pub fn visit_dom(&self, visitor: Arc<dyn DOMVisitor>) {
         if let Some(visit_dom) = self.0.visit_dom {
-            let visitor = DOMVisitorWrapper::wrap(visitor);
-            unsafe { visit_dom(self.0.as_ptr(), visitor) };
+            let visitor = DOMVisitorWrapper::new(visitor).wrap();
+            unsafe { visit_dom(self.0.as_ptr(), visitor.into_raw()) };
         }
     }
     /// Create a new URL request that will be treated as originating from this
@@ -272,13 +270,13 @@ impl Frame {
     pub fn create_urlrequest(
         &self,
         request: &mut Request,
-        client: Box<dyn URLRequestClient>,
+        client: Arc<dyn URLRequestClient>,
     ) -> URLRequest {
         unsafe {
             let urlrequest = self.0.create_urlrequest.unwrap()(
                 self.0.as_ptr(),
                 request.as_ptr(),
-                URLRequestClientWrapper::wrap(client),
+                URLRequestClientWrapper::new(client).wrap().into_raw(),
             );
             URLRequest::from_ptr_unchecked(urlrequest)
         }

@@ -3,12 +3,12 @@ use cef_sys::{
     cef_string_t, cef_transition_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashSet, convert::TryFrom};
+use std::{collections::HashSet, convert::TryFrom, sync::Arc};
 
 use crate::{
     browser::Browser,
     frame::Frame,
-    refcounted::{RefCounted},
+    refcounted::{RefCountedPtr, Wrapper},
     string::CefString,
 };
 
@@ -1041,7 +1041,7 @@ pub trait LoadHandler: Send + Sync {
     /// calls to [LoadHandler::on_load_error] and/or [LoadHandler::on_load_end].
     fn on_loading_state_change(
         &self,
-        browser: &Browser,
+        browser: Browser,
         is_loading: bool,
         can_go_back: bool,
         can_go_forward: bool,
@@ -1057,7 +1057,7 @@ pub trait LoadHandler: Send + Sync {
     /// called for same page navigations (fragments, history state, etc.) or for
     /// navigations that fail or are canceled before commit. For notification of
     /// overall browser load status use [LoadHandler::on_loading_state_change] instead.
-    fn on_load_start(&self, browser: &Browser, frame: &Frame, transition_type: TransitionType) {}
+    fn on_load_start(&self, browser: Browser, frame: Frame, transition_type: TransitionType) {}
     /// Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
     /// main frame. Multiple frames may be loading at the same time. Sub-frames may
     /// start or continue loading after the main frame load has ended. This
@@ -1065,7 +1065,7 @@ pub trait LoadHandler: Send + Sync {
     /// state, etc.) or for navigations that fail or are canceled before commit.
     /// For notification of overall browser load status use [LoadHandler::on_loading_state_change]
     /// instead.
-    fn on_load_end(&self, browser: &Browser, frame: &Frame, http_status_code: i32) {}
+    fn on_load_end(&self, browser: Browser, frame: Frame, http_status_code: i32) {}
     /// Called when a navigation fails or is canceled. This function may be called
     /// by itself if before commit or in combination with [LoadHandler::on_load_start]/[LoadHandler::on_load_end] if
     /// after commit. `error_code` is the error code number, `error_text` is the
@@ -1073,8 +1073,8 @@ pub trait LoadHandler: Send + Sync {
     /// net\base\net_error_list.h for complete descriptions of the error codes.
     fn on_load_error(
         &self,
-        browser: &Browser,
-        frame: &Frame,
+        browser: Browser,
+        frame: Frame,
         error_code: ErrorCode,
         error_text: &str,
         failed_url: &str,
@@ -1082,74 +1082,27 @@ pub trait LoadHandler: Send + Sync {
     }
 }
 
-pub(crate) struct LoadHandlerWrapper;
+pub(crate) struct LoadHandlerWrapper {
+    delegate: Arc<dyn LoadHandler>
+}
 
 impl LoadHandlerWrapper {
-    extern "C" fn loading_state_change(
-        self_: *mut cef_load_handler_t,
-        browser: *mut cef_browser_t,
-        is_loading: std::os::raw::c_int,
-        can_go_back: std::os::raw::c_int,
-        can_go_forward: std::os::raw::c_int,
-    ) {
-        let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-        (*this).on_loading_state_change(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            is_loading != 0,
-            can_go_back != 0,
-            can_go_forward != 0,
-        );
+    pub(crate) fn new(delegate: Arc<dyn LoadHandler>) -> LoadHandlerWrapper {
+        LoadHandlerWrapper { delegate }
     }
-    extern "C" fn load_start(
-        self_: *mut cef_load_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        transition_type: cef_transition_type_t,
-    ) {
-        if let Ok(transition_type) = TransitionType::try_from(transition_type.0) {
-            let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-            (*this).on_load_start(
-                unsafe { &Browser::from_ptr_unchecked(browser) },
-                unsafe { &Frame::from_ptr_unchecked(frame) },
-                transition_type,
-            );
-        }
-    }
-    extern "C" fn load_end(
-        self_: *mut cef_load_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        http_status_code: std::os::raw::c_int,
-    ) {
-        let this = unsafe { RefCounted::<cef_load_handler_t>::make_temp(self_) };
-        (*this).on_load_end(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            unsafe { &Frame::from_ptr_unchecked(frame) },
-            http_status_code,
-        );
-    }
-    extern "C" fn load_error(
-        self_: *mut cef_load_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        error_code: cef_errorcode_t::Type,
-        error_text: *const cef_string_t,
-        failed_url: *const cef_string_t,
-    ) {
-        unsafe {
-            let this = RefCounted::<cef_load_handler_t>::make_temp(self_);
-            (*this).on_load_error(
-                &Browser::from_ptr_unchecked(browser),
-                &Frame::from_ptr_unchecked(frame),
-                ErrorCode::from_unchecked(error_code),
-                &String::from(CefString::from_ptr_unchecked(error_text)),
-                &String::from(CefString::from_ptr_unchecked(failed_url)),
-            );
-        }
-    }
+}
 
-    pub(crate) fn new(handler: Box<dyn LoadHandler>) -> *mut RefCounted<cef_load_handler_t> {
-        RefCounted::new(
+impl std::borrow::Borrow<Arc<dyn LoadHandler>> for LoadHandlerWrapper {
+    fn borrow(&self) -> &Arc<dyn LoadHandler> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for LoadHandlerWrapper {
+    type Cef = cef_load_handler_t;
+    type Inner = dyn LoadHandler;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_load_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 on_loading_state_change: Some(Self::loading_state_change),
@@ -1157,7 +1110,66 @@ impl LoadHandlerWrapper {
                 on_load_end: Some(Self::load_end),
                 on_load_error: Some(Self::load_error),
             },
-            handler,
+            self,
         )
+    }
+}
+
+cef_callback_impl!{
+    impl LoadHandlerWrapper: cef_load_handler_t {
+        fn loading_state_change(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            is_loading: bool: std::os::raw::c_int,
+            can_go_back: bool: std::os::raw::c_int,
+            can_go_forward: bool: std::os::raw::c_int,
+        ) {
+            self.delegate.on_loading_state_change(
+                browser,
+                is_loading,
+                can_go_back,
+                can_go_forward,
+            );
+        }
+        fn load_start(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            transition_type: TransitionType: cef_transition_type_t,
+        ) {
+            self.delegate.on_load_start(
+                browser,
+                frame,
+                transition_type,
+            );
+        }
+        fn load_end(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            http_status_code: std::os::raw::c_int: std::os::raw::c_int,
+        ) {
+            self.delegate.on_load_end(
+                browser,
+                frame,
+                http_status_code,
+            );
+        }
+        fn load_error(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            error_code: ErrorCode: cef_errorcode_t::Type,
+            error_text: &CefString: *const cef_string_t,
+            failed_url: &CefString: *const cef_string_t,
+        ) {
+            self.delegate.on_load_error(
+                browser,
+                frame,
+                error_code,
+                &String::from(error_text),
+                &String::from(failed_url),
+            );
+        }
     }
 }

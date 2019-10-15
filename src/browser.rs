@@ -15,9 +15,6 @@ ref_counted_ptr! {
     pub struct Browser(*mut cef_browser_t);
 }
 
-unsafe impl Send for Browser {}
-unsafe impl Sync for Browser {}
-
 impl Browser {
     /// Returns the browser host object. This function can only be called in the
     /// browser process.

@@ -2,15 +2,15 @@ use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_s
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, iter::FromIterator, ptr::{null_mut, null}};
 use winapi::shared::minwindef::HINSTANCE;
-
+use parking_lot::Mutex;
 use crate::{
-    refcounted::RefCounted,
+    refcounted::{RefCountedPtr, Wrapper},
     string::{CefString, CefStringList},
     browser::{Browser, BrowserSettings, State},
     client::{Client, ClientWrapper},
     drag::{DragData, DragOperation},
     events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
-    file_dialog::{FileDialogMode, RunFileDialogCallback},
+    file_dialog::{FileDialogMode, RunFileDialogCallbackWrapper},
     image::Image,
     ime::CompositionUnderline,
     navigation::NavigationEntry,
@@ -62,12 +62,12 @@ impl BrowserHost {
         request_context: Option<&RequestContext>,
     ) -> bool {
         let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
-        let client = ClientWrapper::wrap(client);
+        let client = ClientWrapper::new(client).wrap();
 
         unsafe {
             cef_browser_host_create_browser(
                 window_info.get(),
-                client,
+                client.into_raw(),
                 CefString::new(url).as_ptr(),
                 settings.get(),
                 extra_info
@@ -94,12 +94,12 @@ impl BrowserHost {
         request_context: Option<&RequestContext>,
         ) -> Browser {
         let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
-        let client = ClientWrapper::wrap(client);
+        let client = ClientWrapper::new(client).wrap();
 
         unsafe {
             Browser::from_ptr_unchecked(cef_browser_host_create_browser_sync(
                 window_info.get(),
-                client,
+                client.into_raw(),
                 CefString::new(url).as_ptr(),
                 settings.get(),
                 extra_info
@@ -224,7 +224,7 @@ impl BrowserHost {
         default_file_path: Option<&str>,
         accept_filters: &[&str],
         selected_accept_filter: i32,
-        callback: impl FnOnce(usize, Option<Vec<String>>) + 'static,
+        callback: impl Send + FnOnce(usize, Option<Vec<String>>) + 'static,
     ) {
         if let Some(run_file_dialog) = self.0.run_file_dialog {
             let title = title.map(CefString::new);
@@ -237,7 +237,7 @@ impl BrowserHost {
                     default_file_path.map(|s| s.as_ptr()).unwrap_or_else(null),
                     CefStringList::from_iter(accept_filters.into_iter().cloned()).into_raw(),
                     selected_accept_filter,
-                    RunFileDialogCallback::new(callback).into_raw()
+                    RunFileDialogCallbackWrapper::new(callback).wrap().into_raw()
                 );
             }
         }
@@ -269,10 +269,19 @@ impl BrowserHost {
         is_favicon: bool,
         max_image_size: u32,
         bypass_cache: bool,
-        callback: impl FnOnce(&str, u16, Option<Image>) + 'static,
+        callback: impl Send + FnOnce(&str, u16, Option<Image>) + 'static,
     ) {
         if let Some(download_image) = self.0.download_image {
-            unsafe { download_image(self.0.as_ptr(), CefString::new(image_url).as_ptr(), is_favicon as i32, max_image_size, bypass_cache as i32, DownloadImageCallbackWrapper::new(callback)); }
+            unsafe {
+                download_image(
+                    self.0.as_ptr(),
+                    CefString::new(image_url).as_ptr(),
+                    is_favicon as i32,
+                    max_image_size,
+                    bypass_cache as i32,
+                    DownloadImageCallbackWrapper::new(callback).wrap().into_raw()
+                );
+            }
         }
     }
     /// Print the current browser contents.
@@ -293,10 +302,17 @@ impl BrowserHost {
         &self,
         path: &str,
         settings: PDFPrintSettings,
-        callback: impl FnOnce(&str, bool) + 'static,
+        callback: impl Send + FnOnce(&str, bool) + 'static,
     ) {
         if let Some(print_to_pdf) = self.0.print_to_pdf {
-            unsafe { print_to_pdf(self.0.as_ptr(), CefString::new(path).as_ptr(), settings.as_ptr(), PDFPrintCallbackWrapper::new(callback)); }
+            unsafe {
+                print_to_pdf(
+                    self.0.as_ptr(),
+                    CefString::new(path).as_ptr(),
+                    settings.as_ptr(),
+                    PDFPrintCallbackWrapper::new(callback).wrap().into_raw()
+                );
+            }
         }
     }
     /// Search for `searchText`. `identifier` must be a unique ID and these IDs
@@ -341,7 +357,7 @@ impl BrowserHost {
         inspect_element_at: Point,
     ) {
         if let Some(show_dev_tools) = self.0.show_dev_tools {
-            let client = client.map(ClientWrapper::wrap).unwrap_or_else(null_mut);
+            let client = client.map(|client| ClientWrapper::new(client).wrap().into_raw()).unwrap_or_else(null_mut);
             unsafe { show_dev_tools(self.0.as_ptr(), window_info.get(), client, settings.map(|s| s.get()).unwrap_or_else(null), &inspect_element_at.into()); }
         }
     }
@@ -370,11 +386,17 @@ impl BrowserHost {
     /// entries. Return true to continue visiting entries or false to stop.
     pub fn get_navigation_entries(
         &self,
-        visitor: impl Fn(&NavigationEntry, bool, usize, usize) -> bool + 'static,
+        visitor: impl Send + FnMut(NavigationEntry, bool, usize, usize) -> bool + 'static,
         current_only: bool,
     ) {
         if let Some(get_navigation_entries) = self.0.get_navigation_entries {
-            unsafe { get_navigation_entries(self.0.as_ptr(), NavigationEntryVisitorWrapper::new(visitor), current_only as i32); }
+            unsafe {
+                get_navigation_entries(
+                    self.0.as_ptr(),
+                    NavigationEntryVisitorWrapper::new(visitor).wrap().into_raw(),
+                    current_only as i32
+                );
+            }
         }
     }
     /// Set whether mouse cursor change is disabled.
@@ -741,81 +763,123 @@ impl BrowserHost {
     }
 }
 
-pub(crate) struct DownloadImageCallbackWrapper(*mut cef_download_image_callback_t);
+pub(crate) struct DownloadImageCallbackWrapper {
+    callback: Mutex<Option<Box<dyn Send + FnOnce(&str, u16, Option<Image>)>>>,
+}
 
-impl DownloadImageCallbackWrapper {
-    pub(crate) fn new<F: FnOnce(&str, u16, Option<Image>) + 'static>(callback: F) -> *mut cef_download_image_callback_t {
-        let rc = RefCounted::new(
+impl Wrapper for DownloadImageCallbackWrapper {
+    type Cef = cef_download_image_callback_t;
+    type Inner = dyn Send + FnOnce(&str, u16, Option<Image>);
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_download_image_callback_t {
                 base: unsafe { std::mem::zeroed() },
                 on_download_image_finished: Some(Self::download_image_finished),
             },
-            Some(Box::new(callback)),
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
-    }
-
-    extern "C" fn download_image_finished(
-        self_: *mut cef_download_image_callback_t,
-        image_url: *const cef_string_t,
-        http_status_code: ::std::os::raw::c_int,
-        image: *mut cef_image_t,
-    ) {
-        let mut this = unsafe { RefCounted::<cef_download_image_callback_t>::make_temp(self_) };
-        if let Some(callback) = this.take() {
-            callback(&String::from(unsafe { CefString::from_ptr_unchecked(image_url) }), http_status_code as u16, unsafe { Image::from_ptr(image) });
-        }
-        // no longer needed
-        RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
+            self,
+        )
     }
 }
 
-pub(crate) struct PDFPrintCallbackWrapper(*mut cef_pdf_print_callback_t);
+impl DownloadImageCallbackWrapper {
+    pub(crate) fn new<F: Send + FnOnce(&str, u16, Option<Image>) + 'static>(callback: F) -> DownloadImageCallbackWrapper {
+        DownloadImageCallbackWrapper {
+            callback: Mutex::new(Some(Box::new(callback))),
+        }
+    }
+}
 
-impl PDFPrintCallbackWrapper {
-    pub(crate) fn new(callback: impl FnOnce(&str, bool) + 'static) -> *mut cef_pdf_print_callback_t {
-        let rc = RefCounted::new(
+cef_callback_impl!{
+    impl DownloadImageCallbackWrapper: cef_download_image_callback_t {
+        fn download_image_finished(
+            &self,
+            image_url: &CefString: *const cef_string_t,
+            http_status_code: std::os::raw::c_int: std::os::raw::c_int,
+            image: Option<Image>: *mut cef_image_t,
+        ) {
+            if let Some(callback) = self.callback.lock().take() {
+                callback(&String::from(image_url), http_status_code as u16, image);
+            }
+        }
+    }
+}
+
+pub(crate) struct PDFPrintCallbackWrapper {
+    callback: Mutex<Option<Box<dyn Send + FnOnce(&str, bool)>>>,
+}
+
+impl Wrapper for PDFPrintCallbackWrapper {
+    type Cef = cef_pdf_print_callback_t;
+    type Inner = dyn Send + FnOnce(&str, bool);
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_pdf_print_callback_t {
                 base: unsafe { std::mem::zeroed() },
                 on_pdf_print_finished: Some(Self::pdf_print_finished),
             },
-            Some(Box::new(callback)),
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
-    }
-
-    extern "C" fn pdf_print_finished(self_: *mut cef_pdf_print_callback_t, path: *const cef_string_t, ok: std::os::raw::c_int) {
-        let mut this = unsafe { RefCounted::<cef_pdf_print_callback_t>::make_temp(self_) };
-        if let Some(callback) = this.take() {
-            callback(&String::from(unsafe { CefString::from_ptr_unchecked(path) }), ok != 0);
-        }
-        // no longer needed
-        RefCounted::<cef_download_image_callback_t>::release(this.get_cef() as *mut _);
+            self,
+        )
     }
 }
 
-pub(crate) struct NavigationEntryVisitorWrapper(*mut cef_navigation_entry_visitor_t);
+impl PDFPrintCallbackWrapper {
+    pub(crate) fn new(callback: impl Send + FnOnce(&str, bool) + 'static) -> PDFPrintCallbackWrapper {
+        PDFPrintCallbackWrapper {
+            callback: Mutex::new(Some(Box::new(callback)))
+        }
+    }
+}
 
-impl NavigationEntryVisitorWrapper {
-    pub(crate) fn new(callback: impl Fn(&NavigationEntry, bool, usize, usize) -> bool + 'static) -> *mut cef_navigation_entry_visitor_t {
-        let rc = RefCounted::new(
+cef_callback_impl!{
+    impl PDFPrintCallbackWrapper: cef_pdf_print_callback_t {
+        fn pdf_print_finished(
+            &self,
+            path: &CefString: *const cef_string_t,
+            ok: bool: std::os::raw::c_int
+        ) {
+            if let Some(callback) = self.callback.lock().take() {
+                callback(&String::from(path), ok);
+            }
+        }
+    }
+}
+
+pub(crate) struct NavigationEntryVisitorWrapper {
+    callback: Mutex<Box<dyn Send + FnMut(NavigationEntry, bool, usize, usize) -> bool>>,
+}
+
+impl Wrapper for NavigationEntryVisitorWrapper {
+    type Cef = cef_navigation_entry_visitor_t;
+    type Inner = dyn Send + FnMut(NavigationEntry, bool, usize, usize) -> bool;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_navigation_entry_visitor_t {
                 base: unsafe { std::mem::zeroed() },
                 visit: Some(Self::visit),
             },
-            Box::new(callback),
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
+            self,
+        )
     }
+}
 
-    extern "C" fn visit(self_: *mut cef_navigation_entry_visitor_t, entry: *mut cef_navigation_entry_t, current: std::os::raw::c_int, index: std::os::raw::c_int, total: std::os::raw::c_int) -> std::os::raw::c_int {
-        let mut this = unsafe { RefCounted::<cef_navigation_entry_visitor_t>::make_temp(self_) };
-        if !(*this)(unsafe { &NavigationEntry::from_ptr_unchecked(entry) }, current != 0, index as usize, total as usize) {
-            // no longer needed
-            RefCounted::<cef_navigation_entry_visitor_t>::release(this.get_cef() as *mut _);
-            0
-        } else {
-            1
+impl NavigationEntryVisitorWrapper {
+    pub(crate) fn new(callback: impl Send + FnMut(NavigationEntry, bool, usize, usize) -> bool + 'static) -> NavigationEntryVisitorWrapper {
+        NavigationEntryVisitorWrapper {
+            callback: Mutex::new(Box::new(callback)),
+        }
+    }
+}
+
+cef_callback_impl!{
+    impl NavigationEntryVisitorWrapper: cef_navigation_entry_visitor_t {
+        fn visit(
+            &self,
+            entry: NavigationEntry: *mut cef_navigation_entry_t,
+            current: bool: std::os::raw::c_int,
+            index: std::os::raw::c_int: std::os::raw::c_int,
+            total: std::os::raw::c_int: std::os::raw::c_int
+        ) -> std::os::raw::c_int {
+            (&mut *self.callback.lock())(entry, current, index as usize, total as usize) as _
         }
     }
 }

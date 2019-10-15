@@ -45,9 +45,6 @@ ref_counted_ptr! {
     pub(crate) struct Value(*mut cef_value_t);
 }
 
-unsafe impl Sync for Value {}
-unsafe impl Send for Value {}
-
 impl Value {
     pub(crate) fn new() -> Self {
         unsafe { Self::from_ptr_unchecked(cef_value_create()) }
@@ -327,9 +324,6 @@ ref_counted_ptr!{
     pub struct BinaryValue(*mut cef_binary_value_t);
 }
 
-unsafe impl Sync for BinaryValue {}
-unsafe impl Send for BinaryValue {}
-
 impl BinaryValue {
     /// Creates a new object that is not owned by any other object. The specified
     /// `data` will be copied.
@@ -474,9 +468,6 @@ impl Clone for BinaryValue {
 ref_counted_ptr! {
     pub struct DictionaryValue(*mut cef_dictionary_value_t);
 }
-
-unsafe impl Sync for DictionaryValue {}
-unsafe impl Send for DictionaryValue {}
 
 impl DictionaryValue {
     pub fn new() -> Self {
@@ -859,9 +850,6 @@ impl fmt::Debug for DictionaryValue {
 ref_counted_ptr! {
     pub struct ListValue(*mut cef_list_value_t);
 }
-
-unsafe impl Sync for ListValue {}
-unsafe impl Send for ListValue {}
 
 impl ListValue {
     pub fn new() -> Self {

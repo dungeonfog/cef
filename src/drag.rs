@@ -45,9 +45,6 @@ ref_counted_ptr! {
     pub struct DragData(*mut cef_drag_data_t);
 }
 
-unsafe impl Sync for DragData {}
-unsafe impl Send for DragData {}
-
 impl DragData {
     pub fn new() -> Self {
         unsafe { Self::from_ptr_unchecked(cef_drag_data_create()) }

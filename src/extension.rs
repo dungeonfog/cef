@@ -13,9 +13,6 @@ ref_counted_ptr! {
     pub struct Extension(*mut cef_extension_t);
 }
 
-unsafe impl Send for Extension {}
-unsafe impl Sync for Extension {}
-
 impl Extension {
     /// Returns the unique extension identifier. This is calculated based on the
     /// extension public key, if available, or on the extension path. See

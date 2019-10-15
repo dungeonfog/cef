@@ -1,18 +1,22 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_browser_t, cef_create_context_shared, cef_frame_t,
+    cef_browser_t, cef_create_context_shared, cef_frame_t,
     cef_plugin_policy_t, cef_request_context_create_context,
     cef_request_context_get_global_context, cef_request_context_handler_t,
     cef_request_context_settings_t, cef_request_context_t, cef_request_t,
     cef_resource_request_handler_t, cef_string_t, cef_string_utf8_to_utf16, cef_web_plugin_info_t,
 };
 
+use parking_lot::Mutex;
 use num_enum::UnsafeFromPrimitive;
-use std::ptr::{null, null_mut};
+use std::{
+    ptr::{null, null_mut},
+    sync::Arc
+};
 
 use crate::{
     browser::Browser,
     frame::Frame,
-    refcounted::{RefCounted},
+    refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
     request::Request,
     resource_request_handler::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
     string::CefString,
@@ -34,7 +38,7 @@ pub enum PluginPolicy {
 pub trait RequestContextHandler: Send + Sync {
     /// Called on the browser process UI thread immediately after the request
     /// context has been initialized.
-    fn on_request_context_initialized(&self, request_context: &RequestContext) {}
+    fn on_request_context_initialized(&self, request_context: RequestContext) {}
     /// Called on multiple browser process threads before a plugin instance is
     /// loaded. `mime_type` is the mime type of the plugin that will be loaded.
     /// `plugin_url` is the content URL that the plugin will load and may be None.
@@ -81,126 +85,124 @@ pub trait RequestContextHandler: Send + Sync {
     /// (identified by [Request::get_identifier]).
     fn get_resource_request_handler(
         &self,
-        browser: Option<&Browser>,
-        frame: Option<&Frame>,
-        request: &Request,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
+        request: Request,
         is_navigation: bool,
         is_download: bool,
         request_initiator: &str,
         disable_default_handling: &mut bool,
-    ) -> Option<Box<dyn ResourceRequestHandler>> {
+    ) -> Option<Arc<dyn ResourceRequestHandler>> {
         None
     }
 }
 
 pub(crate) struct RequestContextHandlerWrapper {
-    delegate: Box<dyn RequestContextHandler>,
-    resource_request_handler: Option<*mut cef_resource_request_handler_t>,
+    delegate: Arc<dyn RequestContextHandler>,
+    resource_request_handler: Mutex<Option<RefCountedPtrCache<cef_resource_request_handler_t>>>,
 }
 
-impl RequestContextHandlerWrapper {
-    pub(crate) fn wrap(
-        delegate: Box<dyn RequestContextHandler>,
-    ) -> *mut cef_request_context_handler_t {
-        let rc = RefCounted::new(
+impl std::borrow::Borrow<Arc<dyn RequestContextHandler>> for RequestContextHandlerWrapper {
+    fn borrow(&self) -> &Arc<dyn RequestContextHandler> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for RequestContextHandlerWrapper {
+    type Cef = cef_request_context_handler_t;
+    type Inner = dyn RequestContextHandler;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_request_context_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 on_request_context_initialized: Some(Self::request_context_initialized),
                 on_before_plugin_load: Some(Self::before_plugin_load),
                 get_resource_request_handler: Some(Self::get_resource_request_handler),
             },
-            Self {
-                delegate,
-                resource_request_handler: None,
-            },
-        );
-        unsafe { &mut *rc }.get_cef()
+            self,
+        )
     }
-    extern "C" fn request_context_initialized(
-        self_: *mut cef_request_context_handler_t,
-        request_context: *mut cef_request_context_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
-        this.delegate
-            .on_request_context_initialized(unsafe { &RequestContext::from_ptr_unchecked(request_context) });
+}
+
+impl RequestContextHandlerWrapper {
+    pub(crate) fn new(
+        delegate: Arc<dyn RequestContextHandler>,
+    ) -> RequestContextHandlerWrapper {
+        Self {
+            delegate,
+            resource_request_handler: Mutex::new(None),
+        }
     }
-    extern "C" fn before_plugin_load(
-        self_: *mut cef_request_context_handler_t,
-        mime_type: *const cef_string_t,
-        plugin_url: *const cef_string_t,
-        is_main_frame: std::os::raw::c_int,
-        top_origin_url: *const cef_string_t,
-        plugin_info: *mut cef_web_plugin_info_t,
-        plugin_policy: *mut cef_plugin_policy_t::Type,
-    ) -> std::os::raw::c_int {
-        unsafe {
-            let this = RefCounted::<cef_request_context_handler_t>::make_temp(self_);
-            if let Some(policy) = this.delegate.on_before_plugin_load(
-                &String::from( CefString::from_ptr_unchecked(mime_type)),
-                CefString::from_ptr(plugin_url)
+}
+cef_callback_impl!{
+    impl RequestContextHandlerWrapper: cef_request_context_handler_t {
+        fn request_context_initialized(
+            &self,
+            request_context: RequestContext: *mut cef_request_context_t,
+        ) {
+            self.delegate
+                .on_request_context_initialized(request_context);
+        }
+        fn before_plugin_load(
+            &self,
+            mime_type: &CefString: *const cef_string_t,
+            plugin_url: Option<&CefString>: *const cef_string_t,
+            is_main_frame: bool: std::os::raw::c_int,
+            top_origin_url: Option<&CefString>: *const cef_string_t,
+            plugin_info: WebPluginInfo: *mut cef_web_plugin_info_t,
+            plugin_policy: &mut PluginPolicy: *mut cef_plugin_policy_t::Type,
+        ) -> std::os::raw::c_int {
+            if let Some(policy) = self.delegate.on_before_plugin_load(
+                &String::from(mime_type),
+                plugin_url
                     .map(String::from)
                     .as_ref()
                     .map(|s| &**s),
-                is_main_frame != 0,
-                CefString::from_ptr(top_origin_url)
+                is_main_frame,
+                top_origin_url
                     .map(String::from)
                     .as_ref()
                     .map(|s| &**s),
-                &WebPluginInfo::new(plugin_info),
-                PluginPolicy::from_unchecked(*plugin_policy),
+                &plugin_info,
+                *plugin_policy,
             ) {
-                (*plugin_policy) = policy as cef_plugin_policy_t::Type;
+                *plugin_policy = policy;
                 1
             } else {
                 0
             }
         }
-    }
-    extern "C" fn get_resource_request_handler(
-        self_: *mut cef_request_context_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        request: *mut cef_request_t,
-        is_navigation: std::os::raw::c_int,
-        is_download: std::os::raw::c_int,
-        request_initiator: *const cef_string_t,
-        disable_default_handling: *mut std::os::raw::c_int,
-    ) -> *mut cef_resource_request_handler_t {
-        let mut this = unsafe { RefCounted::<cef_request_context_handler_t>::make_temp(self_) };
-        let mut local_disable_default_handling = false;
-        if let Some(resource_request_handler) = this.delegate.get_resource_request_handler(
-            unsafe { Browser::from_ptr(browser).as_ref() },
-            unsafe { Frame::from_ptr(frame).as_ref() },
-            unsafe { &Request::from_ptr_unchecked(request) },
-            is_navigation != 0,
-            is_download != 0,
-            &String::from(unsafe { CefString::from_ptr_unchecked(request_initiator) }),
-            &mut local_disable_default_handling,
-        ) {
-            if local_disable_default_handling {
-                unsafe { (*disable_default_handling) = 1 };
-            }
-            if let Some(resource_request_handler) =
-                this.resource_request_handler
-                    .replace(ResourceRequestHandlerWrapper::wrap(
-                        resource_request_handler,
-                    ))
-            {
-                RefCounted::<cef_resource_request_handler_t>::release(
-                    resource_request_handler as *mut cef_base_ref_counted_t,
-                );
-            }
-            this.resource_request_handler.unwrap()
-        } else {
-            if local_disable_default_handling {
-                unsafe { (*disable_default_handling) = 1 };
-            }
-            if let Some(resource_request_handler) = this.resource_request_handler.take() {
-                RefCounted::<cef_resource_request_handler_t>::release(
-                    resource_request_handler as *mut cef_base_ref_counted_t,
-                );
-            }
-            null_mut() as *mut cef_resource_request_handler_t
+        fn get_resource_request_handler(
+            &self,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            is_navigation: bool: std::os::raw::c_int,
+            is_download: bool: std::os::raw::c_int,
+            request_initiator: &CefString: *const cef_string_t,
+            disable_default_handling: &mut std::os::raw::c_int: *mut std::os::raw::c_int,
+        ) -> *mut cef_resource_request_handler_t {
+            let mut local_disable_default_handling = *disable_default_handling != 0;
+            let ret = if let Some(handler) = self.delegate.get_resource_request_handler(
+                browser,
+                frame,
+                request,
+                is_navigation,
+                is_download,
+                &String::from(request_initiator),
+                &mut local_disable_default_handling,
+            ) {
+                self.resource_request_handler
+                    .lock()
+                    .get_or_insert_with(|| RefCountedPtrCache::new(ResourceRequestHandlerWrapper::new(handler.clone())))
+                    .get_ptr_or_rewrap(ResourceRequestHandlerWrapper::new(handler))
+                    .into_raw()
+            } else {
+                *self.resource_request_handler.lock() = None;
+                null_mut()
+            };
+            *disable_default_handling = local_disable_default_handling as std::os::raw::c_int;
+            ret
         }
     }
 }
@@ -232,10 +234,10 @@ impl RequestContext {
     /// optional `handler`.
     pub fn new_shared(
         other: RequestContext,
-        handler: Option<Box<dyn RequestContextHandler>>,
+        handler: Option<Arc<dyn RequestContextHandler>>,
     ) -> Self {
         let handler_ptr = if let Some(handler) = handler {
-            RequestContextHandlerWrapper::wrap(handler)
+            RequestContextHandlerWrapper::new(handler).wrap().into_raw()
         } else {
             null_mut()
         };
@@ -246,7 +248,7 @@ impl RequestContext {
 /// Request context initialization settings.
 pub struct RequestContextBuilder(
     Option<cef_request_context_settings_t>,
-    Option<Box<dyn RequestContextHandler>>,
+    Option<Arc<dyn RequestContextHandler>>,
 );
 
 impl RequestContextBuilder {
@@ -261,7 +263,7 @@ impl RequestContextBuilder {
             .and_then(|settings| Some(&settings as *const _))
             .unwrap_or_else(null);
         let handler_ptr = if let Some(handler) = self.1 {
-            RequestContextHandlerWrapper::wrap(handler)
+            RequestContextHandlerWrapper::new(handler).wrap().into_raw()
         } else {
             null()
         };
@@ -286,7 +288,7 @@ impl RequestContextBuilder {
     }
 
     /// Optionally supply a handler to the request context. See [RequestContextHandler].
-    pub fn with_handler(mut self, handler: Box<dyn RequestContextHandler>) -> Self {
+    pub fn with_handler(mut self, handler: Arc<dyn RequestContextHandler>) -> Self {
         self.1.replace(handler);
         self
     }

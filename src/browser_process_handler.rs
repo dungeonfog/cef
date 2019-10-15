@@ -2,11 +2,12 @@ use cef_sys::{
     cef_browser_process_handler_t, cef_command_line_t, cef_list_value_t,
 };
 
+use std::sync::Arc;
 
 use crate::{
     command_line::CommandLine,
-    refcounted::{RefCounted},
-    values::{ListValue, StoredValue},
+    refcounted::{RefCountedPtr, Wrapper},
+    values::{ListValue},
     // print_handler::PrintHandler,
 };
 
@@ -21,13 +22,13 @@ pub trait BrowserProcessHandler: Sync + Send {
     /// process UI thread when launching a render process and on the browser
     /// process IO thread when launching a GPU or plugin process. Provides an
     /// opportunity to modify the child process command line.
-    fn on_before_child_process_launch(&self, _command_line: &mut CommandLine) {}
+    fn on_before_child_process_launch(&self, _command_line: CommandLine) {}
     /// Called on the browser process IO thread after the main thread has been
     /// created for a new render process. Provides an opportunity to specify extra
     /// information that will be passed to
     /// [RenderProcessHandler::on_render_thread_created()] in the render
     /// process.
-    fn on_render_process_thread_created(&self, _extra_info: &mut Vec<StoredValue>) {}
+    fn on_render_process_thread_created(&self, _extra_info: ListValue) {}
     /// Return the handler for printing on Linux. If a print handler is not
     /// provided then printing will not be supported on the Linux platform.
     #[cfg(target_os = "linux")]
@@ -49,19 +50,22 @@ pub trait BrowserProcessHandler: Sync + Send {
 }
 
 pub(crate) struct BrowserProcessHandlerWrapper {
-    delegate: Box<dyn BrowserProcessHandler>,
+    delegate: Arc<dyn BrowserProcessHandler>,
     #[cfg(target_os = "linux")]
-    print_handler: *mut RefCounted<cef_print_handler_t>,
+    print_handler: Option<RefCountedPtr<cef_print_handler_t>>,
 }
 
-unsafe impl Send for BrowserProcessHandlerWrapper {}
-unsafe impl Sync for BrowserProcessHandlerWrapper {}
+impl std::borrow::Borrow<Arc<dyn BrowserProcessHandler>> for BrowserProcessHandlerWrapper {
+    fn borrow(&self) -> &Arc<dyn BrowserProcessHandler> {
+        &self.delegate
+    }
+}
 
-impl BrowserProcessHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Box<dyn BrowserProcessHandler>,
-    ) -> *mut RefCounted<cef_browser_process_handler_t> {
-        RefCounted::new(
+impl Wrapper for BrowserProcessHandlerWrapper {
+    type Cef = cef_browser_process_handler_t;
+    type Inner = dyn BrowserProcessHandler;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_browser_process_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 on_context_initialized: Some(Self::context_initialized),
@@ -73,71 +77,63 @@ impl BrowserProcessHandlerWrapper {
                 get_print_handler: None,
                 on_schedule_message_pump_work: Some(Self::schedule_message_pump_work),
             },
-            Self {
-                delegate,
-                #[cfg(target_os = "linux")]
-                print_handler: null_mut(),
-            },
+            self,
         )
-    }
-
-    extern "C" fn context_initialized(self_: *mut cef_browser_process_handler_t) {
-        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        this.delegate.on_context_initialized();
-    }
-    extern "C" fn before_child_process_launch(
-        self_: *mut cef_browser_process_handler_t,
-        command_line: *mut cef_command_line_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        this.delegate.on_before_child_process_launch(unsafe {
-            &mut CommandLine::from_ptr_unchecked(command_line)
-        });
-    }
-    extern "C" fn render_process_thread_created(
-        self_: *mut cef_browser_process_handler_t,
-        extra_info: *mut cef_list_value_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        let mut ei = unsafe { ListValue::from_ptr_unchecked(extra_info) }.into();
-        this.delegate.on_render_process_thread_created(&mut ei);
-        // TODO: copy stuff back from ei to extra_info
-    }
-    #[cfg(target_os = "linux")]
-    extern "C" fn get_print_handler(
-        self_: *mut cef_browser_process_handler_t,
-    ) -> *mut cef_print_handler_t {
-        let mut this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        if let Some(handler) = this.delegate.get_print_handler() {
-            let wrapper = PrintHandlerWrapper::new(handler);
-            this.print_handler = wrapper;
-            wrapper as *mut cef_print_handler_t
-        } else {
-            if !this.print_handler.is_null() {
-                RefCounted::<cef_print_handler_t>::release(
-                    (*this).print_handler as *mut cef_base_ref_counted_t,
-                );
-                this.print_handler = null_mut();
-            }
-            null_mut()
-        }
-    }
-    extern "C" fn schedule_message_pump_work(
-        self_: *mut cef_browser_process_handler_t,
-        delay_ms: i64,
-    ) {
-        let this = unsafe { RefCounted::<cef_browser_process_handler_t>::make_temp(self_) };
-        this.delegate.on_schedule_message_pump_work(delay_ms);
     }
 }
 
-#[cfg(target_os = "linux")]
-impl Drop for BrowserProcessHandlerWrapper {
-    fn drop(&mut self) {
-        if !self.print_handler.is_null() {
-            RefCounted::<cef_print_handler_t>::release(
-                self.print_handler as *mut cef_base_ref_counted_t,
-            );
+impl BrowserProcessHandlerWrapper {
+    pub(crate) fn new(
+        delegate: Arc<dyn BrowserProcessHandler>,
+    ) -> BrowserProcessHandlerWrapper {
+        Self {
+            delegate,
+            #[cfg(target_os = "linux")]
+            print_handler: None,
+        }
+    }
+}
+
+cef_callback_impl!{
+    impl BrowserProcessHandlerWrapper: cef_browser_process_handler_t {
+        fn context_initialized(&self) {
+            self.delegate.on_context_initialized();
+        }
+        fn before_child_process_launch(
+            &self,
+            command_line: CommandLine: *mut cef_command_line_t,
+        ) {
+            self.delegate.on_before_child_process_launch(command_line);
+        }
+        fn render_process_thread_created(
+            &self,
+            extra_info: ListValue: *mut cef_list_value_t,
+        ) {
+            self.delegate.on_render_process_thread_created(extra_info);
+        }
+        #[cfg(target_os = "linux")]
+        fn get_print_handler(
+            &self
+        ) -> *mut cef_print_handler_t {
+            if let Some(handler) = self.delegate.get_print_handler() {
+                let wrapper = PrintHandlerWrapper::new(handler);
+                this.print_handler = wrapper;
+                wrapper as *mut cef_print_handler_t
+            } else {
+                if !this.print_handler.is_null() {
+                    RefCounted::<cef_print_handler_t>::release(
+                        (*this).print_handler as *mut cef_base_ref_counted_t,
+                    );
+                    this.print_handler = null_mut();
+                }
+                null_mut()
+            }
+        }
+        fn schedule_message_pump_work(
+            &self,
+            delay_ms: i64: i64,
+        ) {
+            self.delegate.on_schedule_message_pump_work(delay_ms);
         }
     }
 }

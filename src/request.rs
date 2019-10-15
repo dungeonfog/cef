@@ -165,9 +165,6 @@ ref_counted_ptr! {
     pub struct Request(*mut cef_request_t);
 }
 
-unsafe impl Send for Request {}
-unsafe impl Sync for Request {}
-
 impl Request {
     /// Create a new Request object.
     pub fn new() -> Self {
@@ -409,9 +406,6 @@ ref_counted_ptr! {
     pub struct PostData(*mut cef_post_data_t);
 }
 
-unsafe impl Send for PostData {}
-unsafe impl Sync for PostData {}
-
 impl PostData {
     pub fn new() -> Self {
         unsafe { Self::from_ptr_unchecked(cef_post_data_create()) }
@@ -496,9 +490,6 @@ ref_counted_ptr! {
     #[derive(Clone)]
     pub struct PostDataElement(*mut cef_post_data_element_t);
 }
-
-unsafe impl Send for PostDataElement {}
-unsafe impl Sync for PostDataElement {}
 
 impl PostDataElement {
     /// Create a new [PostDataElement] object.

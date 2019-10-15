@@ -1,3 +1,4 @@
+use parking_lot::Mutex;
 use cef_sys::{
     cef_file_dialog_mode_t, cef_run_file_dialog_callback_t,
     cef_string_list_t,
@@ -6,7 +7,7 @@ use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
     string::CefStringList,
-    refcounted::{RefCounted, RefCountedPtr},
+    refcounted::{RefCountedPtr, Wrapper},
 };
 
 #[repr(i32)]
@@ -89,40 +90,51 @@ impl Into<cef_file_dialog_mode_t> for FileDialogMode {
 ref_counted_ptr!{
     pub(crate) struct RunFileDialogCallback(*mut cef_run_file_dialog_callback_t);
 }
-pub(crate) struct RunFileDialogCallbackWrapper(Option<Box<dyn FnOnce(usize, Option<Vec<String>>)>>);
 
-impl RunFileDialogCallback {
-    pub(crate) fn new<F>(callback: F) -> RefCountedPtr<cef_run_file_dialog_callback_t>
-    where
-        F: 'static + FnOnce(usize, Option<Vec<String>>),
-    {
+pub(crate) struct RunFileDialogCallbackWrapper {
+    callback: Mutex<Option<Box<dyn Send + FnOnce(usize, Option<Vec<String>>)>>>
+}
+
+impl Wrapper for RunFileDialogCallbackWrapper {
+    type Cef = cef_run_file_dialog_callback_t;
+    type Inner = Mutex<Option<Box<dyn Send + FnOnce(usize, Option<Vec<String>>)>>>;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_run_file_dialog_callback_t {
                 base: unsafe { std::mem::zeroed() },
                 on_file_dialog_dismissed: Some(Self::file_dialog_dismissed),
             },
-            RunFileDialogCallbackWrapper(Some(Box::new(callback))),
+            self,
         )
     }
+}
 
-    extern "C" fn file_dialog_dismissed(
-        self_: *mut cef_run_file_dialog_callback_t,
-        selected_accept_filter: ::std::os::raw::c_int,
-        file_paths: cef_string_list_t,
-    ) {
-        let mut this = unsafe { RefCounted::<cef_run_file_dialog_callback_t>::make_temp(self_) };
-        if let Some(callback) = this.0.take() {
-            // we can only call FnOnce once, so it has to be consumed here
-            callback(
-                selected_accept_filter as usize,
-                if file_paths.is_null() {
-                    None
-                } else {
-                    Some(unsafe{ CefStringList::from_raw(file_paths) }.into())
-                },
-            );
+impl RunFileDialogCallbackWrapper {
+    pub(crate) fn new<F>(callback: F) -> RunFileDialogCallbackWrapper
+    where
+        F: 'static + Send + FnOnce(usize, Option<Vec<String>>),
+    {
+        RunFileDialogCallbackWrapper {
+            callback: Mutex::new(Some(Box::new(callback)))
         }
-        // no longer needed
-        RefCounted::<cef_run_file_dialog_callback_t>::release(this.get_cef() as *mut _);
+    }
+}
+
+cef_callback_impl!{
+    impl RunFileDialogCallbackWrapper: cef_run_file_dialog_callback_t {
+        fn file_dialog_dismissed(
+            &self,
+            selected_accept_filter: std::os::raw::c_int: std::os::raw::c_int,
+            file_paths: Option<CefStringList>: cef_string_list_t,
+        ) {
+            // file_dialog_dismissed consumes self
+            if let Some(callback) = self.callback.lock().take() {
+                // we can only call FnOnce once, so it has to be consumed here
+                callback(
+                    selected_accept_filter as usize,
+                    file_paths.map(Vec::from),
+                );
+            }
+        }
     }
 }

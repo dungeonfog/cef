@@ -1,10 +1,11 @@
 use cef_sys::{
-    cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t, cef_string_utf16_set,
+    cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t,
 };
 
+use std::sync::Arc;
 
 use crate::{
-    refcounted::{RefCounted},
+    refcounted::{RefCountedPtr, Wrapper},
     string::CefString,
 };
 
@@ -25,7 +26,7 @@ pub enum ScaleFactor {
 }
 
 impl ScaleFactor {
-    fn wrap(scale_factor: cef_scale_factor_t::Type) -> Option<Self> {
+    pub(crate) fn wrap(scale_factor: cef_scale_factor_t::Type) -> Option<Self> {
         match scale_factor {
             cef_scale_factor_t::SCALE_FACTOR_100P => Some(Self::Factor100p),
             cef_scale_factor_t::SCALE_FACTOR_125P => Some(Self::Factor125p),
@@ -73,82 +74,86 @@ pub trait ResourceBundleHandler: Send + Sync {
     }
 }
 
-pub struct ResourceBundleHandlerWrapper {}
+pub struct ResourceBundleHandlerWrapper {
+    delegate: Arc<dyn ResourceBundleHandler>
+}
 
-impl ResourceBundleHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Box<dyn ResourceBundleHandler>,
-    ) -> *mut RefCounted<cef_resource_bundle_handler_t> {
-        RefCounted::new(
+impl std::borrow::Borrow<Arc<dyn ResourceBundleHandler>> for ResourceBundleHandlerWrapper {
+    fn borrow(&self) -> &Arc<dyn ResourceBundleHandler> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for ResourceBundleHandlerWrapper {
+    type Cef = cef_resource_bundle_handler_t;
+    type Inner = dyn ResourceBundleHandler;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_resource_bundle_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 get_localized_string: Some(Self::get_localized_string),
                 get_data_resource: Some(Self::get_data_resource),
                 get_data_resource_for_scale: Some(Self::get_data_resource_for_scale),
             },
-            delegate,
+            self,
         )
     }
+}
 
-    extern "C" fn get_localized_string(
-        self_: *mut cef_resource_bundle_handler_t,
-        string_id: std::os::raw::c_int,
-        string: *mut cef_string_t,
-    ) -> std::os::raw::c_int {
-        let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
-        match this.get_localized_string(string_id, unsafe { &String::from(CefString::from_ptr_unchecked(string)) })
-        {
-            None => 0,
-            Some(rstr) => {
-                let utf16: Vec<u16> = rstr.encode_utf16().collect();
-                unsafe {
-                    cef_string_utf16_set(
-                        utf16.as_ptr(),
-                        utf16.len() * std::mem::size_of::<u16>(),
-                        string,
-                        1,
-                    );
+impl ResourceBundleHandlerWrapper {
+    pub(crate) fn new(
+        delegate: Arc<dyn ResourceBundleHandler>,
+    ) -> ResourceBundleHandlerWrapper {
+        ResourceBundleHandlerWrapper { delegate }
+    }
+}
+cef_callback_impl!{
+    impl ResourceBundleHandlerWrapper: cef_resource_bundle_handler_t {
+        fn get_localized_string(
+            &self,
+            string_id: std::os::raw::c_int: std::os::raw::c_int,
+            string: &mut CefString: *mut cef_string_t,
+        ) -> std::os::raw::c_int {
+            match self.delegate.get_localized_string(string_id, &String::from(&*string))
+            {
+                None => 0,
+                Some(rstr) => {
+                    string.set_string(&rstr);
+                    1
                 }
-                1
             }
         }
-    }
 
-    extern "C" fn get_data_resource(
-        self_: *mut cef_resource_bundle_handler_t,
-        resource_id: std::os::raw::c_int,
-        data: *mut *mut std::os::raw::c_void,
-        data_size: *mut usize,
-    ) -> std::os::raw::c_int {
-        let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
-        match this.get_data_resource(resource_id) {
-            None => 0,
-            Some(bytes) => {
-                unsafe {
-                    (*data_size) = bytes.len();
-                    (*data) = Box::into_raw(bytes.into_boxed_slice()) as *mut std::os::raw::c_void;
+        fn get_data_resource(
+            &self,
+            resource_id: std::os::raw::c_int: std::os::raw::c_int,
+            data: &mut *mut std::os::raw::c_void: *mut *mut std::os::raw::c_void,
+            data_size: &mut usize: *mut usize,
+        ) -> std::os::raw::c_int {
+            match self.delegate.get_data_resource(resource_id) {
+                None => 0,
+                Some(bytes) => {
+                    *data_size = bytes.len();
+                    *data = Box::into_raw(bytes.into_boxed_slice()) as *mut std::os::raw::c_void;
+                    1
                 }
-                1
             }
         }
-    }
 
-    extern "C" fn get_data_resource_for_scale(
-        self_: *mut cef_resource_bundle_handler_t,
-        resource_id: std::os::raw::c_int,
-        scale_factor: cef_scale_factor_t::Type,
-        data: *mut *mut std::os::raw::c_void,
-        data_size: *mut usize,
-    ) -> std::os::raw::c_int {
-        let this = unsafe { RefCounted::<cef_resource_bundle_handler_t>::make_temp(self_) };
-        match this.get_data_resource_for_scale(resource_id, ScaleFactor::wrap(scale_factor)) {
-            None => 0,
-            Some(bytes) => {
-                unsafe {
-                    (*data_size) = bytes.len();
-                    (*data) = Box::into_raw(bytes.into_boxed_slice()) as *mut std::os::raw::c_void;
+        fn get_data_resource_for_scale(
+            &self,
+            resource_id: std::os::raw::c_int: std::os::raw::c_int,
+            scale_factor: Option<ScaleFactor>: cef_scale_factor_t::Type,
+            data: &mut *mut std::os::raw::c_void: *mut *mut std::os::raw::c_void,
+            data_size: &mut usize: *mut usize,
+        ) -> std::os::raw::c_int {
+            match self.delegate.get_data_resource_for_scale(resource_id, scale_factor) {
+                None => 0,
+                Some(bytes) => {
+                    *data_size = bytes.len();
+                    *data = Box::into_raw(bytes.into_boxed_slice()) as *mut std::os::raw::c_void;
+                    1
                 }
-                1
             }
         }
     }

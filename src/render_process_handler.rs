@@ -1,20 +1,19 @@
 use cef_sys::{
-    cef_base_ref_counted_t, cef_browser_t, cef_dictionary_value_t, cef_domnode_t, cef_frame_t,
+    cef_browser_t, cef_dictionary_value_t, cef_domnode_t, cef_frame_t,
     cef_list_value_t, cef_load_handler_t, cef_process_id_t, cef_process_message_t,
     cef_render_process_handler_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
 };
-use std::{collections::HashMap, ptr::null_mut};
-
+use std::{sync::Arc};
+use parking_lot::Mutex;
 use crate::{
     browser::Browser,
     dom::DOMNode,
     frame::Frame,
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
-    refcounted::{RefCounted},
+    refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
     v8context::{V8Context, V8Exception, V8StackTrace},
     values::{DictionaryValue, ListValue},
-    StoredValue,
 };
 
 /// Trait used to implement render process callbacks. The functions of this
@@ -24,7 +23,7 @@ pub trait RenderProcessHandler: Send + Sync {
     /// Called after the render process main thread has been created. `extra_info`
     /// is originating from
     /// [BrowserProcessHandler::on_render_process_thread_created].
-    fn on_render_thread_created(&self, extra_info: &Vec<StoredValue>) {}
+    fn on_render_thread_created(&self, extra_info: &ListValue) {}
     /// Called after WebKit has been initialized.
     fn on_web_kit_initialized(&self) {}
     /// Called after a browser has been created. When browsing cross-origin a new
@@ -33,11 +32,11 @@ pub trait RenderProcessHandler: Send + Sync {
     /// [BrowserHost::create_browser()],
     /// [BrowserHost::create_browser_sync()],
     /// [LifeSpanHandler::on_before_popup()] or [BrowserView::create()].
-    fn on_browser_created(&self, browser: &Browser, extra_info: &HashMap<String, StoredValue>) {}
+    fn on_browser_created(&self, browser: Browser, extra_info: &DictionaryValue) {}
     /// Called before a browser is destroyed.
-    fn on_browser_destroyed(&self, browser: &Browser) {}
+    fn on_browser_destroyed(&self, browser: Browser) {}
     /// Return the handler for browser load status events.
-    fn get_load_handler(&self) -> Option<Box<dyn LoadHandler + 'static>> {
+    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler + 'static>> {
         None
     }
     /// Called immediately after the V8 context for a frame has been created. To
@@ -46,32 +45,32 @@ pub trait RenderProcessHandler: Send + Sync {
     /// from the thread on which they are created. A task runner for posting tasks
     /// on the associated thread can be retrieved via the
     /// [V8Context::get_task_runner()] function.
-    fn on_context_created(&self, browser: &Browser, frame: &Frame, context: &V8Context) {}
+    fn on_context_created(&self, browser: Browser, frame: Frame, context: V8Context) {}
     /// Called immediately before the V8 context for a frame is released.
-    fn on_context_released(&self, browser: &Browser, frame: &Frame, context: &V8Context) {}
+    fn on_context_released(&self, browser: Browser, frame: Frame, context: V8Context) {}
     /// Called for global uncaught exceptions in a frame. Execution of this
     /// callback is disabled by default. To enable set
     /// [CefSettings.uncaught_exception_stack_size] > 0.
     fn on_uncaught_exception(
         &self,
-        browser: &Browser,
-        frame: &Frame,
-        context: &V8Context,
-        exception: &V8Exception,
-        stack_trace: &V8StackTrace,
+        browser: Browser,
+        frame: Frame,
+        context: V8Context,
+        exception: V8Exception,
+        stack_trace: V8StackTrace,
     ) {
     }
     /// Called when a new node in the the browser gets focus. The `node` value may
     /// be None if no specific node has gained focus. The node object passed to
     /// this function represents a snapshot of the DOM at the time this function is
     /// executed.
-    fn on_focused_node_changed(&self, browser: &Browser, frame: &Frame, node: Option<&DOMNode>) {}
+    fn on_focused_node_changed(&self, browser: Browser, frame: Frame, node: Option<&DOMNode>) {}
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
     fn on_process_message_received(
         &self,
-        browser: &Browser,
-        frame: &Frame,
+        browser: Browser,
+        frame: Frame,
         source_process: ProcessId,
         message: &ProcessMessage,
     ) -> bool {
@@ -80,8 +79,8 @@ pub trait RenderProcessHandler: Send + Sync {
 }
 
 pub(crate) struct RenderProcessHandlerWrapper {
-    delegate: Box<dyn RenderProcessHandler>,
-    load_handler: *mut RefCounted<cef_load_handler_t>,
+    delegate: Arc<dyn RenderProcessHandler>,
+    load_handler: Mutex<Option<RefCountedPtrCache<cef_load_handler_t>>>,
 }
 
 unsafe impl Send for RenderProcessHandlerWrapper {}
@@ -89,9 +88,26 @@ unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RenderProcessHandlerWrapper {
     pub(crate) fn new(
-        delegate: Box<dyn RenderProcessHandler>,
-    ) -> *mut RefCounted<cef_render_process_handler_t> {
-        RefCounted::new(
+        delegate: Arc<dyn RenderProcessHandler>,
+    ) -> Self {
+        Self {
+            delegate,
+            load_handler: Mutex::new(None),
+        }
+    }
+}
+
+impl std::borrow::Borrow<Arc<dyn RenderProcessHandler>> for RenderProcessHandlerWrapper {
+    fn borrow(&self) -> &Arc<dyn RenderProcessHandler> {
+        &self.delegate
+    }
+}
+
+impl Wrapper for RenderProcessHandlerWrapper {
+    type Cef = cef_render_process_handler_t;
+    type Inner = dyn RenderProcessHandler;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_render_process_handler_t {
                 base: unsafe { std::mem::zeroed() },
                 on_render_thread_created: Some(Self::render_thread_created),
@@ -105,149 +121,128 @@ impl RenderProcessHandlerWrapper {
                 on_focused_node_changed: Some(Self::focused_node_changed),
                 on_process_message_received: Some(Self::process_message_received),
             },
-            Self {
-                delegate,
-                load_handler: null_mut(),
-            },
+            self,
         )
     }
+}
 
-    extern "C" fn render_thread_created(
-        self_: *mut cef_render_process_handler_t,
-        extra_info: *mut cef_list_value_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        this.delegate
-            .on_render_thread_created(&unsafe { ListValue::from_ptr_unchecked(extra_info) }.into());
-    }
-
-    extern "C" fn web_kit_initialized(self_: *mut cef_render_process_handler_t) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this).delegate.on_web_kit_initialized();
-    }
-
-    extern "C" fn browser_created(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-        extra_info: *mut cef_dictionary_value_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this)
-            .delegate
-            .on_browser_created(unsafe { &Browser::from_ptr_unchecked(browser) }, unsafe {
-                &DictionaryValue::from_ptr_unchecked(extra_info).into()
-            });
-    }
-
-    extern "C" fn browser_destroyed(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this)
-            .delegate
-            .on_browser_destroyed(unsafe { &Browser::from_ptr_unchecked(browser) });
-    }
-
-    extern "C" fn get_load_handler(
-        self_: *mut cef_render_process_handler_t,
-    ) -> *mut cef_load_handler_t {
-        let mut this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        if let Some(handler) = (*this).delegate.get_load_handler() {
-            let wrapper = LoadHandlerWrapper::new(handler);
-            (*this).load_handler = wrapper;
-            wrapper as *mut cef_load_handler_t
-        } else {
-            if !(*this).load_handler.is_null() {
-                RefCounted::<cef_render_process_handler_t>::release(
-                    (*this).load_handler as *mut cef_base_ref_counted_t,
-                );
-                (*this).load_handler = null_mut();
-            }
-            std::ptr::null_mut()
+cef_callback_impl!{
+    impl RenderProcessHandlerWrapper: cef_render_process_handler_t {
+        fn render_thread_created(
+            &self,
+            extra_info: ListValue: *mut cef_list_value_t,
+        ) {
+            self.delegate
+                .on_render_thread_created(&extra_info);
         }
-    }
 
-    extern "C" fn context_created(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        context: *mut cef_v8context_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this).delegate.on_context_created(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            unsafe { &Frame::from_ptr_unchecked(frame) },
-            unsafe { &V8Context::from_ptr_unchecked(context) },
-        );
-    }
+        fn web_kit_initialized(&self) {
+            self.delegate.on_web_kit_initialized();
+        }
 
-    extern "C" fn context_released(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        context: *mut cef_v8context_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this).delegate.on_context_created(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            unsafe { &Frame::from_ptr_unchecked(frame) },
-            unsafe { &V8Context::from_ptr_unchecked(context) },
-        );
-    }
+        fn browser_created(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            extra_info: DictionaryValue: *mut cef_dictionary_value_t,
+        ) {
+            self
+                .delegate
+                .on_browser_created(browser, &extra_info);
+        }
 
-    extern "C" fn uncaught_exception(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        context: *mut cef_v8context_t,
-        exception: *mut cef_v8exception_t,
-        stack_trace: *mut cef_v8stack_trace_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this).delegate.on_uncaught_exception(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            unsafe { &Frame::from_ptr_unchecked(frame) },
-            unsafe { &V8Context::from_ptr_unchecked(context) },
-            unsafe { &V8Exception::from_ptr_unchecked(exception) },
-            unsafe { &V8StackTrace::from_ptr_unchecked(stack_trace) },
-        );
-    }
+        fn browser_destroyed(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+        ) {
+            self
+                .delegate
+                .on_browser_destroyed(browser);
+        }
 
-    extern "C" fn focused_node_changed(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        node: *mut cef_domnode_t,
-    ) {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        match unsafe { DOMNode::from_ptr(node) } {
-            Some(domnode) => (*this).delegate.on_focused_node_changed(
-                unsafe { &Browser::from_ptr_unchecked(browser) },
-                unsafe { &Frame::from_ptr_unchecked(frame) },
-                Some(&domnode),
-            ),
-            None => (*this).delegate.on_focused_node_changed(
-                unsafe { &Browser::from_ptr_unchecked(browser) },
-                unsafe { &Frame::from_ptr_unchecked(frame) },
-                None,
-            ),
-        };
-    }
+        fn get_load_handler(
+            &self,
+        ) -> *mut cef_load_handler_t {
+            if let Some(handler) = self.delegate.get_load_handler() {
+                self.load_handler
+                    .lock()
+                    .get_or_insert_with(|| RefCountedPtrCache::new(LoadHandlerWrapper::new(handler.clone())))
+                    .get_ptr_or_rewrap(LoadHandlerWrapper::new(handler))
+                    .into_raw()
+            } else {
+                *self.load_handler.lock() = None;
+                std::ptr::null_mut()
+            }
+        }
 
-    extern "C" fn process_message_received(
-        self_: *mut cef_render_process_handler_t,
-        browser: *mut cef_browser_t,
-        frame: *mut cef_frame_t,
-        source_process: cef_process_id_t::Type,
-        message: *mut cef_process_message_t,
-    ) -> std::os::raw::c_int {
-        let this = unsafe { RefCounted::<cef_render_process_handler_t>::make_temp(self_) };
-        (*this).delegate.on_process_message_received(
-            unsafe { &Browser::from_ptr_unchecked(browser) },
-            unsafe { &Frame::from_ptr_unchecked(frame) },
-            unsafe { ProcessId::from_unchecked(source_process as i32) },
-            unsafe { &ProcessMessage::from_ptr_unchecked(message) },
-        ) as std::os::raw::c_int
+        fn context_created(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            context: V8Context: *mut cef_v8context_t,
+        ) {
+            self.delegate.on_context_created(
+                browser,
+                frame,
+                context,
+            );
+        }
+
+        fn context_released(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            context: V8Context: *mut cef_v8context_t,
+        ) {
+            self.delegate.on_context_created(
+                browser,
+                frame,
+                context,
+            );
+        }
+
+        fn uncaught_exception(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            context: V8Context: *mut cef_v8context_t,
+            exception: V8Exception: *mut cef_v8exception_t,
+            stack_trace: V8StackTrace: *mut cef_v8stack_trace_t,
+        ) {
+            self.delegate.on_uncaught_exception(
+                browser,
+                frame,
+                context,
+                exception,
+                stack_trace,
+            );
+        }
+
+        fn focused_node_changed(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            node: Option<DOMNode>: *mut cef_domnode_t,
+        ) {
+            self.delegate.on_focused_node_changed(
+                browser,
+                frame,
+                node.as_ref()
+            )
+        }
+
+        fn process_message_received(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            source_process: ProcessId: cef_process_id_t::Type,
+            message: ProcessMessage: *mut cef_process_message_t,
+        ) -> std::os::raw::c_int {
+            self.delegate.on_process_message_received(
+                browser,
+                frame,
+                source_process,
+                &message
+            ) as std::os::raw::c_int
+        }
     }
 }
