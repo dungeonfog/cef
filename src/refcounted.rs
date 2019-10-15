@@ -320,7 +320,7 @@ ref_counter!(_cef_print_dialog_callback_t);
 ref_counter!(_cef_print_job_callback_t);
 ref_counter!(cef_print_handler_t);
 ref_counter!(_cef_task_t);
-ref_counter!(_cef_task_runner_t);
+ref_counter!(cef_task_runner_t = Option<Box<dyn FnOnce() + Send>>);
 ref_counter!(cef_v8context_t);
 ref_counter!(cef_v8handler_t = Box<dyn Fn(&str, &mut crate::v8context::V8Value, &[&mut crate::v8context::V8Value]) -> Result<crate::v8context::V8Value, String> + 'static>);
 ref_counter!(cef_v8accessor_t = Box<dyn crate::v8context::V8Accessor>);
