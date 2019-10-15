@@ -88,6 +88,8 @@ mod request_handler;
 pub use request_handler::RequestHandler;
 mod ssl;
 pub use ssl::{CertStatus, SSLInfo, X509Certificate};
+mod task;
+pub use task::{TaskRunner};
 
 /// Return value types.
 #[repr(i32)]

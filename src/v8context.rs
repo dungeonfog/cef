@@ -1,8 +1,8 @@
-use cef_sys::{cef_string_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t, cef_v8value_t, cef_v8value_create_undefined, cef_v8value_create_null, cef_v8value_create_bool, cef_v8value_create_int, cef_v8value_create_uint, cef_v8value_create_double, cef_v8value_create_date, cef_time_from_doublet, cef_v8value_create_string, cef_v8accessor_t, cef_v8interceptor_t, cef_v8value_create_object, cef_v8value_create_array, cef_v8value_create_array_buffer, cef_v8array_buffer_release_callback_t, cef_v8value_create_function, cef_v8handler_t, cef_register_extension, cef_v8_propertyattribute_t, cef_v8_accesscontrol_t, cef_base_ref_counted_t};
+use cef_sys::{cef_string_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t, cef_v8value_t, cef_v8value_create_undefined, cef_v8value_create_null, cef_v8value_create_bool, cef_v8value_create_int, cef_v8value_create_uint, cef_v8value_create_double, cef_v8value_create_date, cef_time_from_doublet, cef_v8value_create_string, cef_v8accessor_t, cef_v8interceptor_t, cef_v8value_create_object, cef_v8value_create_array, cef_v8value_create_array_buffer, cef_v8array_buffer_release_callback_t, cef_v8value_create_function, cef_v8handler_t, cef_register_extension, cef_v8_propertyattribute_t, cef_v8_accesscontrol_t, cef_base_ref_counted_t, cef_v8context_get_current_context, cef_v8context_get_entered_context, cef_v8context_in_context};
 use std::{
     time::{SystemTime, SystemTimeError},
     convert::TryFrom,
-    ptr::null_mut,
+    ptr::{null, null_mut},
     collections::HashSet,
     any::Any,
     sync::Arc,
@@ -12,13 +12,33 @@ use crate::{
     client::Client,
     string::{CefString, CefStringList},
     refcounted::{RefCounted, RefCounterWrapped},
+    task::TaskRunner,
+    browser::Browser,
+    frame::Frame,
 };
 
 ref_counted_ptr! {
+    /// Structure representing a V8 context handle. V8 handles can only be accessed
+    /// from the thread on which they are created. Valid threads for creating a V8
+    /// handle include the render process main thread (TID_RENDERER) and WebWorker
+    /// threads. A task runner for posting tasks on the associated thread can be
+    /// retrieved via the [V8Context::get_task_runner] function.
     pub struct V8Context<C: Client>(*mut cef_v8context_t);
 }
 
 impl<C> V8Context<C> where C: Client {
+    /// Returns the current (top) context object in the V8 context stack.
+    pub fn get_current() -> Option<Self> {
+        unsafe { Self::from_ptr(cef_v8context_get_current_context()) }
+    }
+    /// Returns the entered (bottom) context object in the V8 context stack.
+    pub fn get_entered() -> Option<Self> {
+        unsafe { Self::from_ptr(cef_v8context_get_entered_context()) }
+    }
+    /// Returns true if V8 is currently inside a context.
+    pub fn in_context() -> bool {
+        unsafe { cef_v8context_in_context() != 0 }
+    }
     /// Register a new V8 extension with the specified JavaScript extension code and
     /// handler. Functions implemented by the handler are prototyped using the
     /// keyword 'native'. The calling of a native function is restricted to the scope
@@ -81,6 +101,90 @@ impl<C> V8Context<C> where C: Client {
         let js = CefString::new(javascript_code);
         unsafe {
             cef_register_extension(name.as_ptr(), js.as_ptr(), V8HandlerWrapper::new(handler));
+        }
+    }
+    /// Returns the task runner associated with this context. V8 handles can only
+    /// be accessed from the thread on which they are created. This function can be
+    /// called on any render process thread.
+    pub fn get_task_runner(&self) -> TaskRunner {
+        let get_task_runner = self.0.get_task_runner.unwrap();
+        unsafe { get_task_runner() }
+    }
+    /// Returns true if the underlying handle is valid and it can be accessed
+    /// on the current thread. Do not call any other functions if this function
+    /// returns false.
+    pub fn is_valid(&self) -> bool {
+        self.0.is_valid.map(|is_valid| {
+            unsafe { is_valid(self.as_ptr()) != 0 }
+        }).unwrap_or(false)
+    }
+    /// Returns the browser for this context. This function will return None
+    /// for WebWorker contexts.
+    pub fn get_browser(&self) -> Option<Browser<C>> {
+        self.0.get_browser.and_then(|get_browser| {
+            unsafe { Browser::from_ptr(get_browser(self.as_ptr())) }
+        })
+    }
+    /// Returns the frame for this context. This function will return None
+    /// for WebWorker contexts.
+    pub fn get_frame(&self) -> Option<Frame<C>> {
+        self.0.get_frame.and_then(|get_frame| {
+            unsafe { Frame::from_ptr(get_frame(self.as_ptr())) }
+        })
+    }
+    /// Returns the global object for this context or None if scripting is disabled.
+    /// The context must be entered before calling this function.
+    pub fn get_global(&self) -> Option<V8Value> {
+        self.0.get_global.and_then(|get_global| {
+            unsafe { V8Value::from_ptr(get_global(self.as_ptr())) }
+        })
+    }
+    /// Enter this context. A context must be explicitly entered before creating a
+    /// V8 Object, Array, Function or Date asynchronously. [exit] must be called
+    /// the same number of times as [enter] before releasing this context. V8
+    /// objects belong to the context in which they are created. Returns true
+    /// if the scope was entered successfully.
+    pub fn enter(&mut self) -> bool {
+        self.0.enter.map(|enter| {
+            unsafe { enter(self.as_ptr()) != 0 }
+        }).unwrap_or(false)
+    }
+    /// Exit this context. Call this function only after calling [enter]. Returns
+    /// true if the scope was exited successfully.
+    pub fn exit(&mut self) -> bool {
+        self.0.exit.map(|exit| {
+            unsafe { exit(self.as_ptr()) != 0 }
+        }).unwrap_or(false)
+    }
+    /// Convenience function to wrap a closure in an [enter] and [exit] call.
+    /// If enter fails, the closure is not executed and None is returned. If exit fails, None is returned.
+    pub fn execute_in_context<T>(&mut self, fun: impl FnOnce() -> T) -> Option<T> {
+        if self.enter() {
+            let result = fun();
+            if self.exit() {
+                return Some(result);
+            }
+        }
+        None
+    }
+    /// Returns true if this object is pointing to the same handle as `that`
+    /// object.
+    pub fn is_same(&self, that: &Self) -> bool {
+        self.0.is_same.map(|is_same| {
+            unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }
+        }).unwrap_or(false)
+    }
+    /// Execute a string of JavaScript code in this V8 context. The `script_url`
+    /// parameter is the URL where the script in question can be found, if any. The
+    /// `start_line` parameter is the base line number to use for error reporting.
+    pub fn eval(&mut self, code: &str, script_url: &str, start_line: i32) -> Result<V8Value, V8Exception> {
+        let eval = self.0.eval.unwrap();
+        let mut retval = null();
+        let mut exception = null();
+        if unsafe { eval(CefString::new(code).as_ptr(), CefString::new(script_url).as_ptr(), start_line, &mut retval, &mut exception) == 1 } {
+            Ok(unsafe { V8Value::from_ptr_unchecked(retval) })
+        } else {
+            Err(unsafe { V8Exception::from_ptr_unchecked(exception) })
         }
     }
 }
