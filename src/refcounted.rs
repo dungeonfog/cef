@@ -322,7 +322,7 @@ ref_counter!(cef_print_handler_t);
 ref_counter!(_cef_task_t);
 ref_counter!(_cef_task_runner_t);
 ref_counter!(cef_v8context_t);
-ref_counter!(cef_v8handler_t);
+ref_counter!(cef_v8handler_t = Box<dyn Fn(&str, &mut crate::v8context::V8Value, &[&mut crate::v8context::V8Value]) -> Result<crate::v8context::V8Value, String> + 'static>);
 ref_counter!(cef_v8accessor_t = Box<dyn crate::v8context::V8Accessor>);
 ref_counter!(cef_v8interceptor_t = Box<dyn crate::v8context::V8Interceptor>);
 ref_counter!(cef_v8exception_t);
