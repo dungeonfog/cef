@@ -190,13 +190,65 @@ impl<C> V8Context<C> where C: Client {
 }
 
 ref_counted_ptr! {
+    /// Structure representing a V8 exception. The functions of this structure may be
+    /// called on any render process thread.
     pub struct V8Exception(*mut cef_v8exception_t);
 }
 
 impl V8Exception {
     /// Returns the exception message.
     pub fn get_message(&self) -> String {
-        "".to_owned()
+        self.0.get_message.and_then(|get_message| {
+            unsafe { CefString::from_mut_ptr(get_message(self.as_ptr())) }.into_string()
+        }).unwrap_or_default()
+    }
+    /// Returns the line of source code that the exception occurred within.
+    pub fn get_source_line(&self) -> String {
+        self.0.get_source_line.and_then(|get_source_line| {
+            unsafe { CefString::from_mut_ptr(get_source_line(self.as_ptr())) }.into_string()
+        }).unwrap_or_default()
+    }
+    /// Returns the resource name for the script from where the function causing
+    /// the error originates.
+    pub fn get_script_resource_name(&self) -> String {
+        self.0.get_script_resource_name.and_then(|get_script_resource_name| {
+            unsafe { CefString::from_mut_ptr(get_script_resource_name(self.as_ptr())) }.into_string()
+        }).unwrap_or_default()
+    }
+    /// Returns the 1-based number of the line where the error occurred or 0 if the
+    /// line number is unknown.
+    pub fn get_line_number(&self) -> i32 {
+        self.0.get_line_number.and_then(|get_line_number| {
+            unsafe { get_line_number(self.as_ptr()) }
+        }).unwrap_or_default()
+    }
+    /// Returns the index within the script of the first character where the error
+    /// occurred.
+    pub fn get_start_position(&self) -> i32 {
+        self.0.get_start_position.and_then(|get_start_position| {
+            unsafe { get_start_position(self.as_ptr()) }
+        }).unwrap_or_default()
+    }
+    /// Returns the index within the script of the last character where the error
+    /// occurred.
+    pub fn get_end_position(&self) -> i32 {
+        self.0.get_end_position.and_then(|get_end_position| {
+            unsafe { get_end_position(self.as_ptr()) }
+        }).unwrap_or_default()
+    }
+    /// Returns the index within the line of the first character where the error
+    /// occurred.
+    pub fn get_start_column(&self) -> i32 {
+        self.0.get_start_column.and_then(|get_start_column| {
+            unsafe { get_start_column(self.as_ptr()) }
+        }).unwrap_or_default()
+    }
+    /// Returns the index within the line of the last character where the error
+    /// occurred.
+    pub fn get_end_column(&self) -> i32 {
+        self.0.get_end_column.and_then(|get_end_column| {
+            unsafe { get_end_column(self.as_ptr()) }
+        }).unwrap_or_default()
     }
 }
 
