@@ -121,7 +121,7 @@ impl RunFileDialogCallbackWrapper {
 }
 
 cef_callback_impl!{
-    impl RunFileDialogCallbackWrapper: cef_run_file_dialog_callback_t {
+    impl for RunFileDialogCallbackWrapper: cef_run_file_dialog_callback_t {
         fn file_dialog_dismissed(
             &self,
             selected_accept_filter: std::os::raw::c_int: std::os::raw::c_int,

@@ -15,6 +15,7 @@ use std::{
 
 use crate::{
     browser::Browser,
+    client::Client,
     frame::Frame,
     refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
     request::Request,
@@ -35,7 +36,7 @@ pub enum PluginPolicy {
 /// Implement this structure to provide handler implementations. The handler
 /// instance will not be released until all objects related to the context have
 /// been destroyed.
-pub trait RequestContextHandler: Send + Sync {
+pub trait RequestContextHandler<C: Client>: Send + Sync {
     /// Called on the browser process UI thread immediately after the request
     /// context has been initialized.
     fn on_request_context_initialized(&self, request_context: RequestContext) {}
@@ -85,32 +86,32 @@ pub trait RequestContextHandler: Send + Sync {
     /// (identified by [Request::get_identifier]).
     fn get_resource_request_handler(
         &self,
-        browser: Option<Browser>,
-        frame: Option<Frame>,
+        browser: Option<Browser<C>>,
+        frame: Option<Frame<C>>,
         request: Request,
         is_navigation: bool,
         is_download: bool,
         request_initiator: &str,
         disable_default_handling: &mut bool,
-    ) -> Option<Arc<dyn ResourceRequestHandler>> {
+    ) -> Option<Arc<dyn ResourceRequestHandler<C>>> {
         None
     }
 }
 
-pub(crate) struct RequestContextHandlerWrapper {
-    delegate: Arc<dyn RequestContextHandler>,
+pub(crate) struct RequestContextHandlerWrapper<C: Client> {
+    delegate: Arc<dyn RequestContextHandler<C>>,
     resource_request_handler: Mutex<Option<RefCountedPtrCache<cef_resource_request_handler_t>>>,
 }
 
-impl std::borrow::Borrow<Arc<dyn RequestContextHandler>> for RequestContextHandlerWrapper {
-    fn borrow(&self) -> &Arc<dyn RequestContextHandler> {
+impl<C: Client> std::borrow::Borrow<Arc<dyn RequestContextHandler<C>>> for RequestContextHandlerWrapper<C> {
+    fn borrow(&self) -> &Arc<dyn RequestContextHandler<C>> {
         &self.delegate
     }
 }
 
-impl Wrapper for RequestContextHandlerWrapper {
+impl<C: Client> Wrapper for RequestContextHandlerWrapper<C> {
     type Cef = cef_request_context_handler_t;
-    type Inner = dyn RequestContextHandler;
+    type Inner = dyn RequestContextHandler<C>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_request_context_handler_t {
@@ -124,10 +125,10 @@ impl Wrapper for RequestContextHandlerWrapper {
     }
 }
 
-impl RequestContextHandlerWrapper {
+impl<C: Client> RequestContextHandlerWrapper<C> {
     pub(crate) fn new(
-        delegate: Arc<dyn RequestContextHandler>,
-    ) -> RequestContextHandlerWrapper {
+        delegate: Arc<dyn RequestContextHandler<C>>,
+    ) -> RequestContextHandlerWrapper<C> {
         Self {
             delegate,
             resource_request_handler: Mutex::new(None),
@@ -135,15 +136,15 @@ impl RequestContextHandlerWrapper {
     }
 }
 cef_callback_impl!{
-    impl RequestContextHandlerWrapper: cef_request_context_handler_t {
-        fn request_context_initialized(
+    impl<C: Client> for RequestContextHandlerWrapper<C>: cef_request_context_handler_t {
+        fn request_context_initialized<C: Client>(
             &self,
             request_context: RequestContext: *mut cef_request_context_t,
         ) {
             self.delegate
                 .on_request_context_initialized(request_context);
         }
-        fn before_plugin_load(
+        fn before_plugin_load<C: Client>(
             &self,
             mime_type: &CefString: *const cef_string_t,
             plugin_url: Option<&CefString>: *const cef_string_t,
@@ -172,10 +173,10 @@ cef_callback_impl!{
                 0
             }
         }
-        fn get_resource_request_handler(
+        fn get_resource_request_handler<C: Client>(
             &self,
-            browser: Option<Browser>: *mut cef_browser_t,
-            frame: Option<Frame>: *mut cef_frame_t,
+            browser: Option<Browser<C>>: *mut cef_browser_t,
+            frame: Option<Frame<C>>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             is_navigation: bool: std::os::raw::c_int,
             is_download: bool: std::os::raw::c_int,
@@ -232,9 +233,9 @@ impl RequestContext {
     }
     /// Creates a new context object that shares storage with `other` and uses an
     /// optional `handler`.
-    pub fn new_shared(
+    pub fn new_shared<C: Client>(
         other: RequestContext,
-        handler: Option<Arc<dyn RequestContextHandler>>,
+        handler: Option<Arc<dyn RequestContextHandler<C>>>,
     ) -> Self {
         let handler_ptr = if let Some(handler) = handler {
             RequestContextHandlerWrapper::new(handler).wrap().into_raw()
@@ -246,12 +247,12 @@ impl RequestContext {
 }
 
 /// Request context initialization settings.
-pub struct RequestContextBuilder(
+pub struct RequestContextBuilder<C: Client>(
     Option<cef_request_context_settings_t>,
-    Option<Arc<dyn RequestContextHandler>>,
+    Option<Arc<dyn RequestContextHandler<C>>>,
 );
 
-impl RequestContextBuilder {
+impl<C: Client> RequestContextBuilder<C> {
     pub fn new() -> Self {
         Self(None, None)
     }
@@ -288,7 +289,7 @@ impl RequestContextBuilder {
     }
 
     /// Optionally supply a handler to the request context. See [RequestContextHandler].
-    pub fn with_handler(mut self, handler: Arc<dyn RequestContextHandler>) -> Self {
+    pub fn with_handler(mut self, handler: Arc<dyn RequestContextHandler<C>>) -> Self {
         self.1.replace(handler);
         self
     }

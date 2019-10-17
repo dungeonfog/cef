@@ -108,7 +108,7 @@ impl ResourceBundleHandlerWrapper {
     }
 }
 cef_callback_impl!{
-    impl ResourceBundleHandlerWrapper: cef_resource_bundle_handler_t {
+    impl for ResourceBundleHandlerWrapper: cef_resource_bundle_handler_t {
         fn get_localized_string(
             &self,
             string_id: std::os::raw::c_int: std::os::raw::c_int,

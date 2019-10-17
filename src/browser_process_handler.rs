@@ -95,7 +95,7 @@ impl BrowserProcessHandlerWrapper {
 }
 
 cef_callback_impl!{
-    impl BrowserProcessHandlerWrapper: cef_browser_process_handler_t {
+    impl for BrowserProcessHandlerWrapper: cef_browser_process_handler_t {
         fn context_initialized(&self) {
             self.delegate.on_context_initialized();
         }

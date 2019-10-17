@@ -195,7 +195,7 @@ impl DOMVisitorWrapper {
 }
 
 cef_callback_impl!{
-    impl DOMVisitorWrapper: cef_domvisitor_t {
+    impl for DOMVisitorWrapper: cef_domvisitor_t {
         fn visit(
             &self,
             document: DOMDocument: *mut cef_domdocument_t,

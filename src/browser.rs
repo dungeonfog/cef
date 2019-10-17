@@ -2,6 +2,7 @@ use cef_sys::{cef_browser_settings_t, cef_browser_t, cef_state_t, cef_string_utf
 
 use crate::{
     browser_host::BrowserHost,
+    client::Client,
     color::Color,
     frame::Frame,
     string::{CefString, CefStringList},
@@ -12,13 +13,13 @@ ref_counted_ptr! {
     /// process the functions of this structure may be called on any thread unless
     /// otherwise indicated in the comments. When used in the render process the
     /// functions of this structure may only be called on the main thread.
-    pub struct Browser(*mut cef_browser_t);
+    pub struct Browser<C: Client>(*mut cef_browser_t);
 }
 
-impl Browser {
+impl<C> Browser<C> where C: Client {
     /// Returns the browser host object. This function can only be called in the
     /// browser process.
-    pub fn get_host(&self) -> BrowserHost {
+    pub fn get_host(&self) -> BrowserHost<C> {
         unsafe { BrowserHost::from_ptr_unchecked((self.0.get_host.unwrap())(self.0.as_ptr())) }
     }
     /// Returns true if the browser can navigate backwards.
@@ -77,15 +78,15 @@ impl Browser {
         unsafe { (self.0.has_document.unwrap())(self.0.as_ptr()) != 0 }
     }
     /// Returns the main (top-level) frame for the browser window.
-    pub fn get_main_frame(&self) -> Frame {
+    pub fn get_main_frame(&self) -> Frame<C> {
         unsafe { Frame::from_ptr_unchecked((self.0.get_main_frame.unwrap())(self.0.as_ptr())) }
     }
     /// Returns the focused frame for the browser window.
-    pub fn get_focused_frame(&self) -> Option<Frame> {
+    pub fn get_focused_frame(&self) -> Option<Frame<C>> {
         unsafe { Frame::from_ptr((self.0.get_focused_frame.unwrap())(self.0.as_ptr())) }
     }
     /// Returns the frame with the specified identifier, or None if not found.
-    pub fn get_frame_byident(&self, identifier: i64) -> Option<Frame> {
+    pub fn get_frame_byident(&self, identifier: i64) -> Option<Frame<C>> {
         unsafe {
             Frame::from_ptr((self.0.get_frame_byident.unwrap())(
                 self.0.as_ptr(),
@@ -94,7 +95,7 @@ impl Browser {
         }
     }
     /// Returns the frame with the specified name, or None if not found.
-    pub fn get_frame(&self, name: &str) -> Option<Frame> {
+    pub fn get_frame(&self, name: &str) -> Option<Frame<C>> {
         unsafe {
             Frame::from_ptr((self.0.get_frame.unwrap())(
                 self.0.as_ptr(),

@@ -8,6 +8,7 @@ use crate::{
     browser_host::BrowserHost,
     callback::Callback,
     command_line::CommandLine,
+    client::Client,
     dom::{DOMDocument, DOMNode},
     drag::DragData,
     frame::Frame,
@@ -62,8 +63,8 @@ where
 }
 
 macro_rules! owned_casts {
-    (impl for $Self:ty = $CType:ty) => {
-        impl CToRustType for $Self {
+    (impl$(<$($generic:ident $(: $bound:path)?),+>)? for $Self:ty = $CType:ty) => {
+        impl$(<$($generic $(: $bound)?),+>)? CToRustType for $Self {
             type CType = $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 <$Self>::from_ptr_unchecked(c_type)
@@ -121,14 +122,14 @@ macro_rules! owned_casts_from_unchecked {
 }
 
 owned_casts!(impl for App = *mut cef_sys::cef_app_t);
-owned_casts!(impl for Browser = *mut cef_sys::cef_browser_t);
-owned_casts!(impl for BrowserHost = *mut cef_sys::cef_browser_host_t);
+owned_casts!(impl<C: Client> for Browser<C> = *mut cef_sys::cef_browser_t);
+owned_casts!(impl<C: Client> for BrowserHost<C> = *mut cef_sys::cef_browser_host_t);
 owned_casts!(impl for Callback = *mut cef_sys::cef_callback_t);
 owned_casts!(impl for CommandLine = *mut cef_sys::cef_command_line_t);
 owned_casts!(impl for DOMNode = *mut cef_sys::cef_domnode_t);
 owned_casts!(impl for DOMDocument = *mut cef_sys::cef_domdocument_t);
 owned_casts!(impl for DragData = *mut cef_sys::cef_drag_data_t);
-owned_casts!(impl for Frame = *mut cef_sys::cef_frame_t);
+owned_casts!(impl<C: Client> for Frame<C> = *mut cef_sys::cef_frame_t);
 owned_casts!(impl for Image = *mut cef_sys::cef_image_t);
 owned_casts!(impl for NavigationEntry = *mut cef_sys::cef_navigation_entry_t);
 owned_casts!(impl for ProcessMessage = *mut cef_sys::cef_process_message_t);
@@ -139,7 +140,7 @@ owned_casts!(impl for URLRequest = *mut cef_sys::cef_urlrequest_t);
 owned_casts!(impl for AuthCallback = *mut cef_sys::cef_auth_callback_t);
 owned_casts!(impl for Response = *mut cef_sys::cef_response_t);
 owned_casts!(impl for RequestCallback = *mut cef_sys::cef_request_callback_t);
-owned_casts!(impl for V8Context = *mut cef_sys::cef_v8context_t);
+owned_casts!(impl<C: Client> for V8Context<C> = *mut cef_sys::cef_v8context_t);
 owned_casts!(impl for V8Exception = *mut cef_sys::cef_v8exception_t);
 owned_casts!(impl for V8StackTrace = *mut cef_sys::cef_v8stack_trace_t);
 owned_casts!(impl for Value = *mut cef_sys::cef_value_t);
@@ -236,20 +237,20 @@ impl<T> CToRustType for *mut T {
 }
 
 macro_rules! cef_callback_impl {
-    (impl $RefCounted:ty: $CType:ty {
+    (impl$(<$($generic:ident $(: $bound:path)?),+>)? for $RefCounted:ty: $CType:ty {
         $(
             $(#[$meta:meta])*
-            fn $fn_name:ident(&$self:ident $(, $field_name:ident: $field_ty:ty: $c_ty:ty)* $(,)?) $(-> $ret:ty)? $body:block
+            fn $fn_name:ident$(<$($igeneric:ident $(: $ibound:path)?),+>)?(&$self:ident $(, $field_name:ident: $field_ty:ty: $c_ty:ty)* $(,)?) $(-> $ret:ty)? $body:block
         )+
     }) => {
-        impl $RefCounted {
+        impl$(<$($generic $(: $bound)?),+>)? $RefCounted {
             $(
                 $(#[$meta])*
                 extern "C" fn $fn_name(self_: *mut $CType, $($field_name: $c_ty),*) $(-> $ret)? {
-                    trait Impl {
+                    trait Impl$(<$($igeneric $(: $ibound)?),+>)? {
                         fn inner(&$self, $($field_name: $field_ty),*) $(-> $ret)?;
                     }
-                    impl Impl for $RefCounted {
+                    impl$(<$($igeneric $(: $ibound)?),+>)? Impl$(<$($igeneric),+>)? for $RefCounted {
                         #[inline(always)]
                         fn inner(&$self, $($field_name: $field_ty),*) $(-> $ret)? $body
                     }

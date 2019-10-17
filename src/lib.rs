@@ -49,7 +49,7 @@ pub use resource_request_handler::ResourceRequestHandler;
 mod client;
 pub use client::Client;
 mod image;
-pub use image::Image;
+pub use image::{Image, ColorType, AlphaType, RepresentationInfo, BinaryImage};
 
 mod command_line;
 pub use command_line::CommandLine;
@@ -84,6 +84,12 @@ mod navigation;
 pub use navigation::NavigationEntry;
 mod extension;
 pub use extension::Extension;
+mod request_handler;
+pub use request_handler::RequestHandler;
+mod ssl;
+pub use ssl::{CertStatus, SSLInfo, X509Certificate};
+mod task;
+pub use task::{TaskRunner};
 
 /// Return value types.
 #[repr(i32)]
