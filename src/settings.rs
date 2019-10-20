@@ -402,6 +402,12 @@ impl Settings {
     }
 }
 
+impl Default for Settings {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for Settings {
     fn drop(&mut self) {
         let settings = &self.0;

@@ -18,7 +18,7 @@ impl Color {
                 | ((blue * 255.0) as u32),
         )
     }
-    pub(crate) fn get(&self) -> cef_color_t {
+    pub(crate) fn get(self) -> cef_color_t {
         self.0
     }
 }

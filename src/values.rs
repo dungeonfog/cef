@@ -58,14 +58,14 @@ impl Value {
     pub(crate) fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) != 0 }))
+            .map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is owned by another object.
     pub(crate) fn is_owned(&self) -> bool {
         self.0
             .is_owned
-            .and_then(|is_owned| Some(unsafe { is_owned(self.as_ptr()) != 0 }))
+            .map(|is_owned| unsafe { is_owned(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is read-only. Some APIs may expose
@@ -73,7 +73,7 @@ impl Value {
     pub(crate) fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) != 0 })
             .unwrap_or(true)
     }
     /// Returns true if this object and `that` object have the same underlying
@@ -82,15 +82,15 @@ impl Value {
     pub(crate) fn is_same(&self, that: &Value) -> bool {
         self.0
             .is_same
-            .and_then(|is_same| Some(unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the underlying value type.
     pub(crate) fn get_type(&self) -> ValueType {
         self.0
             .get_type
-            .and_then(|get_type| {
-                Some(match unsafe { get_type(self.as_ptr()) } {
+            .map(|get_type| {
+                match unsafe { get_type(self.as_ptr()) } {
                     cef_value_type_t::VTYPE_NULL => ValueType::Null,
                     cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
                     cef_value_type_t::VTYPE_INT => ValueType::Int,
@@ -100,7 +100,7 @@ impl Value {
                     cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
                     cef_value_type_t::VTYPE_LIST => ValueType::List,
                     _ => ValueType::Invalid,
-                })
+                }
             })
             .unwrap_or(ValueType::Invalid)
     }
@@ -108,21 +108,21 @@ impl Value {
     pub(crate) fn to_bool(&self) -> bool {
         self.0
             .get_bool
-            .and_then(|get_bool| Some(unsafe { get_bool(self.as_ptr()) != 0 }))
+            .map(|get_bool| unsafe { get_bool(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the underlying value as type int.
     pub(crate) fn to_int(&self) -> i32 {
         self.0
             .get_int
-            .and_then(|get_int| Some(unsafe { get_int(self.as_ptr()) as i32 }))
+            .map(|get_int| unsafe { get_int(self.as_ptr()) as i32 })
             .unwrap_or(0)
     }
     /// Returns the underlying value as type double.
     pub(crate) fn to_double(&self) -> f64 {
         self.0
             .get_double
-            .and_then(|get_double| Some(unsafe { get_double(self.as_ptr()) }))
+            .map(|get_double| unsafe { get_double(self.as_ptr()) })
             .unwrap_or(0.0)
     }
     /// Returns the underlying value as type string.
@@ -137,7 +137,7 @@ impl Value {
                 }
                 result
             })
-            .unwrap_or_else(|| String::new())
+            .unwrap_or_else(String::new)
     }
     /// Returns the underlying value as type binary. The returned reference may
     /// become invalid if the value is owned by another object or if ownership is
@@ -177,7 +177,7 @@ impl Value {
     pub(crate) fn set_null(&mut self) -> bool {
         self.0
             .set_null
-            .and_then(|set_null| Some(unsafe { set_null(self.as_ptr()) != 0 }))
+            .map(|set_null| unsafe { set_null(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Sets the underlying value as type bool. Returns true if the value was
@@ -185,8 +185,8 @@ impl Value {
     pub(crate) fn set_bool(&mut self, value: bool) -> bool {
         self.0
             .set_bool
-            .and_then(|set_bool| {
-                Some(unsafe { set_bool(self.as_ptr(), if value { 1 } else { 0 }) != 0 })
+            .map(|set_bool| {
+                unsafe { set_bool(self.as_ptr(), if value { 1 } else { 0 }) != 0 }
             })
             .unwrap_or(false)
     }
@@ -195,8 +195,8 @@ impl Value {
     pub(crate) fn set_int(&mut self, value: i32) -> bool {
         self.0
             .set_int
-            .and_then(|set_int| {
-                Some(unsafe { set_int(self.as_ptr(), value as std::os::raw::c_int) != 0 })
+            .map(|set_int| {
+                unsafe { set_int(self.as_ptr(), value as std::os::raw::c_int) != 0 }
             })
             .unwrap_or(false)
     }
@@ -205,7 +205,7 @@ impl Value {
     pub(crate) fn set_double(&mut self, value: f64) -> bool {
         self.0
             .set_double
-            .and_then(|set_double| Some(unsafe { set_double(self.as_ptr(), value) != 0 }))
+            .map(|set_double| unsafe { set_double(self.as_ptr(), value) != 0 })
             .unwrap_or(false)
     }
     /// Sets the underlying value as type string. Returns true if the value was
@@ -213,8 +213,8 @@ impl Value {
     pub(crate) fn set_string(&mut self, value: &str) -> bool {
         self.0
             .set_string
-            .and_then(|set_string| {
-                Some(unsafe { set_string(self.as_ptr(), CefString::new(value).as_ptr()) != 0 })
+            .map(|set_string| {
+                unsafe { set_string(self.as_ptr(), CefString::new(value).as_ptr()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -224,10 +224,10 @@ impl Value {
     pub(crate) fn set_binary(&mut self, value: BinaryValue) -> bool {
         self.0
             .set_binary
-            .and_then(|set_binary| {
-                Some(unsafe {
+            .map(|set_binary| {
+                unsafe {
                     set_binary(self.as_ptr(), value.into_raw()) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -237,8 +237,8 @@ impl Value {
     pub(crate) fn set_dictionary(&mut self, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
-            .and_then(|set_dictionary| {
-                Some(unsafe { set_dictionary(self.as_ptr(), value.into_raw()) != 0 })
+            .map(|set_dictionary| {
+                unsafe { set_dictionary(self.as_ptr(), value.into_raw()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -248,7 +248,7 @@ impl Value {
     pub(crate) fn set_list(&mut self, value: ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| Some(unsafe { set_list(self.as_ptr(), value.into_raw()) != 0 }))
+            .map(|set_list| unsafe { set_list(self.as_ptr(), value.into_raw()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -259,7 +259,7 @@ impl PartialEq for Value {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .and_then(|is_equal| Some(unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -340,14 +340,14 @@ impl BinaryValue {
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) != 0 }))
+            .map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is owned by another object.
     pub fn is_owned(&self) -> bool {
         self.0
             .is_owned
-            .and_then(|is_owned| Some(unsafe { is_owned(self.as_ptr()) != 0 }))
+            .map(|is_owned| unsafe { is_owned(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if this object and `that` object have the same underlying
@@ -355,14 +355,14 @@ impl BinaryValue {
     pub fn is_same(&self, that: &BinaryValue) -> bool {
         self.0
             .is_same
-            .and_then(|is_same| Some(unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the data size.
     pub fn len(&self) -> usize {
         self.0
             .get_size
-            .and_then(|get_size| Some(unsafe { get_size(self.as_ptr()) }))
+            .map(|get_size| unsafe { get_size(self.as_ptr()) })
             .unwrap_or(0)
     }
     pub fn push_to_vec(&self, vec: &mut Vec<u8>) {
@@ -467,7 +467,7 @@ impl PartialEq for BinaryValue {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .and_then(|is_equal| Some(unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -494,14 +494,14 @@ impl DictionaryValue {
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) != 0 }))
+            .map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is owned by another object.
     pub fn is_owned(&self) -> bool {
         self.0
             .is_owned
-            .and_then(|is_owned| Some(unsafe { is_owned(self.as_ptr()) != 0 }))
+            .map(|is_owned| unsafe { is_owned(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is read-only. Some APIs may expose
@@ -509,7 +509,7 @@ impl DictionaryValue {
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) != 0 })
             .unwrap_or(true)
     }
     /// Returns true if this object and `that` object have the same underlying
@@ -517,29 +517,29 @@ impl DictionaryValue {
     pub fn is_same(&self, that: &DictionaryValue) -> bool {
         self.0
             .is_same
-            .and_then(|is_same| Some(unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the number of values.
     pub fn len(&self) -> usize {
         self.0
             .get_size
-            .and_then(|get_size| Some(unsafe { get_size(self.as_ptr()) }))
+            .map(|get_size| unsafe { get_size(self.as_ptr()) })
             .unwrap_or(0)
     }
     /// Removes all values. Returns true on success.
     pub fn clear(&mut self) -> bool {
         self.0
             .clear
-            .and_then(|clear| Some(unsafe { clear(self.as_ptr()) != 0 }))
+            .map(|clear| unsafe { clear(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the current dictionary has a value for the given key.
     pub fn contains_key(&self, key: &str) -> bool {
         self.0
             .has_key
-            .and_then(|has_key| {
-                Some(unsafe { has_key(self.as_ptr(), CefString::new(key).as_ptr()) != 0 })
+            .map(|has_key| {
+                unsafe { has_key(self.as_ptr(), CefString::new(key).as_ptr()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -566,8 +566,8 @@ impl DictionaryValue {
     pub fn remove(&mut self, key: &str) -> bool {
         self.0
             .remove
-            .and_then(|remove| {
-                Some(unsafe { remove(self.as_ptr(), CefString::new(key).as_ptr()) != 0 })
+            .map(|remove| {
+                unsafe { remove(self.as_ptr(), CefString::new(key).as_ptr()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -575,21 +575,19 @@ impl DictionaryValue {
     pub(crate) fn get_type(&self, key: &str) -> ValueType {
         self.0
             .get_type
-            .and_then(|get_type| {
-                Some(
-                    match unsafe { get_type(self.as_ptr(), CefString::new(key).as_ptr()) } {
-                        cef_value_type_t::VTYPE_NULL => ValueType::Null,
-                        cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
-                        cef_value_type_t::VTYPE_INT => ValueType::Int,
-                        cef_value_type_t::VTYPE_DOUBLE => ValueType::Double,
-                        cef_value_type_t::VTYPE_STRING => ValueType::String,
-                        cef_value_type_t::VTYPE_BINARY => ValueType::Binary,
-                        cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
-                        cef_value_type_t::VTYPE_LIST => ValueType::List,
-                        _ => ValueType::Invalid,
-                    },
-                )
-            })
+            .map(|get_type|
+                match unsafe { get_type(self.as_ptr(), CefString::new(key).as_ptr()) } {
+                    cef_value_type_t::VTYPE_NULL => ValueType::Null,
+                    cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
+                    cef_value_type_t::VTYPE_INT => ValueType::Int,
+                    cef_value_type_t::VTYPE_DOUBLE => ValueType::Double,
+                    cef_value_type_t::VTYPE_STRING => ValueType::String,
+                    cef_value_type_t::VTYPE_BINARY => ValueType::Binary,
+                    cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
+                    cef_value_type_t::VTYPE_LIST => ValueType::List,
+                    _ => ValueType::Invalid,
+                }
+            )
             .unwrap_or(ValueType::Invalid)
     }
     /// Returns the value at the specified key. For simple types the returned value
@@ -603,7 +601,7 @@ impl DictionaryValue {
             .and_then(|get_value| unsafe {
                 Value::from_ptr(get_value(self.as_ptr(), key.as_ptr()))
             })
-            .unwrap_or_else(|| Value::new())
+            .unwrap_or_else(Value::new)
     }
     /// Returns the value at the specified key.
     pub fn get(&self, key: &str) -> StoredValue {
@@ -613,8 +611,8 @@ impl DictionaryValue {
     pub fn get_bool(&self, key: &str) -> bool {
         self.0
             .get_bool
-            .and_then(|get_bool| {
-                Some(unsafe { get_bool(self.as_ptr(), CefString::new(key).as_ptr()) != 0 })
+            .map(|get_bool| {
+                unsafe { get_bool(self.as_ptr(), CefString::new(key).as_ptr()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -622,8 +620,8 @@ impl DictionaryValue {
     pub fn get_int(&self, key: &str) -> i32 {
         self.0
             .get_int
-            .and_then(|get_int| {
-                Some(unsafe { get_int(self.as_ptr(), CefString::new(key).as_ptr()) as i32 })
+            .map(|get_int| {
+                unsafe { get_int(self.as_ptr(), CefString::new(key).as_ptr()) as i32 }
             })
             .unwrap_or(0)
     }
@@ -631,8 +629,8 @@ impl DictionaryValue {
     pub fn get_double(&self, key: &str) -> f64 {
         self.0
             .get_double
-            .and_then(|get_double| {
-                Some(unsafe { get_double(self.as_ptr(), CefString::new(key).as_ptr()) })
+            .map(|get_double| {
+                unsafe { get_double(self.as_ptr(), CefString::new(key).as_ptr()) }
             })
             .unwrap_or(0.0)
     }
@@ -648,7 +646,7 @@ impl DictionaryValue {
                 }
                 result
             })
-            .unwrap_or_else(|| String::new())
+            .unwrap_or_else(String::new)
     }
     /// Returns the value at the specified key as type binary. The returned value
     /// will reference existing data.
@@ -682,14 +680,14 @@ impl DictionaryValue {
     pub(crate) fn insert_inner(&mut self, key: &str, value: Value) -> bool {
         self.0
             .set_value
-            .and_then(|set_value| {
-                Some(unsafe {
+            .map(|set_value| {
+                unsafe {
                     set_value(
                         self.as_ptr(),
                         CefString::new(key).as_ptr(),
                         value.into_raw(),
                     ) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -702,8 +700,8 @@ impl DictionaryValue {
     pub fn insert_null(&mut self, key: &str) -> bool {
         self.0
             .set_null
-            .and_then(|set_null| {
-                Some(unsafe { set_null(self.as_ptr(), CefString::new(key).as_ptr()) != 0 })
+            .map(|set_null| {
+                unsafe { set_null(self.as_ptr(), CefString::new(key).as_ptr()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -712,14 +710,14 @@ impl DictionaryValue {
     pub fn insert_bool(&mut self, key: &str, value: bool) -> bool {
         self.0
             .set_bool
-            .and_then(|set_bool| {
-                Some(unsafe {
+            .map(|set_bool| {
+                unsafe {
                     set_bool(
                         self.as_ptr(),
                         CefString::new(key).as_ptr(),
                         if value { 1 } else { 0 },
                     ) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -728,8 +726,8 @@ impl DictionaryValue {
     pub fn insert_int(&mut self, key: &str, value: i32) -> bool {
         self.0
             .set_int
-            .and_then(|set_int| {
-                Some(unsafe { set_int(self.as_ptr(), CefString::new(key).as_ptr(), value) != 0 })
+            .map(|set_int| {
+                unsafe { set_int(self.as_ptr(), CefString::new(key).as_ptr(), value) != 0 }
             })
             .unwrap_or(false)
     }
@@ -738,8 +736,8 @@ impl DictionaryValue {
     pub fn insert_double(&mut self, key: &str, value: f64) -> bool {
         self.0
             .set_double
-            .and_then(|set_double| {
-                Some(unsafe { set_double(self.as_ptr(), CefString::new(key).as_ptr(), value) != 0 })
+            .map(|set_double| {
+                unsafe { set_double(self.as_ptr(), CefString::new(key).as_ptr(), value) != 0 }
             })
             .unwrap_or(false)
     }
@@ -748,14 +746,14 @@ impl DictionaryValue {
     pub fn insert_string(&mut self, key: &str, value: &str) -> bool {
         self.0
             .set_string
-            .and_then(|set_string| {
-                Some(unsafe {
+            .map(|set_string| {
+                unsafe {
                     set_string(
                         self.as_ptr(),
                         CefString::new(key).as_ptr(),
                         CefString::new(value).as_ptr(),
                     ) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -767,10 +765,10 @@ impl DictionaryValue {
     pub fn insert_binary(&mut self, key: &str, value: BinaryValue) -> bool {
         self.0
             .set_binary
-            .and_then(|set_binary| {
-                Some(unsafe {
+            .map(|set_binary| {
+                unsafe {
                     set_binary(self.as_ptr(), CefString::new(key).as_ptr(), value.into_raw()) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -782,14 +780,14 @@ impl DictionaryValue {
     pub fn insert_dictionary(&mut self, key: &str, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
-            .and_then(|set_dictionary| {
-                Some(unsafe {
+            .map(|set_dictionary| {
+                unsafe {
                     set_dictionary(
                         self.as_ptr(),
                         CefString::new(key).as_ptr(),
                         value.into_raw(),
                     ) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -801,16 +799,22 @@ impl DictionaryValue {
     pub fn insert_list(&mut self, key: &str, value: ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| {
-                Some(unsafe {
+            .map(|set_list| {
+                unsafe {
                     set_list(
                         self.as_ptr(),
                         CefString::new(key).as_ptr(),
                         value.into_raw(),
                     ) != 0
-                })
+                }
             })
             .unwrap_or(false)
+    }
+}
+
+impl Default for DictionaryValue {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -843,7 +847,7 @@ impl PartialEq for DictionaryValue {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .and_then(|is_equal| Some(unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -876,14 +880,14 @@ impl ListValue {
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) != 0 }))
+            .map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is owned by another object.
     pub fn is_owned(&self) -> bool {
         self.0
             .is_owned
-            .and_then(|is_owned| Some(unsafe { is_owned(self.as_ptr()) != 0 }))
+            .map(|is_owned| unsafe { is_owned(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns true if the underlying data is read-only. Some APIs may expose
@@ -891,7 +895,7 @@ impl ListValue {
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) != 0 })
             .unwrap_or(true)
     }
     /// Returns true if this object and `that` object have the same underlying
@@ -899,7 +903,7 @@ impl ListValue {
     pub fn is_same(&self, that: &ListValue) -> bool {
         self.0
             .is_same
-            .and_then(|is_same| Some(unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Sets the number of values. If the number of values is expanded all new
@@ -907,36 +911,36 @@ impl ListValue {
     pub fn set_len(&mut self, size: usize) -> bool {
         self.0
             .set_size
-            .and_then(|set_size| Some(unsafe { set_size(self.as_ptr(), size) != 0 }))
+            .map(|set_size| unsafe { set_size(self.as_ptr(), size) != 0 })
             .unwrap_or(false)
     }
     /// Returns the number of values.
     pub fn len(&self) -> usize {
         self.0
             .get_size
-            .and_then(|get_size| Some(unsafe { get_size(self.as_ptr()) }))
+            .map(|get_size| unsafe { get_size(self.as_ptr()) })
             .unwrap_or(0)
     }
     /// Removes all values. Returns true on success.
     pub fn clear(&mut self) -> bool {
         self.0
             .clear
-            .and_then(|clear| Some(unsafe { clear(self.as_ptr()) != 0 }))
+            .map(|clear| unsafe { clear(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Removes the value at the specified index.
     pub fn remove(&mut self, index: usize) -> bool {
         self.0
             .remove
-            .and_then(|remove| Some(unsafe { remove(self.as_ptr(), index) != 0 }))
+            .map(|remove| unsafe { remove(self.as_ptr(), index) != 0 })
             .unwrap_or(false)
     }
     /// Returns the value type at the specified index.
     pub(crate) fn get_type_inner(&self, index: usize) -> ValueType {
         self.0
             .get_type
-            .and_then(|get_type| {
-                Some(match unsafe { get_type(self.as_ptr(), index) } {
+            .map(|get_type|
+                match unsafe { get_type(self.as_ptr(), index) } {
                     cef_value_type_t::VTYPE_NULL => ValueType::Null,
                     cef_value_type_t::VTYPE_BOOL => ValueType::Bool,
                     cef_value_type_t::VTYPE_INT => ValueType::Int,
@@ -946,8 +950,8 @@ impl ListValue {
                     cef_value_type_t::VTYPE_DICTIONARY => ValueType::Dictionary,
                     cef_value_type_t::VTYPE_LIST => ValueType::List,
                     _ => ValueType::Invalid,
-                })
-            })
+                }
+            )
             .unwrap_or(ValueType::Invalid)
     }
     /// Returns the value at the specified index. For simple types the returned
@@ -967,19 +971,19 @@ impl ListValue {
     pub fn get_bool(&self, index: usize) -> Option<bool> {
         self.0
             .get_bool
-            .and_then(|get_bool| Some(unsafe { get_bool(self.as_ptr(), index) != 0 }))
+            .map(|get_bool| unsafe { get_bool(self.as_ptr(), index) != 0 })
     }
     /// Returns the value at the specified index as type int.
     pub fn get_int(&self, index: usize) -> Option<i32> {
         self.0
             .get_int
-            .and_then(|get_int| Some(unsafe { get_int(self.as_ptr(), index) as i32 }))
+            .map(|get_int| unsafe { get_int(self.as_ptr(), index) as i32 })
     }
     /// Returns the value at the specified index as type double.
     pub fn get_double(&self, index: usize) -> Option<f64> {
         self.0
             .get_double
-            .and_then(|get_double| Some(unsafe { get_double(self.as_ptr(), index) }))
+            .map(|get_double| unsafe { get_double(self.as_ptr(), index) })
     }
     /// Returns the value at the specified index as type string.
     pub fn get_string(&self, index: usize) -> Option<String> {
@@ -1026,8 +1030,8 @@ impl ListValue {
     pub(crate) fn set_value_inner(&mut self, index: usize, value: Value) -> bool {
         self.0
             .set_value
-            .and_then(|set_value| {
-                Some(unsafe { set_value(self.as_ptr(), index, value.into_raw()) != 0 })
+            .map(|set_value| {
+                unsafe { set_value(self.as_ptr(), index, value.into_raw()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -1036,7 +1040,7 @@ impl ListValue {
     pub fn set_null(&mut self, index: usize) -> bool {
         self.0
             .set_null
-            .and_then(|set_null| Some(unsafe { set_null(self.as_ptr(), index) != 0 }))
+            .map(|set_null| unsafe { set_null(self.as_ptr(), index) != 0 })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type bool. Returns true if the
@@ -1044,8 +1048,8 @@ impl ListValue {
     pub fn set_bool(&mut self, index: usize, value: bool) -> bool {
         self.0
             .set_bool
-            .and_then(|set_bool| {
-                Some(unsafe { set_bool(self.as_ptr(), index, if value { 1 } else { 0 }) != 0 })
+            .map(|set_bool| {
+                unsafe { set_bool(self.as_ptr(), index, if value { 1 } else { 0 }) != 0 }
             })
             .unwrap_or(false)
     }
@@ -1054,7 +1058,7 @@ impl ListValue {
     pub fn set_int(&mut self, index: usize, value: i32) -> bool {
         self.0
             .set_int
-            .and_then(|set_int| Some(unsafe { set_int(self.as_ptr(), index, value) != 0 }))
+            .map(|set_int| unsafe { set_int(self.as_ptr(), index, value) != 0 })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type double. Returns true if the
@@ -1062,7 +1066,7 @@ impl ListValue {
     pub fn set_double(&mut self, index: usize, value: f64) -> bool {
         self.0
             .set_double
-            .and_then(|set_double| Some(unsafe { set_double(self.as_ptr(), index, value) != 0 }))
+            .map(|set_double| unsafe { set_double(self.as_ptr(), index, value) != 0 })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type string. Returns true if the
@@ -1070,10 +1074,10 @@ impl ListValue {
     pub fn set_string(&mut self, index: usize, value: &str) -> bool {
         self.0
             .set_string
-            .and_then(|set_string| {
-                Some(unsafe {
+            .map(|set_string| {
+                unsafe {
                     set_string(self.as_ptr(), index, CefString::new(value).as_ptr()) != 0
-                })
+                }
             })
             .unwrap_or(false)
     }
@@ -1085,7 +1089,7 @@ impl ListValue {
     pub fn set_binary(&mut self, index: usize, value: BinaryValue) -> bool {
         self.0
             .set_binary
-            .and_then(|set_binary| Some(unsafe { set_binary(self.as_ptr(), index, value.as_ptr()) != 0 }))
+            .map(|set_binary| unsafe { set_binary(self.as_ptr(), index, value.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type dict. Returns true if the
@@ -1096,8 +1100,8 @@ impl ListValue {
     pub fn set_dictionary(&mut self, index: usize, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
-            .and_then(|set_dictionary| {
-                Some(unsafe { set_dictionary(self.as_ptr(), index, value.into_raw()) != 0 })
+            .map(|set_dictionary| {
+                unsafe { set_dictionary(self.as_ptr(), index, value.into_raw()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -1109,10 +1113,16 @@ impl ListValue {
     pub fn set_list(&mut self, index: usize, value: ListValue) -> bool {
         self.0
             .set_list
-            .and_then(|set_list| {
-                Some(unsafe { set_list(self.as_ptr(), index, value.into_raw()) != 0 })
+            .map(|set_list| {
+                unsafe { set_list(self.as_ptr(), index, value.into_raw()) != 0 }
             })
             .unwrap_or(false)
+    }
+}
+
+impl Default for ListValue {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -1134,7 +1144,7 @@ impl PartialEq for ListValue {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .and_then(|is_equal| Some(unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 }))
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -1202,6 +1212,12 @@ impl Size {
     }
 }
 
+impl Default for Size {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Clone for Size {
     fn clone(&self) -> Self {
         Self(cef_size_t {
@@ -1236,6 +1252,12 @@ impl Range {
 
     pub(crate) fn as_ptr(&self) -> *const cef_range_t {
         &self.0
+    }
+}
+
+impl Default for Range {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

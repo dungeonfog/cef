@@ -81,6 +81,12 @@ impl WindowInfo {
     }
 }
 
+impl Default for WindowInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for WindowInfo {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.window_name.dtor {

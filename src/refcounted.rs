@@ -217,7 +217,7 @@ impl<W: Wrapper> RefCounted<W> {
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
         let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
-        let _: ManuallyDrop<Arc<Self>> = this.clone();
+        let _: ManuallyDrop<Arc<Self>> = this;
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
         let this: Arc<Self> = ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut W::Cef) });

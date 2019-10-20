@@ -376,6 +376,12 @@ impl BrowserSettings {
     }
 }
 
+impl Default for BrowserSettings {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for BrowserSettings {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.standard_font_family.dtor {

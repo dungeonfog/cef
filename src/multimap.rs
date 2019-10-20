@@ -122,7 +122,7 @@ impl Into<HashMap<String, Vec<String>>> for MultiMap {
             if let (Ok(key), Ok(value)) =
                 (self.get_key(idx), self.get_value(idx))
             {
-                result.entry(key).or_insert_with(|| Vec::new()).push(value);
+                result.entry(key).or_insert_with(Vec::new).push(value);
             }
         }
 

@@ -79,7 +79,7 @@ impl URLRequest {
                 request.as_ptr(),
                 URLRequestClientWrapper::new(client).wrap().into_raw(),
                 request_context
-                    .and_then(|ctx| Some(ctx.as_ptr()))
+                    .map(|ctx| ctx.as_ptr())
                     .unwrap_or_else(null_mut),
             ))
         }

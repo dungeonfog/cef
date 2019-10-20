@@ -101,6 +101,12 @@ impl PDFPrintSettings {
     }
 }
 
+impl Default for PDFPrintSettings {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for PDFPrintSettings {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.header_footer_title.dtor {

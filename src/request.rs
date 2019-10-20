@@ -41,12 +41,6 @@ pub enum ReferrerPolicy {
     NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as i32,
 }
 
-impl Into<cef_referrer_policy_t::Type> for ReferrerPolicy {
-    fn into(self) -> cef_referrer_policy_t::Type {
-        unsafe { std::mem::transmute(self as i32) }
-    }
-}
-
 /// Flags used to customize the behavior of [URLRequest].
 #[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -84,7 +78,7 @@ pub enum URLRequestFlags {
 }
 
 impl URLRequestFlags {
-    pub(crate) fn to_bitfield(flags: &Vec<URLRequestFlags>) -> i32 {
+    pub(crate) fn to_bitfield(flags: &[URLRequestFlags]) -> i32 {
         flags
             .iter()
             .fold(0, |flags, flag| flags | (1 << (*flag) as i32))
@@ -100,7 +94,7 @@ impl URLRequestFlags {
             URLRequestFlags::NoRetryOn5xx,
             URLRequestFlags::StopOnRedirect,
         ]
-        .into_iter()
+        .iter()
         .filter(|flag| bitfield & (1 << (**flag) as i32) != 0)
         .cloned()
         .collect()
@@ -175,7 +169,7 @@ impl Request {
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.0.as_ptr()) != 0 }))
+            .map(|is_read_only| unsafe { is_read_only(self.0.as_ptr()) != 0 })
             .unwrap_or(true)
     }
     /// Get the fully qualified URL.
@@ -207,7 +201,7 @@ impl Request {
                 cef_string_userfree_utf16_free(cef_string);
                 s
             })
-            .unwrap_or("GET".to_owned())
+            .unwrap_or_else(|| "GET".to_owned())
     }
     /// Set the request function type.
     pub fn set_method(&mut self, method: &str) {
@@ -227,7 +221,7 @@ impl Request {
                     set_referrer(
                         self.0.as_ptr(),
                         CefString::new(referrer_url).as_ptr(),
-                        policy.into(),
+                        policy as cef_referrer_policy_t::Type,
                     );
                 }
             }
@@ -248,10 +242,10 @@ impl Request {
     pub fn get_referrer_policy(&self) -> ReferrerPolicy {
         self.0
             .get_referrer_policy
-            .and_then(|get_referrer_policy| {
-                Some(unsafe {
+            .map(|get_referrer_policy| {
+                unsafe {
                     ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32)
-                })
+                }
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
@@ -341,7 +335,7 @@ impl Request {
     }
     /// Set the flags used in combination with [URLRequest]. See
     /// [URLRequestFlags] for supported values.
-    pub fn set_flags(&mut self, flags: &Vec<URLRequestFlags>) {
+    pub fn set_flags(&mut self, flags: &[URLRequestFlags]) {
         if let Some(set_flags) = self.0.set_flags {
             unsafe {
                 set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags));
@@ -373,7 +367,7 @@ impl Request {
     /// process.
     pub fn get_resource_type(&self) -> ResourceType {
         unsafe {
-            ResourceType::from_unchecked(((&*self.0.as_ptr()).get_resource_type).unwrap()(
+            ResourceType::from_unchecked(((*self.0.as_ptr()).get_resource_type).unwrap()(
                 self.0.as_ptr(),
             ) as i32)
         }
@@ -383,7 +377,7 @@ impl Request {
     /// frame navigation.
     pub fn get_transition_type(&self) -> TransitionType {
         TransitionType::try_from(unsafe {
-            (&*self.0.as_ptr()).get_transition_type.unwrap()(self.0.as_ptr()).0
+            (*self.0.as_ptr()).get_transition_type.unwrap()(self.0.as_ptr()).0
         })
         .unwrap()
     }
@@ -396,6 +390,12 @@ impl Request {
         } else {
             0
         }
+    }
+}
+
+impl Default for Request {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -415,7 +415,7 @@ impl PostData {
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) != 0 })
             .unwrap_or(true)
     }
     /// Returns true if the underlying POST data includes elements that are not
@@ -425,8 +425,8 @@ impl PostData {
     pub fn has_excluded_elements(&self) -> bool {
         self.0
             .has_excluded_elements
-            .and_then(|has_excluded_elements| {
-                Some(unsafe { has_excluded_elements(self.as_ptr()) != 0 })
+            .map(|has_excluded_elements| {
+                unsafe { has_excluded_elements(self.as_ptr()) != 0 }
             })
             .unwrap_or(false)
     }
@@ -434,7 +434,7 @@ impl PostData {
     pub fn get_element_count(&self) -> usize {
         self.0
             .get_element_count
-            .and_then(|get_element_count| Some(unsafe { get_element_count(self.as_ptr()) }))
+            .map(|get_element_count| unsafe { get_element_count(self.as_ptr()) })
             .unwrap_or(0)
     }
     /// Retrieve the post data elements.
@@ -484,6 +484,12 @@ impl PostData {
     }
 }
 
+impl Default for PostData {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 ref_counted_ptr! {
     /// Structure used to represent a single element in the request post data. The
     /// functions of this structure may be called on any thread.
@@ -501,7 +507,7 @@ impl PostDataElement {
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) != 0 }))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) != 0 })
             .unwrap_or(true)
     }
     /// Remove all contents from the post data element.
@@ -580,5 +586,11 @@ impl PostDataElement {
         } else {
             Vec::new()
         }
+    }
+}
+
+impl Default for PostDataElement {
+    fn default() -> Self {
+        Self::new()
     }
 }

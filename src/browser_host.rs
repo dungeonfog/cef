@@ -66,7 +66,7 @@ impl BrowserHost {
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
     ) -> bool {
-        let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
+        let extra_info = extra_info.map(DictionaryValue::from);
         let client = ClientWrapper::new(client).wrap();
 
         unsafe {
@@ -76,10 +76,10 @@ impl BrowserHost {
                 CefString::new(url).as_ptr(),
                 settings.get(),
                 extra_info
-                    .and_then(|ei| Some(ei.as_ptr()))
+                    .map(|ei| ei.as_ptr())
                     .unwrap_or_else(null_mut),
                 request_context
-                    .and_then(|rc| Some(rc.as_ptr()))
+                    .map(|rc| rc.as_ptr())
                     .unwrap_or_else(null_mut),
             ) != 0
         }
@@ -98,7 +98,7 @@ impl BrowserHost {
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
         ) -> Browser {
-        let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
+        let extra_info = extra_info.map(DictionaryValue::from);
         let client = ClientWrapper::new(client).wrap();
 
         unsafe {
@@ -108,10 +108,10 @@ impl BrowserHost {
                 CefString::new(url).as_ptr(),
                 settings.get(),
                 extra_info
-                    .and_then(|ei| Some(ei.as_ptr()))
+                    .map(|ei| ei.as_ptr())
                     .unwrap_or_else(null_mut),
                 request_context
-                    .and_then(|rc| Some(rc.as_ptr()))
+                    .map(|rc| rc.as_ptr())
                     .unwrap_or_else(null_mut),
             ))
         }
@@ -241,7 +241,7 @@ impl BrowserHost {
                     mode.into(),
                     title.map(|s| s.as_ptr()).unwrap_or_else(null),
                     default_file_path.map(|s| s.as_ptr()).unwrap_or_else(null),
-                    CefStringList::from_iter(accept_filters.into_iter().cloned()).into_raw(),
+                    CefStringList::from_iter(accept_filters.iter().cloned()).into_raw(),
                     selected_accept_filter,
                     RunFileDialogCallbackWrapper::new(callback).wrap().into_raw()
                 );

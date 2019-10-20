@@ -52,3 +52,9 @@ impl CompositionUnderline {
         &self.0
     }
 }
+
+impl Default for CompositionUnderline {
+    fn default() -> Self {
+        Self::new()
+    }
+}

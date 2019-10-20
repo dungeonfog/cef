@@ -50,3 +50,9 @@ impl DragData {
         unsafe { Self::from_ptr_unchecked(cef_drag_data_create()) }
     }
 }
+
+impl Default for DragData {
+    fn default() -> Self {
+        Self::new()
+    }
+}

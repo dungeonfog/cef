@@ -129,10 +129,10 @@ impl App {
             cef_execute_process(
                 args.get(),
                 application
-                    .and_then(|app| Some(app.as_ptr()))
+                    .map(|app| app.as_ptr())
                     .unwrap_or_else(null_mut),
                 windows_sandbox_info
-                    .and_then(|wsi| Some(wsi.get()))
+                    .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
             )
         }
@@ -174,10 +174,10 @@ impl App {
                 args.get(),
                 settings.get(),
                 application
-                    .and_then(|app| Some(app.as_ptr()))
+                    .map(|app| app.as_ptr())
                     .unwrap_or_else(null_mut),
                 windows_sandbox_info
-                    .and_then(|wsi| Some(wsi.get()))
+                    .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
             ) != 0
         }
@@ -193,7 +193,7 @@ impl App {
                 args.get(),
                 settings.get(),
                 application
-                    .and_then(|app| Some(app.0))
+                    .map(|app| app.0)
                     .unwrap_or_else(null_mut),
                 null_mut(),
             ) != 0

@@ -24,13 +24,13 @@ impl ProcessMessage {
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) } != 0))
+            .map(|is_valid| unsafe { is_valid(self.as_ptr()) } != 0)
             .unwrap_or(false)
     }
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) } != 0))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) } != 0)
             .unwrap_or(true)
     }
     pub fn get_name(&self) -> Option<String> {

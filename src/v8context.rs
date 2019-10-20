@@ -758,7 +758,7 @@ impl V8Value {
     /// String- and integer-based keys can be used interchangably with the
     /// framework converting between them as necessary.
     pub fn set_value_bykey(&mut self, key: &str, value: &V8Value, attributes: &[V8PropertyAttribute]) -> bool {
-        let attributes = V8PropertyAttribute::as_mask(attributes.into_iter());
+        let attributes = V8PropertyAttribute::as_mask(attributes.iter());
         self.0.set_value_bykey.map(|set_value_bykey| {
             unsafe { set_value_bykey(self.as_ptr(), CefString::new(key).as_ptr(), value.as_ptr(), attributes) != 0 }
         }).unwrap_or(false)
@@ -787,8 +787,8 @@ impl V8Value {
     /// framework converting between them as necessary.
     pub fn set_value_byaccessor(&mut self, key: &str, settings: &[V8AccessControl], attributes: &[V8PropertyAttribute]) -> bool {
         self.0.set_value_byaccessor.map(|set_value_byaccessor| {
-            let settings = V8AccessControl::as_mask(settings.into_iter());
-            let attributes = V8PropertyAttribute::as_mask(attributes.into_iter());
+            let settings = V8AccessControl::as_mask(settings.iter());
+            let attributes = V8PropertyAttribute::as_mask(attributes.iter());
             unsafe { set_value_byaccessor(self.as_ptr(), CefString::new(key).as_ptr(), settings, attributes) != 0 }
         }).unwrap_or(false)
     }
@@ -1308,7 +1308,7 @@ ref_counted_ptr! {
 
 impl V8Handler {
     pub fn execute(&self, name: &str, object: V8Value, arguments: &[V8Value]) -> Result<V8Value, String> {
-        self.0.execute.ok_or("Execute is null".to_owned()).and_then(|execute| {
+        self.0.execute.ok_or_else(|| "Execute is null".to_owned()).and_then(|execute| {
             let mut retval = null_mut();
             let mut exception = CefString::null();
             if unsafe { execute(self.as_ptr(), CefString::new(name).as_ptr(), object.as_ptr(), arguments.len(), arguments.iter().map(|v| v.as_ptr()).collect::<Vec<_>>().as_ptr(), &mut retval, exception.as_ptr_mut()) != 0 } {

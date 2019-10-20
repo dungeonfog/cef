@@ -23,7 +23,7 @@ impl Frame {
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.0.as_ptr()) } != 0))
+            .map(|is_valid| unsafe { is_valid(self.0.as_ptr()) } != 0)
             .unwrap_or(false)
     }
     /// Execute undo in this frame.

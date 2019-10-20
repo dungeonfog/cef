@@ -192,3 +192,9 @@ impl Image {
         })
     }
 }
+
+impl Default for Image {
+    fn default() -> Self {
+        Self::new()
+    }
+}

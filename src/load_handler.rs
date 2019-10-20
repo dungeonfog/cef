@@ -33,8 +33,8 @@ pub enum TransitionTypeQualifiers {
 
 impl TransitionTypeQualifiers {
     /// Used to test whether a transition involves a redirect.
-    pub fn is_redirect(&self) -> bool {
-        (*self as i32 & cef_transition_type_t::TT_IS_REDIRECT_MASK.0) != 0
+    pub fn is_redirect(self) -> bool {
+        (self as i32 & cef_transition_type_t::TT_IS_REDIRECT_MASK.0) != 0
     }
 }
 

@@ -40,7 +40,7 @@ impl CommandLine {
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
-            .and_then(|is_valid| Some(unsafe { is_valid(self.as_ptr()) } != 0))
+            .map(|is_valid| unsafe { is_valid(self.as_ptr()) } != 0)
             .unwrap_or(false)
     }
     /// Returns true if the values of this object are read-only. Some APIs may
@@ -48,7 +48,7 @@ impl CommandLine {
     pub fn is_read_only(&self) -> bool {
         self.0
             .is_read_only
-            .and_then(|is_read_only| Some(unsafe { is_read_only(self.as_ptr()) } != 0))
+            .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) } != 0)
             .unwrap_or(true)
     }
     /// Initialize the command line with the specified |argv| values.
@@ -221,6 +221,12 @@ impl CommandLine {
         unsafe {
             (self.0.prepend_wrapper.unwrap())(self.as_ptr(), CefString::new(wrapper).as_ptr());
         }
+    }
+}
+
+impl Default for CommandLine {
+    fn default() -> Self {
+        Self::new()
     }
 }
 

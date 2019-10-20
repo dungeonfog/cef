@@ -238,7 +238,7 @@ impl RequestContextBuilder {
     pub fn build(self) -> RequestContext {
         let settings_ptr = self
             .0
-            .and_then(|settings| Some(&settings as *const _))
+            .map(|settings| &settings as *const _)
             .unwrap_or_else(null);
         let handler_ptr = if let Some(handler) = self.1 {
             RequestContextHandlerWrapper::new(handler).wrap().into_raw()
@@ -356,5 +356,11 @@ impl RequestContextBuilder {
             );
         }
         self
+    }
+}
+
+impl Default for RequestContextBuilder {
+    fn default() -> Self {
+        Self::new()
     }
 }

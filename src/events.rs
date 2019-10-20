@@ -156,6 +156,12 @@ impl KeyEvent {
     }
 }
 
+impl Default for KeyEvent {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Into<cef_key_event_t> for KeyEvent {
     fn into(self) -> cef_key_event_t {
         self.0
@@ -227,6 +233,12 @@ impl MouseEvent {
 
     pub(crate) fn as_ptr(&self) -> *const cef_mouse_event_t {
         &self.0
+    }
+}
+
+impl Default for MouseEvent {
+    fn default() -> Self {
+        Self::new()
     }
 }
 
@@ -375,5 +387,11 @@ impl TouchEvent {
 
     pub(crate) fn as_ptr(&self) -> *const cef_touch_event_t {
         &self.0
+    }
+}
+
+impl Default for TouchEvent {
+    fn default() -> Self {
+        Self::new()
     }
 }

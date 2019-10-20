@@ -28,6 +28,12 @@ impl SandboxInfo {
     }
 }
 
+impl Default for SandboxInfo {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Drop for SandboxInfo {
     /// Destroy the specified sandbox information object.
     fn drop(&mut self) {
