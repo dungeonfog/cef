@@ -19,7 +19,7 @@ use crate::{
 
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
-enum WindowOpenDisposition {
+pub enum WindowOpenDisposition {
     Unknown = cef_window_open_disposition_t::WOD_UNKNOWN,
     CurrentTab = cef_window_open_disposition_t::WOD_CURRENT_TAB,
     SingletonTab = cef_window_open_disposition_t::WOD_SINGLETON_TAB,
@@ -34,7 +34,7 @@ enum WindowOpenDisposition {
 
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
-enum TerminationStatus {
+pub enum TerminationStatus {
     AbnormalTermination = cef_termination_status_t::TS_ABNORMAL_TERMINATION,
     ProcessWasKilled = cef_termination_status_t::TS_PROCESS_WAS_KILLED,
     ProcessCrashed = cef_termination_status_t::TS_PROCESS_CRASHED,

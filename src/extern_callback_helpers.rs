@@ -148,6 +148,8 @@ owned_casts!(impl for DictionaryValue = *mut cef_sys::cef_dictionary_value_t);
 owned_casts!(impl for ListValue = *mut cef_sys::cef_list_value_t);
 owned_casts!(impl for SchemeRegistrar = *mut cef_sys::cef_scheme_registrar_t);
 owned_casts!(impl for RequestContext = *mut cef_sys::cef_request_context_t);
+owned_casts!(impl for crate::v8context::V8Handler = *mut cef_sys::cef_v8handler_t);
+owned_casts!(impl for crate::v8context::V8Value = *mut cef_sys::cef_v8value_t);
 owned_casts_no_transform!(impl for i8);
 owned_casts_no_transform!(impl for i16);
 owned_casts_no_transform!(impl for i32);
@@ -236,6 +238,7 @@ impl<T> CToRustType for *mut T {
     }
 }
 
+
 macro_rules! cef_callback_impl {
     (impl$(<$($generic:ident $(: $bound:path)?),+>)? for $RefCounted:ty: $CType:ty {
         $(
@@ -254,7 +257,7 @@ macro_rules! cef_callback_impl {
                         #[inline(always)]
                         fn inner(&$self, $($field_name: $field_ty),*) $(-> $ret)? $body
                     }
-                    let this = unsafe { crate::refcounted::RefCounted::<$CType>::wrapper(self_) };
+                    let this = unsafe { crate::refcounted::RefCounted::<$RefCounted>::wrapper(self_) };
                     $(
                         let $field_name: $field_ty = unsafe{ <$field_ty as crate::extern_callback_helpers::CToRustType>::from_c_type($field_name) };
                     )*

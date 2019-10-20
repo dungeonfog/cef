@@ -18,6 +18,13 @@ use crate::refcounted::{RefCountedPtr, Wrapper};
 pub(crate) struct CefString(cef_string_t);
 
 impl CefString {
+    pub fn null() -> Self {
+        Self(cef_string_t {
+            str: null_mut(),
+            length: 0,
+            dtor: None,
+        })
+    }
     pub fn new(source: &str) -> Self {
         let mut instance = unsafe { std::mem::zeroed() };
         let len = source.len();
@@ -96,6 +103,23 @@ impl CefString {
         self.0.str = null_mut();
         self.0.length = 0;
         self.0.dtor = None;
+    }
+
+    pub unsafe fn move_from(source: *mut cef_string_t) -> Self {
+        let result = cef_string_t {
+            ..*source
+        };
+        (*source).str = null_mut();
+        (*source).length = 0;
+        (*source).dtor = None;
+        Self(result)
+    }
+}
+
+impl crate::extern_callback_helpers::CToRustType for CefString {
+    type CType = *mut cef_string_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::move_from(c_type)
     }
 }
 

@@ -16,7 +16,7 @@ use crate::{
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
     refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
-    v8context::{V8Context, V8Exception, V8StackTrace},
+    v8context::{V8Context, V8Exception, V8StackFrame},
     values::{DictionaryValue, ListValue},
 };
 
@@ -61,7 +61,7 @@ pub trait RenderProcessHandler: Send + Sync {
         frame: Frame,
         context: V8Context,
         exception: V8Exception,
-        stack_trace: V8StackTrace,
+        stack_trace: &[V8StackFrame],
     ) {
     }
     /// Called when a new node in the the browser gets focus. The `node` value may
@@ -150,7 +150,7 @@ cef_callback_impl!{
         fn get_load_handler(
             &self,
         ) -> *mut cef_load_handler_t {
-            let load_handler = self.0.get_load_handler().map(|lh| LoadHandlerWrapper::new(lh).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_load_handler().map(|lh| LoadHandlerWrapper::new(lh).wrap().into_raw()).unwrap_or_else(null_mut)
         }
 
         fn context_created(
@@ -185,14 +185,14 @@ cef_callback_impl!{
             frame: Frame: *mut cef_frame_t,
             context: V8Context: *mut cef_v8context_t,
             exception: V8Exception: *mut cef_v8exception_t,
-            stack_trace: V8StackTrace: *mut cef_v8stack_trace_t,
+            stack_trace: Vec<V8StackFrame>: *mut cef_v8stack_trace_t,
         ) {
             self.0.on_uncaught_exception(
                 browser,
                 frame,
                 context,
                 exception,
-                stack_trace,
+                &stack_trace,
             );
         }
 

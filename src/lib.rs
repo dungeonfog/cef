@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_variables)]
-#![feature(fn_traits)]
+#![feature(fn_traits, unboxed_closures)]
 #[macro_use]
 mod refcounted;
 #[macro_use]

@@ -3,6 +3,7 @@ use winapi::um::{
     libloaderapi::GetModuleHandleA,
     winuser::{WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_OVERLAPPEDWINDOW, WS_VISIBLE},
 };
+use std::sync::Arc;
 
 pub struct AppCallbacks();
 
@@ -13,7 +14,7 @@ pub struct Client();
 impl cef::Client for Client {}
 
 fn main() {
-    let app = cef::App::new(AppCallbacks());
+    let app = cef::App::new(Arc::new(AppCallbacks()));
     #[cfg(windows)]
     cef::App::enable_highdpi_support();
     let args = cef::MainArgs::new(unsafe { GetModuleHandleA(std::ptr::null()) });
@@ -36,7 +37,7 @@ fn main() {
     window_info.set_window_name("cefsimple Rust example");
     let browser_settings = cef::BrowserSettings::new();
 
-    let client = Client();
+    let client = Arc::new(Client());
 
     cef::BrowserHost::create_browser(
         &window_info,

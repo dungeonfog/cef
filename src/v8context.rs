@@ -6,12 +6,14 @@ use std::{
     collections::HashSet,
     any::Any,
     sync::Arc,
+    cell::RefCell,
 };
 use parking_lot::Mutex;
 
 use crate::{
     string::{CefString, CefStringList},
     refcounted::{RefCounted, Wrapper, RefCountedPtr},
+    extern_callback_helpers::CToRustType,
     task::TaskRunner,
     browser::Browser,
     frame::Frame,
@@ -96,11 +98,11 @@ impl V8Context {
     ///   // Call another function.
     ///   example.test.increment();
     /// ```
-    pub fn register_extension(extension_name: &str, javascript_code: &str, handler: Arc<dyn Fn(&str, &V8Value, &[&V8Value]) -> Result<V8Value, String> + 'static>) {
+    pub fn register_extension(extension_name: &str, javascript_code: &str, handler: Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>) {
         let name = CefString::new(extension_name);
         let js = CefString::new(javascript_code);
         unsafe {
-            cef_register_extension(name.as_ptr(), js.as_ptr(), V8HandlerWrapper::new(handler));
+            cef_register_extension(name.as_ptr(), js.as_ptr(), V8HandlerWrapper::new(handler).wrap().into_raw());
         }
     }
     /// Returns the task runner associated with this context. V8 handles can only
@@ -332,6 +334,13 @@ impl From<V8StackTrace> for Vec<V8StackFrame> {
     }
 }
 
+impl CToRustType for Vec<V8StackFrame> {
+    type CType = *mut cef_v8stack_trace_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::from(V8StackTrace::from_ptr_unchecked(c_type))
+    }
+}
+
 /// V8 property attribute values.
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
@@ -413,7 +422,7 @@ impl V8Value {
     pub fn new_object(accessor: Option<impl V8Accessor>, interceptor: Option<impl V8Interceptor>) -> Self {
         unsafe {
             V8Value::from_ptr_unchecked(
-                cef_v8value_create_object(accessor.map(V8AccessorWrapper::wrap).unwrap_or_else(null_mut), interceptor.map(V8InterceptorWrapper::wrap).unwrap_or_else(null_mut))
+                cef_v8value_create_object(accessor.map(|a| V8AccessorWrapper::new(a).wrap().into_raw()).unwrap_or_else(null_mut), interceptor.map(|i| V8InterceptorWrapper::new(i).wrap().into_raw()).unwrap_or_else(null_mut))
             )
         }
     }
@@ -434,27 +443,31 @@ impl V8Value {
     /// or [V8Accessor] callback, or in combination with calling
     /// [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
-    pub fn new_array_buffer(buffer: Vec<u8>) -> Self {
+    pub fn new_array_buffer(mut buffer: Vec<u8>) -> Self {
         let length = buffer.len();
         let capacity = buffer.capacity();
         let ptr = buffer.as_mut_ptr();
         std::mem::forget(buffer);
-        V8Value::from_ptr_unchecked(unsafe {
-            cef_v8value_create_array_buffer(ptr, length, V8ArrayBufferReleaseCallbackWrapper::new(|ptr| {
-                Vec::from_raw_parts(ptr, length, capacity);
-            }))
-        })
+        unsafe {
+            V8Value::from_ptr_unchecked(
+                cef_v8value_create_array_buffer(ptr as *mut _, length, V8ArrayBufferReleaseCallbackWrapper::new(move |ptr| {
+                    Vec::from_raw_parts(ptr, length, capacity);
+                }).wrap().into_raw())
+            )
+        }
     }
     /// Create a new V8Value object of type function. This function
     /// should only be called from within the scope of a
     /// [RenderProcessHandler], [V8Handler] or [V8Accessor] callback,
     /// or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
-    pub fn new_function(name: &str, handler: impl Fn(&str, &V8Value, &[&V8Value]) -> Result<V8Value, String> + 'static) -> Self {
+    pub fn new_function(name: &str, handler: Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>) -> Self {
         let name = CefString::new(name);
-        V8Value::from_ptr_unchecked(unsafe {
-            cef_v8value_create_function(name.as_ptr(), V8HandlerWrapper::new(handler))
-        })
+        unsafe {
+            V8Value::from_ptr_unchecked(
+                cef_v8value_create_function(name.as_ptr(), V8HandlerWrapper::new(handler).wrap().into_raw())
+            )
+        }
     }
 
     /// Returns true if the underlying handle is valid and it can be accessed
@@ -590,7 +603,7 @@ impl V8Value {
             self.0.get_date_value.map(|get_date_value| {
                 let value = unsafe { get_date_value(self.as_ptr()) };
                 let mut fvalue = 0.0;
-                cef_time_to_doublet(&value, &mut fvalue);
+                unsafe { cef_time_to_doublet(&value, &mut fvalue); }
                 SystemTime::UNIX_EPOCH + Duration::from_secs_f64(fvalue)
             })
         } else {
@@ -601,7 +614,7 @@ impl V8Value {
     pub fn get_string_value(&self) -> Option<String> {
         if self.is_string() {
             self.0.get_string_value.and_then(|get_string_value| {
-                CefString::from_mut_ptr(unsafe { get_string_value(self.as_ptr()) }).map(|s| <&CefString as Into<_>>::into(s))
+                unsafe { CefString::from_mut_ptr(get_string_value(self.as_ptr()) )}.map(|s| <&CefString as Into<_>>::into(s))
             })
         } else {
             None
@@ -862,10 +875,12 @@ impl V8Value {
     /// Returns the function handler or None if not a CEF-created function.
     ///
     /// This function is only available on functions.
-    pub fn get_function_handler(&self) -> Option<impl Fn(&str, &mut V8Value, &[&mut V8Value]) -> Result<V8Value, String> + Send + Sync + 'static> {
+    pub fn get_function_handler(&self) -> Option<V8Handler> {
         self.0.get_function_handler.map(|get_function_handler| {
-            let handler = unsafe { get_function_handler(self.as_ptr()) };
-            RefCounted::<V8HandlerWrapper>::wrapper(handler)
+            unsafe {
+                let handler = get_function_handler(self.as_ptr());
+                V8Handler::from_ptr_unchecked(handler)
+            }
         })
     }
     /// Execute the function using the current V8 context. This function should
@@ -879,11 +894,13 @@ impl V8Value {
     /// thrown.
     ///
     /// This function is only available on functions.
-    pub fn execute_function(&mut self, object: Option<&mut V8Value>, arguments: &[&mut V8Value]) -> Option<V8Value> {
+    pub fn execute_function(&mut self, object: Option<&mut V8Value>, arguments: &[V8Value]) -> Option<V8Value> {
         self.0.execute_function.and_then(|execute_function| {
             let count = arguments.len();
-            let result = unsafe { execute_function(self.as_ptr(), object.map(|obj| obj.as_ptr_mut()).unwrap_or_else(null_mut), count, arguments.as_mut_ptr()) };
-            V8Value::from_ptr(result)
+            unsafe {
+                let result = execute_function(self.as_ptr(), object.map(|obj| obj.as_ptr()).unwrap_or_else(null_mut), count, arguments.iter().map(|v| v.clone().into_raw()).collect::<Vec<_>>().as_ptr());
+                V8Value::from_ptr(result)
+            }
         })
     }
     /// Execute the function using the specified V8 context. `object` is the
@@ -894,51 +911,66 @@ impl V8Value {
     /// exception is thrown.
     ///
     /// This function is only available on functions.
-    pub fn execute_function_with_context(&mut self, context: &mut V8Context, object: Option<&mut V8Value>, arguments: &[&mut V8Value]) -> Option<V8Value> {
-        self.0.execute_function.and_then(|execute_function| {
+    pub fn execute_function_with_context(&mut self, context: &mut V8Context, object: Option<&mut V8Value>, arguments: &[V8Value]) -> Option<V8Value> {
+        self.0.execute_function_with_context.and_then(|execute_function_with_context| {
             let count = arguments.len();
-            let result = unsafe { execute_function(self.as_ptr(), context.as_ptr_mut(), object.map(|obj| obj.as_ptr_mut()).unwrap_or_else(null_mut), count, arguments.as_mut_ptr()) };
-            V8Value::from_ptr(result)
+            unsafe {
+                let result = execute_function_with_context(self.as_ptr(), context.as_ptr(), object.map(|obj| obj.as_ptr()).unwrap_or_else(null_mut), count, arguments.iter().map(|v| v.clone().into_raw()).collect::<Vec<_>>().as_ptr());
+                V8Value::from_ptr(result)
+            }
         })
     }
 }
 
-impl Drop for V8Value {
-    fn drop(&mut self) {
-        if !self.0.is_null() {
-            let release = self.0.base.release.unwrap();
-            unsafe {
-                release(&self.0.base);
-            }
-        }
+// impl Drop for V8Value {
+//     fn drop(&mut self) {
+//         if self.0.is_null.map(|is_null| unsafe { is_null(self.as_ptr()) == 0 }).unwrap_or(false) {
+//             let release = self.0.base.release.unwrap();
+//             unsafe {
+//                 release(self.as_ptr() as *mut _);
+//             }
+//         }
+//     }
+// }
+
+impl crate::extern_callback_helpers::CToRustType for Vec<V8Value> {
+    type CType = *mut *mut cef_v8value_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Vec::new()
     }
 }
 
 impl From<bool> for V8Value {
     /// Create a new V8Value object of type bool.
     fn from(value: bool) -> Self {
-        V8Value(unsafe { cef_v8value_create_bool(value as i32) })
+        unsafe { V8Value::from_ptr(cef_v8value_create_bool(value as i32)) }.unwrap()
     }
 }
 
 impl From<i32> for V8Value {
     /// Create a new V8Value object of type int.
     fn from(value: i32) -> Self {
-        V8Value(unsafe { cef_v8value_create_int(value) })
+        unsafe { V8Value::from_ptr(cef_v8value_create_int(value)) }.unwrap()
     }
 }
 
 impl From<u32> for V8Value {
     /// Create a new V8Value object of type unsigned int.
     fn from(value: u32) -> Self {
-        V8Value(unsafe { cef_v8value_create_uint(value) })
+        unsafe { V8Value::from_ptr(cef_v8value_create_uint(value)) }.unwrap()
     }
 }
 
 impl From<f64> for V8Value {
     /// Create a new V8Value object of type double.
     fn from(value: f64) -> Self {
-        V8Value(unsafe { cef_v8value_create_double(value) })
+        unsafe { V8Value::from_ptr(cef_v8value_create_double(value)) }.unwrap()
+    }
+}
+
+impl Clone for V8Value {
+    fn clone(&self) -> Self {
+        unsafe { Self::from_ptr_unchecked(&mut *self.0.clone()) }
     }
 }
 
@@ -950,10 +982,10 @@ impl TryFrom<SystemTime> for V8Value {
     /// [V8Context::enter] and [V8Context::exit] on a stored [V8Context] reference.
     fn try_from(value: SystemTime) -> Result<Self, Self::Error> {
         let duration = value.duration_since(SystemTime::UNIX_EPOCH)?;
-        let result = unsafe { std::mem::zeroed() };
+        let mut result = unsafe { std::mem::zeroed() };
 
         unsafe { cef_time_from_doublet(duration.as_secs_f64(), &mut result); } // This could fail in theory, but the actual implementation only returns 0 if the result is NULL
-        Ok(V8Value(unsafe { cef_v8value_create_date(result) }))
+        Ok(unsafe { V8Value::from_ptr(cef_v8value_create_date(&result)) }.unwrap())
     }
 }
 
@@ -961,7 +993,7 @@ impl From<&str> for V8Value {
     /// Create a new V8Value object of type string.
     fn from(value: &str) -> Self {
         let cefstr = CefString::new(value);
-        V8Value(unsafe { cef_v8value_create_string(cefstr.as_ref()) }) // cef_v8value_t takes ownership of this string by copying the pointer to the data and the dtor to its own structure and nulling out ours, so our Drop implementation won't do anything.
+        unsafe { V8Value::from_ptr(cef_v8value_create_string(cefstr.as_ptr())) }.unwrap() // cef_v8value_t takes ownership of this string by copying the pointer to the data and the dtor to its own structure and nulling out ours, so our Drop implementation won't do anything.
     }
 }
 
@@ -969,7 +1001,7 @@ impl From<&str> for V8Value {
 /// identifiers are registered by calling [V8Value::set_value]. The
 /// functions of this trait will be called on the thread associated with the
 /// V8 accessor.
-pub trait V8Accessor: 'static {
+pub trait V8Accessor: 'static + Send {
     /// Handle retrieval the accessor value identified by `name`. `object` is the
     /// receiver ('this' object) of the accessor. If retrieval succeeds return
     /// `Ok(retval)`. If retrieval fails return `Err(exception)` to be thrown
@@ -982,57 +1014,61 @@ pub trait V8Accessor: 'static {
     fn set(&mut self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
-ref_counted_ptr! {
-    pub(crate) struct V8AccessorWrapper(Arc<dyn V8Accessor>);
-}
+pub(crate) struct V8AccessorWrapper(Mutex<RefCell<Box<dyn V8Accessor>>>);
 
 impl V8AccessorWrapper {
     pub(crate) fn new(
         delegate: impl V8Accessor,
-    ) -> *mut cef_v8accessor_t {
-        let rc = RefCounted::new(
+    ) -> Self {
+        Self(Mutex::new(RefCell::new(Box::new(delegate))))
+    }
+}
+
+impl Wrapper for V8AccessorWrapper {
+    type Cef = cef_v8accessor_t;
+    type Inner = Arc<dyn V8Accessor>;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             cef_v8accessor_t {
                 base: unsafe { std::mem::zeroed() },
                 get: Some(Self::get),
                 set: Some(Self::set),
             },
-            Arc::new(delegate),
-        );
-        unsafe { &mut *rc }.get_cef()
+            self,
+        )
     }
 }
-
 cef_callback_impl! {
     impl for V8AccessorWrapper: cef_v8accessor_t {
         fn get(
             &self,
-            name:      CefString        : *const cef_string_t,
-            object:    V8Value          : *mut cef_v8value_t,
-            retval:    &mut V8Value     : *mut *mut cef_v8value_t,
-            exception: *mut cef_string_t: *mut cef_string_t,
+            name:      *const cef_string_t    : *const cef_string_t,
+            object:    V8Value                : *mut cef_v8value_t,
+            retval:    *mut *mut cef_v8value_t: *mut *mut cef_v8value_t,
+            exception: *mut cef_string_t      : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name = String::from(&name);
-            match self.0.get(&name, &object) {
+            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            match self.0.lock().borrow().get(&name, &object) {
                 Ok(value) => {
-                    (*retval) = value.into_raw();
+                    unsafe { (*retval) = value.into_raw(); }
                     1
-                },
+                }
                 Err(exception_str) => {
-                    CefString::new(exception_str).move_to(exception);
+                    unsafe { CefString::new(&exception_str).move_to(exception); }
                     0
                 },
             }
         }
         fn set(
             &self,
-            name     : CefString        : *const cef_string_t,
-            object   : V8Value          : *mut cef_v8value_t,
-            value    : V8Value          : *mut cef_v8value_t,
-            exception: *mut cef_string_t: *mut cef_string_t,
+            name     : *const cef_string_t: *const cef_string_t,
+            object   : V8Value            : *mut cef_v8value_t,
+            value    : V8Value            : *mut cef_v8value_t,
+            exception: *mut cef_string_t  : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name = String::from(&name);
-            if let Err(exception_str) = self.0.set(&name, &object, &value) {
-                CefString::new(exception_str).move_to(exception);
+            let name: String = unsafe { CefString::from_ptr_unchecked(name).into() };
+            if let Err(exception_str) = self.0.lock().borrow_mut().set(&name, &object, &value) {
+                unsafe { CefString::new(&exception_str).move_to(exception); }
                 0
             } else {
                 1
@@ -1047,7 +1083,7 @@ cef_callback_impl! {
 /// type `&str`) are called when object is indexed by string. Indexed property
 /// handlers (with first argument of type `i32`) are called when object is indexed
 /// by integer.
-pub trait V8Interceptor: Send + 'static {
+pub trait V8Interceptor: Sync + Send + 'static {
     /// Handle retrieval of the interceptor value identified by `name`. `object` is
     /// the receiver ('this' object) of the interceptor. If retrieval succeeds, return
     /// `Some(Ok(_))` containing the return value. If the requested value does not exist, return
@@ -1075,13 +1111,13 @@ pub trait V8Interceptor: Send + 'static {
     fn set_byindex(&mut self, index: i32, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
-pub(crate) struct V8InterceptorWrapper(Mutex<Arc<dyn V8Interceptor>>);
+pub(crate) struct V8InterceptorWrapper(Mutex<RefCell<Box<dyn V8Interceptor>>>);
 
 impl V8InterceptorWrapper {
     pub(crate) fn new(
-        delegate: Arc<dyn V8Interceptor>,
+        delegate: impl V8Interceptor,
     ) -> Self {
-        Self(Mutex::new(delegate))
+        Self(Mutex::new(RefCell::new(Box::new(delegate))))
     }
 }
 
@@ -1106,20 +1142,20 @@ cef_callback_impl! {
     impl for V8InterceptorWrapper: cef_v8interceptor_t {
         fn get_byname(
             &self,
-            name:      CefString        : *const cef_string_t,
-            object:    V8Value          : *mut cef_v8value_t,
-            retval:    &mut V8Value     : *mut *mut cef_v8value_t,
-            exception: *mut cef_string_t: *mut cef_string_t,
+            name:      *const cef_string_t    : *const cef_string_t,
+            object:    V8Value                : *mut cef_v8value_t,
+            retval:    *mut *mut cef_v8value_t: *mut *mut cef_v8value_t,
+            exception: *mut cef_string_t      : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name = String::from(&name);
-            if let Some(found) = self.0.lock().get_byname(&name, &object) {
+            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            if let Some(found) = self.0.lock().borrow().get_byname(&name, &object) {
                 match found {
                     Ok(value) => {
-                        (*retval) = value;
+                        unsafe { (*retval) = value.into_raw(); }
                         1
                     },
                     Err(exception_str) => {
-                        CefString::new(&exception_str).move_to(exception);
+                        unsafe { CefString::new(&exception_str).move_to(exception); }
                         0
                     },
                 }
@@ -1129,19 +1165,19 @@ cef_callback_impl! {
         }
         fn get_byindex(
             &self,
-            index:     i32              : std::os::raw::c_int,
-            object:    V8Value          : *mut cef_v8value_t,
-            retval:    &mut V8Value     : *mut *mut cef_v8value_t,
-            exception: *mut cef_string_t: *mut cef_string_t,
+            index:     i32                    : std::os::raw::c_int,
+            object:    V8Value                : *mut cef_v8value_t,
+            retval:    *mut *mut cef_v8value_t: *mut *mut cef_v8value_t,
+            exception: *mut cef_string_t      : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            if let Some(found) = self.0.lock().get_byindex(index, &object) {
+            if let Some(found) = self.0.lock().borrow().get_byindex(index, &object) {
                 match found {
                     Ok(value) => {
-                        (*retval) = value;
+                        unsafe { (*retval) = value.into_raw(); }
                         1
                     },
                     Err(exception_str) => {
-                        CefString::new(&exception_str).move_to(exception);
+                        unsafe { CefString::new(&exception_str).move_to(exception); }
                         0
                     },
                 }
@@ -1151,14 +1187,14 @@ cef_callback_impl! {
         }
         fn set_byname(
             &self,
-            name     : CefString        : *const cef_string_t,
-            object   : V8Value          : *mut cef_v8value_t,
-            value    : V8Value          : *mut cef_v8value_t,
-            exception: *mut cef_string_t: *mut cef_string_t,
+            name     : *const cef_string_t: *const cef_string_t,
+            object   : V8Value            : *mut cef_v8value_t,
+            value    : V8Value            : *mut cef_v8value_t,
+            exception: *mut cef_string_t  : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name = String::from(&name);
-            if let Err(exception_str) = self.0.lock().set_byname(&name, &object, &value) {
-                CefString::new(&exception_str).move_to(exception);
+            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            if let Err(exception_str) = self.0.lock().borrow_mut().set_byname(&name, &object, &value) {
+                unsafe { CefString::new(&exception_str).move_to(exception); }
                 0
             } else {
                 1
@@ -1171,8 +1207,8 @@ cef_callback_impl! {
             value    : V8Value          : *mut cef_v8value_t,
             exception: *mut cef_string_t: *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            if let Err(exception_str) = self.0.lock().set_byindex(index, &object, &value) {
-                CefString::new(&exception_str).move_to(exception);
+            if let Err(exception_str) = self.0.lock().borrow_mut().set_byindex(index, &object, &value) {
+                unsafe { CefString::new(&exception_str).move_to(exception); }
                 0
             } else {
                 1
@@ -1181,13 +1217,13 @@ cef_callback_impl! {
     }
 }
 
-struct V8ArrayBufferReleaseCallbackWrapper(Mutex<Option<Arc<dyn FnOnce(*mut u8) + Send + 'static>>>);
+struct V8ArrayBufferReleaseCallbackWrapper(Mutex<Option<Box<dyn FnOnce(*mut u8) + Send + 'static>>>);
 
 impl V8ArrayBufferReleaseCallbackWrapper {
     fn new(
-        delegate: Arc<dyn FnOnce(*mut u8) + Send + 'static>
+        delegate: impl FnOnce(*mut u8) + Send + 'static
     ) -> Self {
-        Self(Mutex::new(Some(delegate)))
+        Self(Mutex::new(Some(Box::new(delegate))))
     }
 }
 
@@ -1207,19 +1243,19 @@ impl Wrapper for V8ArrayBufferReleaseCallbackWrapper {
 
 cef_callback_impl! {
     impl for V8ArrayBufferReleaseCallbackWrapper: cef_v8array_buffer_release_callback_t {
-        fn release_buffer(&self, buffer: *mut u8: *mut ::std::os::raw::c_void) {
+        fn release_buffer(&self, buffer: *mut std::os::raw::c_void: *mut std::os::raw::c_void) {
             if let Some(release) = self.0.lock().take() {
-                release(buffer);
+                release(buffer as *mut u8);
             }
         }
     }
 }
 
-struct V8HandlerWrapper(Arc<dyn Fn(&str, &mut V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>);
+struct V8HandlerWrapper(Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>);
 
 impl V8HandlerWrapper {
     fn new(
-        delegate: Arc<dyn Fn(&str, &mut V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>
+        delegate: Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>
     ) -> Self {
         Self(delegate)
     }
@@ -1227,7 +1263,7 @@ impl V8HandlerWrapper {
 
 impl Wrapper for V8HandlerWrapper {
     type Cef = cef_v8handler_t;
-    type Inner = Arc<dyn Fn(&str, &mut V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>;
+    type Inner = Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_v8handler_t {
@@ -1243,28 +1279,66 @@ cef_callback_impl! {
     impl for V8HandlerWrapper: cef_v8handler_t {
         fn execute(
             &self,
-            name           : CefString                 : *const cef_string_t,
-            object         : &mut V8Value              : *mut cef_v8value_t,
+            name           : *const cef_string_t       : *const cef_string_t,
+            object         : V8Value                   : *mut cef_v8value_t,
             arguments_count: usize                     : usize,
             arguments      : *const *mut cef_v8value_t : *const *mut cef_v8value_t,
-            retval         : &mut V8Value              : *mut *mut cef_v8value_t,
+            retval         : *mut *mut cef_v8value_t   : *mut *mut cef_v8value_t,
             exception      : *mut cef_string_t         : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name = String::from(&name);
-            let args: Vec<V8Value> = unsafe { std::slice::from_raw_parts(arguments, arguments_count) }.iter().map(|val| V8Value::from_ptr_unchecked(*val)).collect();
+            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            let args: Vec<V8Value> = unsafe { std::slice::from_raw_parts(arguments, arguments_count) }.iter().map(|val| unsafe { V8Value::from_ptr_unchecked(*val) }).collect();
             match self.0(&name, object, &args) {
                 Ok(value) => {
-                    (*retval) = value;
+                    unsafe { (*retval) = value.into_raw(); }
                     1
                 }
                 Err(err) => {
-                    CefString::new(&err).move_to(exception);
+                    unsafe { CefString::new(&err).move_to(exception); }
                     0
                 }
             }
         }
     }
 }
+
+ref_counted_ptr! {
+    pub struct V8Handler(*mut cef_v8handler_t);
+}
+
+impl V8Handler {
+    pub fn execute(&self, name: &str, object: V8Value, arguments: &[V8Value]) -> Result<V8Value, String> {
+        self.0.execute.ok_or("Execute is null".to_owned()).and_then(|execute| {
+            let mut retval = null_mut();
+            let mut exception = CefString::null();
+            if unsafe { execute(self.as_ptr(), CefString::new(name).as_ptr(), object.as_ptr(), arguments.len(), arguments.iter().map(|v| v.as_ptr()).collect::<Vec<_>>().as_ptr(), &mut retval, exception.as_ptr_mut()) != 0 } {
+                Ok(unsafe { V8Value::from_ptr_unchecked(retval) })
+            } else {
+                Err(exception.into())
+            }
+        })
+    }
+}
+
+impl Fn<(&str, V8Value, &[V8Value], )> for V8Handler {
+    extern "rust-call" fn call(&self, (name, object, arguments): (&str, V8Value, &[V8Value])) -> Result<V8Value, String> {
+        self.execute(name, object, arguments)
+    }
+}
+
+impl FnMut<(&str, V8Value, &[V8Value], )> for V8Handler {
+    extern "rust-call" fn call_mut(&mut self, (name, object, arguments): (&str, V8Value, &[V8Value])) -> Result<V8Value, String> {
+        self.execute(name, object, arguments)
+    }
+}
+
+impl FnOnce<(&str, V8Value, &[V8Value], )> for V8Handler {
+    type Output = Result<V8Value, String>;
+    extern "rust-call" fn call_once(self, (name, object, arguments): (&str, V8Value, &[V8Value])) -> Self::Output {
+        self.execute(name, object, arguments)
+    }
+}
+
 
 /// User Data wrapper used for storing in V8Value objects that takes care of
 /// memory management between CEF and Rust.

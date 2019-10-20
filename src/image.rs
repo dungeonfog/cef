@@ -153,7 +153,7 @@ impl Image {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
             let binary = unsafe { get_as_bitmap(self.as_ptr(), scale_factor, color_type as cef_color_type_t::Type, alpha_type as cef_alpha_type_t::Type, &mut pixel_width, &mut pixel_height) };
-            BinaryValue::from_ptr(binary).map(|data| BinaryImage {
+            unsafe { BinaryValue::from_ptr(binary) }.map(|data| BinaryImage {
                 pixel_width,
                 pixel_height,
                 data: data.into(),
@@ -168,7 +168,7 @@ impl Image {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
             let binary = unsafe { get_as_png(self.as_ptr(), scale_factor, with_transparency as i32, &mut pixel_width, &mut pixel_height) };
-            BinaryValue::from_ptr(binary).map(|data| BinaryImage {
+            unsafe { BinaryValue::from_ptr(binary) }.map(|data| BinaryImage {
                 pixel_width,
                 pixel_height,
                 data: data.into(),
@@ -184,7 +184,7 @@ impl Image {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
             let binary = unsafe { get_as_jpeg(self.as_ptr(), scale_factor, std::cmp::min(100, quality) as i32, &mut pixel_width, &mut pixel_height) };
-            BinaryValue::from_ptr(binary).map(|data| BinaryImage {
+            unsafe { BinaryValue::from_ptr(binary) }.map(|data| BinaryImage {
                 pixel_width,
                 pixel_height,
                 data: data.into(),
