@@ -9,10 +9,9 @@ use crate::{
     refcounted::{Wrapper, RefCountedPtr},
     load_handler::ErrorCode,
     browser::Browser,
-    client::Client,
     frame::Frame,
     request::Request,
-    resource_request_handler::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
+    resource_request_handler::{ResourceRequestHandler},
     url_request::{AuthCallback, RequestCallback},
     ssl::{X509Certificate, SSLInfo},
 };

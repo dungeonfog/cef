@@ -1,7 +1,7 @@
 use cef_sys::{_cef_task_runner_t, cef_thread_id_t, _cef_task_t, cef_task_runner_get_for_current_thread, cef_task_runner_get_for_thread, cef_currently_on, cef_post_task, cef_post_delayed_task};
 use parking_lot::Mutex;
 use crate::{
-    refcounted::{RefCounted, RefCountedPtr, Wrapper},
+    refcounted::{RefCountedPtr, Wrapper},
 };
 
 #[repr(i32)]

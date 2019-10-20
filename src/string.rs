@@ -95,7 +95,7 @@ impl CefString {
 
     pub unsafe fn move_to(&mut self, destination: *mut cef_string_t) {
         if let Some(dtor) = (*destination).dtor {
-            unsafe { dtor((*destination).str); }
+            dtor((*destination).str);
         }
         (*destination).str = self.0.str;
         (*destination).length = self.0.length;

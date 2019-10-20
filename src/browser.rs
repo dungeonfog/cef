@@ -2,7 +2,6 @@ use cef_sys::{cef_browser_settings_t, cef_browser_t, cef_state_t, cef_string_utf
 
 use crate::{
     browser_host::BrowserHost,
-    client::Client,
     color::Color,
     frame::Frame,
     string::{CefString, CefStringList},
@@ -146,7 +145,6 @@ pub enum State {
 impl Into<cef_state_t::Type> for State {
     fn into(self) -> cef_state_t::Type {
         match self {
-            Self::Default => cef_state_t::STATE_DEFAULT,
             Self::Default => cef_state_t::STATE_DEFAULT,
             Self::Enabled => cef_state_t::STATE_ENABLED,
             Self::Disabled => cef_state_t::STATE_DISABLED,

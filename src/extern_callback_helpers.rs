@@ -8,7 +8,6 @@ use crate::{
     browser_host::BrowserHost,
     callback::Callback,
     command_line::CommandLine,
-    client::Client,
     dom::{DOMDocument, DOMNode},
     drag::DragData,
     frame::Frame,

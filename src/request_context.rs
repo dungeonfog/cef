@@ -6,18 +6,16 @@ use cef_sys::{
     cef_resource_request_handler_t, cef_string_t, cef_string_utf8_to_utf16, cef_web_plugin_info_t,
 };
 
-use parking_lot::Mutex;
 use num_enum::UnsafeFromPrimitive;
 use std::{
     ptr::{null, null_mut},
-    sync::Arc
+    sync::Arc,
 };
 
 use crate::{
     browser::Browser,
-    client::Client,
     frame::Frame,
-    refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
+    refcounted::{RefCountedPtr, Wrapper},
     request::Request,
     resource_request_handler::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
     string::CefString,

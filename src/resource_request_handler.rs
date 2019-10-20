@@ -7,12 +7,10 @@ use std::{
     ptr::null_mut,
     sync::Arc,
 };
-use parking_lot::Mutex;
 use crate::{
     browser::Browser,
-    client::Client,
     frame::Frame,
-    refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
+    refcounted::{RefCountedPtr, Wrapper},
     request::Request,
     string::CefString,
     url_request::{

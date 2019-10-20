@@ -1,4 +1,4 @@
-use cef_sys::{_cef_sslinfo_t, cef_cert_status_t, cef_is_cert_status_error, _cef_x509certificate_t};
+use cef_sys::{_cef_sslinfo_t, cef_cert_status_t, _cef_x509certificate_t};
 use std::collections::HashSet;
 
 /// Supported certificate status code values. See net\cert\cert_status_flags.h

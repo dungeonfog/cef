@@ -6,7 +6,6 @@ use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashSet, convert::TryFrom, sync::Arc};
 
 use crate::{
-    client::Client,
     browser::Browser,
     frame::Frame,
     refcounted::{RefCountedPtr, Wrapper},

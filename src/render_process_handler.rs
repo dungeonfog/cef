@@ -7,15 +7,13 @@ use std::{
     sync::Arc,
     ptr::null_mut,
 };
-use parking_lot::Mutex;
 use crate::{
     browser::Browser,
-    client::Client,
     dom::DOMNode,
     frame::Frame,
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
-    refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
+    refcounted::{RefCountedPtr, Wrapper},
     v8context::{V8Context, V8Exception, V8StackFrame},
     values::{DictionaryValue, ListValue},
 };

@@ -2,7 +2,7 @@ use cef_sys::{cef_string_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trac
 use std::{
     time::{Duration, SystemTime, SystemTimeError},
     convert::TryFrom,
-    ptr::{null, null_mut},
+    ptr::null_mut,
     collections::HashSet,
     any::Any,
     sync::Arc,
@@ -12,7 +12,7 @@ use parking_lot::Mutex;
 
 use crate::{
     string::{CefString, CefStringList},
-    refcounted::{RefCounted, Wrapper, RefCountedPtr},
+    refcounted::{Wrapper, RefCountedPtr},
     extern_callback_helpers::CToRustType,
     task::TaskRunner,
     browser::Browser,

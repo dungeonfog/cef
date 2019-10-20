@@ -15,7 +15,6 @@ use crate::{
     browser::Browser,
     callback::Callback,
     cookie::Cookie,
-    client::Client,
     frame::Frame,
     load_handler::ErrorCode,
     refcounted::{RefCountedPtr, Wrapper},

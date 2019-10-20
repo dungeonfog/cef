@@ -2,7 +2,6 @@ use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
 use std::sync::Arc;
 use crate::{
     browser::Browser,
-    client::Client,
     dom::{DOMVisitor, DOMVisitorWrapper},
     request::Request,
     refcounted::Wrapper,
