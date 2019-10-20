@@ -19,9 +19,7 @@ impl CompositionUnderline {
     }
     /// Underline character range.
     pub fn range(&self) -> Range {
-        Range::wrap(cef_range_t {
-            ..self.0.range
-        })
+        Range::wrap(cef_range_t { ..self.0.range })
     }
     /// Text color.
     pub fn set_color(&mut self, color: Color) {

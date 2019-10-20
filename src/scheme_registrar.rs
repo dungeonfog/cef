@@ -113,8 +113,6 @@ unsafe impl Sync for SchemeRegistrar {}
 
 impl Drop for SchemeRegistrar {
     fn drop(&mut self) {
-        unsafe {
-            ((*self.0).base.del.unwrap())(&mut (*self.0).base)
-        }
+        unsafe { ((*self.0).base.del.unwrap())(&mut (*self.0).base) }
     }
 }

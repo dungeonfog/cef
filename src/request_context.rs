@@ -1,9 +1,9 @@
 use cef_sys::{
-    cef_browser_t, cef_create_context_shared, cef_frame_t,
-    cef_plugin_policy_t, cef_request_context_create_context,
-    cef_request_context_get_global_context, cef_request_context_handler_t,
-    cef_request_context_settings_t, cef_request_context_t, cef_request_t,
-    cef_resource_request_handler_t, cef_string_t, cef_string_utf8_to_utf16, cef_web_plugin_info_t,
+    cef_browser_t, cef_create_context_shared, cef_frame_t, cef_plugin_policy_t,
+    cef_request_context_create_context, cef_request_context_get_global_context,
+    cef_request_context_handler_t, cef_request_context_settings_t, cef_request_context_t,
+    cef_request_t, cef_resource_request_handler_t, cef_string_t, cef_string_utf8_to_utf16,
+    cef_web_plugin_info_t,
 };
 
 use num_enum::UnsafeFromPrimitive;
@@ -115,13 +115,11 @@ impl Wrapper for RequestContextHandlerWrapper {
 }
 
 impl RequestContextHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Arc<dyn RequestContextHandler>,
-    ) -> RequestContextHandlerWrapper {
+    pub(crate) fn new(delegate: Arc<dyn RequestContextHandler>) -> RequestContextHandlerWrapper {
         Self(delegate)
     }
 }
-cef_callback_impl!{
+cef_callback_impl! {
     impl for RequestContextHandlerWrapper: cef_request_context_handler_t {
         fn request_context_initialized(
             &self,
@@ -219,7 +217,9 @@ impl RequestContext {
         } else {
             null_mut()
         };
-        unsafe { Self::from_ptr_unchecked(cef_create_context_shared(other.into_raw(), handler_ptr)) }
+        unsafe {
+            Self::from_ptr_unchecked(cef_create_context_shared(other.into_raw(), handler_ptr))
+        }
     }
 }
 
@@ -246,9 +246,10 @@ impl RequestContextBuilder {
             null()
         };
         unsafe {
-            RequestContext::from_ptr_unchecked(
-                cef_request_context_create_context(settings_ptr, handler_ptr as *mut _)
-            )
+            RequestContext::from_ptr_unchecked(cef_request_context_create_context(
+                settings_ptr,
+                handler_ptr as *mut _,
+            ))
         }
     }
 

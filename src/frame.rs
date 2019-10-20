@@ -1,14 +1,14 @@
-use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
-use std::sync::Arc;
 use crate::{
     browser::Browser,
     dom::{DOMVisitor, DOMVisitorWrapper},
-    request::Request,
     refcounted::Wrapper,
+    request::Request,
     string::{CefString, StringVisitor, StringVisitorWrapper},
     url_request::{URLRequest, URLRequestClient, URLRequestClientWrapper},
     v8context::V8Context,
 };
+use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
+use std::sync::Arc;
 
 ref_counted_ptr! {
     /// Structure used to represent a frame in the browser window. When used in the
@@ -219,8 +219,9 @@ impl Frame {
     }
     /// Returns the URL currently loaded in this frame.
     pub fn get_url(&self) -> String {
-        self.0.get_url
-            .and_then(|get_url| unsafe{ get_url(self.as_ptr()).as_mut() })
+        self.0
+            .get_url
+            .and_then(|get_url| unsafe { get_url(self.as_ptr()).as_mut() })
             .map(|url| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(url));
                 cef_string_userfree_utf16_free(url);

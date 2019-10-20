@@ -1,12 +1,3 @@
-use cef_sys::{
-    cef_browser_t, cef_dictionary_value_t, cef_domnode_t, cef_frame_t,
-    cef_list_value_t, cef_load_handler_t, cef_process_id_t, cef_process_message_t,
-    cef_render_process_handler_t, cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
-};
-use std::{
-    sync::Arc,
-    ptr::null_mut,
-};
 use crate::{
     browser::Browser,
     dom::DOMNode,
@@ -17,6 +8,12 @@ use crate::{
     v8context::{V8Context, V8Exception, V8StackFrame},
     values::{DictionaryValue, ListValue},
 };
+use cef_sys::{
+    cef_browser_t, cef_dictionary_value_t, cef_domnode_t, cef_frame_t, cef_list_value_t,
+    cef_load_handler_t, cef_process_id_t, cef_process_message_t, cef_render_process_handler_t,
+    cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
+};
+use std::{ptr::null_mut, sync::Arc};
 
 /// Trait used to implement render process callbacks. The functions of this
 /// trait will be called on the render process main thread ([ProcessId::Renderer])
@@ -87,9 +84,7 @@ unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RenderProcessHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Arc<dyn RenderProcessHandler>,
-    ) -> Self {
+    pub(crate) fn new(delegate: Arc<dyn RenderProcessHandler>) -> Self {
         Self(delegate)
     }
 }
@@ -117,7 +112,7 @@ impl Wrapper for RenderProcessHandlerWrapper {
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for RenderProcessHandlerWrapper: cef_render_process_handler_t {
         fn render_thread_created(
             &self,

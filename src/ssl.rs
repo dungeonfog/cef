@@ -1,4 +1,4 @@
-use cef_sys::{_cef_sslinfo_t, cef_cert_status_t, _cef_x509certificate_t};
+use cef_sys::{_cef_sslinfo_t, _cef_x509certificate_t, cef_cert_status_t};
 use std::collections::HashSet;
 
 /// Supported certificate status code values. See net\cert\cert_status_flags.h
@@ -54,7 +54,9 @@ impl CertStatus {
         .collect()
     }
 
-    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(status_flags: I) -> cef_cert_status_t {
+    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
+        status_flags: I,
+    ) -> cef_cert_status_t {
         cef_cert_status_t(status_flags.fold(0, |mask, flag| mask | (*flag as i32)))
     }
 }
@@ -74,9 +76,10 @@ impl SSLInfo {
     /// Returns a set containing any and all problems verifying the server
     /// certificate.
     pub fn get_cert_status(&self) -> HashSet<CertStatus> {
-        self.0.get_cert_status.map(|get_cert_status| {
-            CertStatus::as_vec(unsafe { get_cert_status(self.0.as_ptr()) })
-        }).unwrap_or_default()
+        self.0
+            .get_cert_status
+            .map(|get_cert_status| CertStatus::as_vec(unsafe { get_cert_status(self.0.as_ptr()) }))
+            .unwrap_or_default()
     }
     /// Returns the X.509 certificate.
     pub fn get_x509certificate(&self) -> X509Certificate {
@@ -84,7 +87,6 @@ impl SSLInfo {
         unsafe { X509Certificate::from_ptr_unchecked(get_x509certificate(self.0.as_ptr())) }
     }
 }
-
 
 ref_counted_ptr! {
     pub struct X509Certificate(*mut _cef_x509certificate_t);

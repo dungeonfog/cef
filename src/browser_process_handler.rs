@@ -1,13 +1,11 @@
-use cef_sys::{
-    cef_browser_process_handler_t, cef_command_line_t, cef_list_value_t,
-};
+use cef_sys::{cef_browser_process_handler_t, cef_command_line_t, cef_list_value_t};
 
 use std::sync::Arc;
 
 use crate::{
     command_line::CommandLine,
     refcounted::{RefCountedPtr, Wrapper},
-    values::{ListValue},
+    values::ListValue,
     // print_handler::PrintHandler,
 };
 
@@ -83,9 +81,7 @@ impl Wrapper for BrowserProcessHandlerWrapper {
 }
 
 impl BrowserProcessHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Arc<dyn BrowserProcessHandler>,
-    ) -> BrowserProcessHandlerWrapper {
+    pub(crate) fn new(delegate: Arc<dyn BrowserProcessHandler>) -> BrowserProcessHandlerWrapper {
         Self {
             delegate,
             #[cfg(target_os = "linux")]
@@ -94,7 +90,7 @@ impl BrowserProcessHandlerWrapper {
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for BrowserProcessHandlerWrapper: cef_browser_process_handler_t {
         fn context_initialized(&self) {
             self.delegate.on_context_initialized();

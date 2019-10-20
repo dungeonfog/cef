@@ -1,6 +1,4 @@
-use cef_sys::{
-    cef_drag_data_create, cef_drag_data_t, cef_drag_operations_mask_t,
-};
+use cef_sys::{cef_drag_data_create, cef_drag_data_t, cef_drag_operations_mask_t};
 use num_enum::UnsafeFromPrimitive;
 use std::collections::HashSet;
 
@@ -34,7 +32,9 @@ impl DragOperation {
         .cloned()
         .collect()
     }
-    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a DragOperation>>(operations: I) -> cef_drag_operations_mask_t {
+    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a DragOperation>>(
+        operations: I,
+    ) -> cef_drag_operations_mask_t {
         cef_drag_operations_mask_t(operations.fold(0, |mask, op| mask | (*op as i32)))
     }
 }

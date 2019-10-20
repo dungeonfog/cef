@@ -36,7 +36,9 @@ macro_rules! is_valid {
     ($cef:ident) => {
         impl IsValid for RefCountedPtr<cef_sys::$cef> {
             fn is_valid(&self) -> bool {
-                self.is_valid.map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 }).unwrap_or(false)
+                self.is_valid
+                    .map(|is_valid| unsafe { is_valid(self.as_ptr()) != 0 })
+                    .unwrap_or(false)
             }
         }
     };

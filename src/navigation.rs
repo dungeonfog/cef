@@ -1,9 +1,7 @@
 use cef_sys::cef_navigation_entry_t;
 use std::time::SystemTime;
 
-use crate::{
-    load_handler::TransitionType,
-};
+use crate::load_handler::TransitionType;
 
 ref_counted_ptr! {
     /// Structure used to represent an entry in navigation history.

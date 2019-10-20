@@ -1,6 +1,4 @@
-use cef_sys::{
-    cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t,
-};
+use cef_sys::{cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t};
 
 use std::sync::Arc;
 
@@ -75,7 +73,7 @@ pub trait ResourceBundleHandler: Send + Sync {
 }
 
 pub struct ResourceBundleHandlerWrapper {
-    delegate: Arc<dyn ResourceBundleHandler>
+    delegate: Arc<dyn ResourceBundleHandler>,
 }
 
 impl std::borrow::Borrow<Arc<dyn ResourceBundleHandler>> for ResourceBundleHandlerWrapper {
@@ -101,13 +99,11 @@ impl Wrapper for ResourceBundleHandlerWrapper {
 }
 
 impl ResourceBundleHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Arc<dyn ResourceBundleHandler>,
-    ) -> ResourceBundleHandlerWrapper {
+    pub(crate) fn new(delegate: Arc<dyn ResourceBundleHandler>) -> ResourceBundleHandlerWrapper {
         ResourceBundleHandlerWrapper { delegate }
     }
 }
-cef_callback_impl!{
+cef_callback_impl! {
     impl for ResourceBundleHandlerWrapper: cef_resource_bundle_handler_t {
         fn get_localized_string(
             &self,

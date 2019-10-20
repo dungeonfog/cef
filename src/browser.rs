@@ -141,7 +141,6 @@ pub enum State {
     Disabled = cef_state_t::STATE_DISABLED,
 }
 
-
 impl Into<cef_state_t::Type> for State {
     fn into(self) -> cef_state_t::Type {
         match self {
@@ -157,7 +156,6 @@ impl Into<cef_state_t::Type> for State {
 /// tested. Many of these and other settings can also configured using command-
 /// line switches.
 pub struct BrowserSettings(cef_browser_settings_t);
-
 
 impl BrowserSettings {
     pub fn new() -> Self {

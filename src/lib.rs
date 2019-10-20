@@ -4,8 +4,8 @@
 mod refcounted;
 #[macro_use]
 mod extern_callback_helpers;
-mod ptr_hash;
 mod cef_helper_traits;
+mod ptr_hash;
 pub mod string;
 pub use string::StringVisitor;
 mod multimap;
@@ -49,7 +49,7 @@ pub use resource_request_handler::ResourceRequestHandler;
 mod client;
 pub use client::Client;
 mod image;
-pub use image::{Image, ColorType, AlphaType, RepresentationInfo, BinaryImage};
+pub use image::{AlphaType, BinaryImage, ColorType, Image, RepresentationInfo};
 
 mod command_line;
 pub use command_line::CommandLine;
@@ -89,7 +89,7 @@ pub use request_handler::RequestHandler;
 mod ssl;
 pub use ssl::{CertStatus, SSLInfo, X509Certificate};
 mod task;
-pub use task::{TaskRunner};
+pub use task::TaskRunner;
 
 /// Return value types.
 #[repr(i32)]

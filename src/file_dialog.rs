@@ -1,13 +1,10 @@
+use cef_sys::{cef_file_dialog_mode_t, cef_run_file_dialog_callback_t, cef_string_list_t};
 use parking_lot::Mutex;
-use cef_sys::{
-    cef_file_dialog_mode_t, cef_run_file_dialog_callback_t,
-    cef_string_list_t,
-};
 use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
-    string::CefStringList,
     refcounted::{RefCountedPtr, Wrapper},
+    string::CefStringList,
 };
 
 #[repr(i32)]
@@ -81,18 +78,20 @@ impl Into<cef_file_dialog_mode_t> for FileDialogMode {
                 flags
             }
         };
-        cef_file_dialog_mode_t(flags
-            .into_iter()
-            .fold(result, |result, flag| result | flag as i32))
+        cef_file_dialog_mode_t(
+            flags
+                .into_iter()
+                .fold(result, |result, flag| result | flag as i32),
+        )
     }
 }
 
-ref_counted_ptr!{
+ref_counted_ptr! {
     pub(crate) struct RunFileDialogCallback(*mut cef_run_file_dialog_callback_t);
 }
 
 pub(crate) struct RunFileDialogCallbackWrapper {
-    callback: Mutex<Option<Box<dyn Send + FnOnce(usize, Option<Vec<String>>)>>>
+    callback: Mutex<Option<Box<dyn Send + FnOnce(usize, Option<Vec<String>>)>>>,
 }
 
 impl Wrapper for RunFileDialogCallbackWrapper {
@@ -115,12 +114,12 @@ impl RunFileDialogCallbackWrapper {
         F: 'static + Send + FnOnce(usize, Option<Vec<String>>),
     {
         RunFileDialogCallbackWrapper {
-            callback: Mutex::new(Some(Box::new(callback)))
+            callback: Mutex::new(Some(Box::new(callback))),
         }
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for RunFileDialogCallbackWrapper: cef_run_file_dialog_callback_t {
         fn file_dialog_dismissed(
             &self,

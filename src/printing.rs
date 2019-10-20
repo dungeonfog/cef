@@ -1,8 +1,6 @@
 use cef_sys::{cef_pdf_print_margin_type_t, cef_pdf_print_settings_t};
 
-use crate::{
-    string::CefString,
-};
+use crate::string::CefString;
 
 #[repr(i32)]
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
@@ -18,7 +16,7 @@ pub struct PDFPrintSettings(cef_pdf_print_settings_t);
 
 impl PDFPrintSettings {
     pub fn new() -> Self {
-        Self( unsafe { std::mem::zeroed() })
+        Self(unsafe { std::mem::zeroed() })
     }
 
     /// Page title to display in the header. Only used if [enable_header_footer]

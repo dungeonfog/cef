@@ -1,15 +1,12 @@
 use cef_sys::{
-    cef_auth_callback_t, cef_browser_t, cef_callback_t,
-    cef_cookie_access_filter_t, cef_cookie_t, cef_frame_t, cef_request_callback_t, cef_request_t, cef_resource_handler_t, cef_resource_read_callback_t,
-    cef_resource_skip_callback_t, cef_response_filter_status_t, cef_response_filter_t,
-    cef_response_t, cef_string_t, cef_urlrequest_client_t, cef_urlrequest_create,
-    cef_urlrequest_status_t, cef_urlrequest_t,
+    cef_auth_callback_t, cef_browser_t, cef_callback_t, cef_cookie_access_filter_t, cef_cookie_t,
+    cef_frame_t, cef_request_callback_t, cef_request_t, cef_resource_handler_t,
+    cef_resource_read_callback_t, cef_resource_skip_callback_t, cef_response_filter_status_t,
+    cef_response_filter_t, cef_response_t, cef_string_t, cef_urlrequest_client_t,
+    cef_urlrequest_create, cef_urlrequest_status_t, cef_urlrequest_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{
-    ptr::null_mut,
-    sync::Arc,
-};
+use std::{ptr::null_mut, sync::Arc};
 
 use crate::{
     browser::Browser,
@@ -227,13 +224,11 @@ impl Wrapper for URLRequestClientWrapper {
 
 impl URLRequestClientWrapper {
     pub(crate) fn new(delegate: Arc<dyn URLRequestClient>) -> URLRequestClientWrapper {
-        URLRequestClientWrapper {
-            delegate,
-        }
+        URLRequestClientWrapper { delegate }
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for URLRequestClientWrapper: cef_urlrequest_client_t {
         fn request_complete(
             &self,
@@ -385,16 +380,12 @@ impl Wrapper for CookieAccessFilterWrapper {
 }
 
 impl CookieAccessFilterWrapper {
-    pub(crate) fn new(
-        delegate: Arc<dyn CookieAccessFilter>,
-    ) -> CookieAccessFilterWrapper {
-        CookieAccessFilterWrapper {
-            delegate
-        }
+    pub(crate) fn new(delegate: Arc<dyn CookieAccessFilter>) -> CookieAccessFilterWrapper {
+        CookieAccessFilterWrapper { delegate }
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for CookieAccessFilterWrapper: cef_cookie_access_filter_t {
         fn can_send_cookie(
             &self,
@@ -514,7 +505,7 @@ impl ResponseFilterWrapper {
         ResponseFilterWrapper { delegate }
     }
 }
-cef_callback_impl!{
+cef_callback_impl! {
     impl for ResponseFilterWrapper: cef_response_filter_t {
         fn init_filter(&self) -> std::os::raw::c_int {
             self.delegate.init_filter() as std::os::raw::c_int

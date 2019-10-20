@@ -1,12 +1,3 @@
-use cef_sys::{
-    cef_browser_t, cef_cookie_access_filter_t, cef_frame_t,
-    cef_request_callback_t, cef_request_t, cef_resource_handler_t, cef_resource_request_handler_t,
-    cef_response_filter_t, cef_response_t, cef_return_value_t, cef_string_t, cef_urlrequest_status_t,
-};
-use std::{
-    ptr::null_mut,
-    sync::Arc,
-};
 use crate::{
     browser::Browser,
     frame::Frame,
@@ -19,6 +10,12 @@ use crate::{
     },
     ReturnValue,
 };
+use cef_sys::{
+    cef_browser_t, cef_cookie_access_filter_t, cef_frame_t, cef_request_callback_t, cef_request_t,
+    cef_resource_handler_t, cef_resource_request_handler_t, cef_response_filter_t, cef_response_t,
+    cef_return_value_t, cef_string_t, cef_urlrequest_status_t,
+};
+use std::{ptr::null_mut, sync::Arc};
 
 /// Implement this trait to handle events related to browser requests. The
 /// functions of this trait will be called on the IO thread unless otherwise
@@ -172,9 +169,7 @@ impl Wrapper for ResourceRequestHandlerWrapper {
 }
 
 impl ResourceRequestHandlerWrapper {
-    pub(crate) fn new(
-        delegate: Arc<dyn ResourceRequestHandler>,
-    ) -> ResourceRequestHandlerWrapper {
+    pub(crate) fn new(delegate: Arc<dyn ResourceRequestHandler>) -> ResourceRequestHandlerWrapper {
         Self(delegate)
     }
 }

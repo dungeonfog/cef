@@ -1,9 +1,9 @@
+use std::sync::Arc;
 #[cfg(windows)]
 use winapi::um::{
     libloaderapi::GetModuleHandleA,
     winuser::{WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_OVERLAPPEDWINDOW, WS_VISIBLE},
 };
-use std::sync::Arc;
 
 pub struct AppCallbacks();
 

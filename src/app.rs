@@ -1,13 +1,3 @@
-use cef_sys::{
-    cef_app_t, cef_do_message_loop_work,
-    cef_enable_highdpi_support, cef_execute_process, cef_initialize, cef_quit_message_loop,
-    cef_render_process_handler_t, cef_resource_bundle_handler_t, cef_run_message_loop,
-    cef_set_osmodal_loop, cef_shutdown,
-};
-use std::{
-    ptr::null_mut,
-    sync::Arc,
-};
 use crate::{
     browser_process_handler::{BrowserProcessHandler, BrowserProcessHandlerWrapper},
     command_line::CommandLine,
@@ -19,6 +9,12 @@ use crate::{
     settings::Settings,
     string::CefString,
 };
+use cef_sys::{
+    cef_app_t, cef_do_message_loop_work, cef_enable_highdpi_support, cef_execute_process,
+    cef_initialize, cef_quit_message_loop, cef_render_process_handler_t,
+    cef_resource_bundle_handler_t, cef_run_message_loop, cef_set_osmodal_loop, cef_shutdown,
+};
+use std::{ptr::null_mut, sync::Arc};
 
 #[cfg(target_os = "windows")]
 use crate::sandbox::SandboxInfo;
@@ -39,7 +35,8 @@ pub trait AppCallbacks: 'static + Send + Sync {
         &self,
         process_type: Option<&str>,
         command_line: CommandLine,
-    ) { }
+    ) {
+    }
     /// Provides an opportunity to register custom schemes. Do not keep a reference
     /// to the `registrar` object. This function is called on the main thread for
     /// each process and the registered schemes should be the same across all
@@ -128,9 +125,7 @@ impl App {
         unsafe {
             cef_execute_process(
                 args.get(),
-                application
-                    .map(|app| app.as_ptr())
-                    .unwrap_or_else(null_mut),
+                application.map(|app| app.as_ptr()).unwrap_or_else(null_mut),
                 windows_sandbox_info
                     .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
@@ -173,9 +168,7 @@ impl App {
             cef_initialize(
                 args.get(),
                 settings.get(),
-                application
-                    .map(|app| app.as_ptr())
-                    .unwrap_or_else(null_mut),
+                application.map(|app| app.as_ptr()).unwrap_or_else(null_mut),
                 windows_sandbox_info
                     .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
@@ -192,9 +185,7 @@ impl App {
             cef_initialize(
                 args.get(),
                 settings.get(),
-                application
-                    .map(|app| app.0)
-                    .unwrap_or_else(null_mut),
+                application.map(|app| app.0).unwrap_or_else(null_mut),
                 null_mut(),
             ) != 0
         }
@@ -259,7 +250,7 @@ impl AppWrapper {
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for AppWrapper: cef_app_t {
         fn on_before_command_line_processing(
             &self,

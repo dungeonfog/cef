@@ -1,8 +1,6 @@
-use cef_sys::{cef_image_t, cef_image_create, cef_color_type_t, cef_alpha_type_t};
+use cef_sys::{cef_alpha_type_t, cef_color_type_t, cef_image_create, cef_image_t};
 
-use crate::{
-    values::BinaryValue,
-};
+use crate::values::BinaryValue;
 
 /// Describes how to interpret the components of a pixel.
 #[repr(i32)]
@@ -65,94 +63,165 @@ impl Image {
 
     /// Returns true if this [Image] is empty.
     pub fn is_empty(&self) -> bool {
-        self.0.is_empty.map(|is_empty| {
-            unsafe { is_empty(self.as_ptr()) != 0 }
-        }).unwrap_or(true)
+        self.0
+            .is_empty
+            .map(|is_empty| unsafe { is_empty(self.as_ptr()) != 0 })
+            .unwrap_or(true)
     }
     // Returns true if this [Image] and `that` [Image] share the same underlying
     // storage. Will also return true if both images are empty.
     pub fn is_same(&self, that: &Self) -> bool {
-        self.0.is_same.map(|is_same| {
-            unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 }
-        }).unwrap_or(false)
+        self.0
+            .is_same
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
+            .unwrap_or(false)
     }
     /// Add a bitmap image representation for `scale_factor`. Only 32-bit RGBA/BGRA
     /// formats are supported. `pixel_width` and `pixel_height` are the bitmap
     /// representation size in pixel coordinates. `pixel_data` is the array of
     /// pixel data and should be `pixel_width` x `pixel_height` x 4 bytes in size.
     /// `color_type` and `alpha_type` values specify the pixel format.
-    pub fn add_bitmap(&mut self, scale_factor: f32, pixel_width: i32, pixel_height: i32, color_type: ColorType, alpha_type: AlphaType, pixel_data: &[u8]) -> bool {
-        self.0.add_bitmap.map(|add_bitmap| {
-            unsafe { add_bitmap(self.as_ptr(), scale_factor, pixel_width, pixel_height, color_type as cef_color_type_t::Type, alpha_type as cef_alpha_type_t::Type, pixel_data.as_ptr() as *const std::ffi::c_void, pixel_data.len()) != 0 }
-        }).unwrap_or(false)
+    pub fn add_bitmap(
+        &mut self,
+        scale_factor: f32,
+        pixel_width: i32,
+        pixel_height: i32,
+        color_type: ColorType,
+        alpha_type: AlphaType,
+        pixel_data: &[u8],
+    ) -> bool {
+        self.0
+            .add_bitmap
+            .map(|add_bitmap| unsafe {
+                add_bitmap(
+                    self.as_ptr(),
+                    scale_factor,
+                    pixel_width,
+                    pixel_height,
+                    color_type as cef_color_type_t::Type,
+                    alpha_type as cef_alpha_type_t::Type,
+                    pixel_data.as_ptr() as *const std::ffi::c_void,
+                    pixel_data.len(),
+                ) != 0
+            })
+            .unwrap_or(false)
     }
     /// Add a PNG image representation for `scale_factor`. `png_data` is the image
     /// data. Any alpha transparency in the PNG data will
     /// be maintained.
     pub fn add_png(&mut self, scale_factor: f32, png_data: &[u8]) -> bool {
-        self.0.add_png.map(|add_png| {
-            unsafe { add_png(self.as_ptr(), scale_factor, png_data.as_ptr() as *const std::ffi::c_void, png_data.len()) != 0 }
-        }).unwrap_or(false)
+        self.0
+            .add_png
+            .map(|add_png| unsafe {
+                add_png(
+                    self.as_ptr(),
+                    scale_factor,
+                    png_data.as_ptr() as *const std::ffi::c_void,
+                    png_data.len(),
+                ) != 0
+            })
+            .unwrap_or(false)
     }
     /// Create a JPEG image representation for `scale_factor`. `jpeg_data` is the
     /// image data. The JPEG format does not support
     /// transparency so the alpha byte will be set to `0xFF` for all pixels.
     pub fn add_jpeg(&mut self, scale_factor: f32, jpeg_data: &[u8]) -> bool {
-        self.0.add_jpeg.map(|add_jpeg| {
-            unsafe { add_jpeg(self.as_ptr(), scale_factor, jpeg_data.as_ptr() as *const std::ffi::c_void, jpeg_data.len()) != 0 }
-        }).unwrap_or(false)
+        self.0
+            .add_jpeg
+            .map(|add_jpeg| unsafe {
+                add_jpeg(
+                    self.as_ptr(),
+                    scale_factor,
+                    jpeg_data.as_ptr() as *const std::ffi::c_void,
+                    jpeg_data.len(),
+                ) != 0
+            })
+            .unwrap_or(false)
     }
     /// Returns the image width in density independent pixel (DIP) units.
     pub fn get_width(&self) -> usize {
-        self.0.get_width.map(|get_width| {
-            unsafe { get_width(self.as_ptr()) }
-        }).unwrap_or(0)
+        self.0
+            .get_width
+            .map(|get_width| unsafe { get_width(self.as_ptr()) })
+            .unwrap_or(0)
     }
     /// Returns the image height in density independent pixel (DIP) units.
     pub fn get_height(&self) -> usize {
-        self.0.get_height.map(|get_height| {
-            unsafe { get_height(self.as_ptr()) }
-        }).unwrap_or(0)
+        self.0
+            .get_height
+            .map(|get_height| unsafe { get_height(self.as_ptr()) })
+            .unwrap_or(0)
     }
     /// Returns true if this image contains a representation for
     /// `scale_factor`.
     pub fn has_representation(&self, scale_factor: f32) -> bool {
-        self.0.has_representation.map(|has_representation| {
-            unsafe { has_representation(self.as_ptr(), scale_factor) != 0 }
-        }).unwrap_or(false)
+        self.0
+            .has_representation
+            .map(|has_representation| unsafe {
+                has_representation(self.as_ptr(), scale_factor) != 0
+            })
+            .unwrap_or(false)
     }
     /// Removes the representation for `scale_factor`. Returns true on success.
     pub fn remove_representation(&mut self, scale_factor: f32) -> bool {
-        self.0.remove_representation.map(|remove_representation| {
-            unsafe { remove_representation(self.as_ptr(), scale_factor) != 0 }
-        }).unwrap_or(false)
+        self.0
+            .remove_representation
+            .map(|remove_representation| unsafe {
+                remove_representation(self.as_ptr(), scale_factor) != 0
+            })
+            .unwrap_or(false)
     }
     /// Returns information for the representation that most closely matches
     /// `scale_factor`.
     pub fn get_representation_info(&self, scale_factor: f32) -> Option<RepresentationInfo> {
-        self.0.get_representation_info.and_then(|get_representation_info| {
-            let mut actual_scale_factor = 0.0;
-            let mut pixel_width = 0;
-            let mut pixel_height = 0;
-            if unsafe { get_representation_info(self.as_ptr(), scale_factor, &mut actual_scale_factor, &mut pixel_width, &mut pixel_height) } != 0 {
-                Some(RepresentationInfo {
-                    actual_scale_factor,
-                    pixel_width,
-                    pixel_height,
-                })
-            } else {
-                None
-            }
-        })
+        self.0
+            .get_representation_info
+            .and_then(|get_representation_info| {
+                let mut actual_scale_factor = 0.0;
+                let mut pixel_width = 0;
+                let mut pixel_height = 0;
+                if unsafe {
+                    get_representation_info(
+                        self.as_ptr(),
+                        scale_factor,
+                        &mut actual_scale_factor,
+                        &mut pixel_width,
+                        &mut pixel_height,
+                    )
+                } != 0
+                {
+                    Some(RepresentationInfo {
+                        actual_scale_factor,
+                        pixel_width,
+                        pixel_height,
+                    })
+                } else {
+                    None
+                }
+            })
     }
     /// Returns the bitmap representation that most closely matches `scale_factor`.
     /// Only 32-bit RGBA/BGRA formats are supported. `color_type` and `alpha_type`
     /// values specify the desired output pixel format.
-    pub fn get_as_bitmap(&self, scale_factor: f32, color_type: ColorType, alpha_type: AlphaType) -> Option<BinaryImage> {
+    pub fn get_as_bitmap(
+        &self,
+        scale_factor: f32,
+        color_type: ColorType,
+        alpha_type: AlphaType,
+    ) -> Option<BinaryImage> {
         self.0.get_as_bitmap.and_then(|get_as_bitmap| {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
-            let binary = unsafe { get_as_bitmap(self.as_ptr(), scale_factor, color_type as cef_color_type_t::Type, alpha_type as cef_alpha_type_t::Type, &mut pixel_width, &mut pixel_height) };
+            let binary = unsafe {
+                get_as_bitmap(
+                    self.as_ptr(),
+                    scale_factor,
+                    color_type as cef_color_type_t::Type,
+                    alpha_type as cef_alpha_type_t::Type,
+                    &mut pixel_width,
+                    &mut pixel_height,
+                )
+            };
             unsafe { BinaryValue::from_ptr(binary) }.map(|data| BinaryImage {
                 pixel_width,
                 pixel_height,
@@ -167,7 +236,15 @@ impl Image {
         self.0.get_as_png.and_then(|get_as_png| {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
-            let binary = unsafe { get_as_png(self.as_ptr(), scale_factor, with_transparency as i32, &mut pixel_width, &mut pixel_height) };
+            let binary = unsafe {
+                get_as_png(
+                    self.as_ptr(),
+                    scale_factor,
+                    with_transparency as i32,
+                    &mut pixel_width,
+                    &mut pixel_height,
+                )
+            };
             unsafe { BinaryValue::from_ptr(binary) }.map(|data| BinaryImage {
                 pixel_width,
                 pixel_height,
@@ -183,7 +260,15 @@ impl Image {
         self.0.get_as_jpeg.and_then(|get_as_jpeg| {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
-            let binary = unsafe { get_as_jpeg(self.as_ptr(), scale_factor, std::cmp::min(100, quality) as i32, &mut pixel_width, &mut pixel_height) };
+            let binary = unsafe {
+                get_as_jpeg(
+                    self.as_ptr(),
+                    scale_factor,
+                    std::cmp::min(100, quality) as i32,
+                    &mut pixel_width,
+                    &mut pixel_height,
+                )
+            };
             unsafe { BinaryValue::from_ptr(binary) }.map(|data| BinaryImage {
                 pixel_width,
                 pixel_height,

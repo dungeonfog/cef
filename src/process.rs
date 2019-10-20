@@ -34,8 +34,9 @@ impl ProcessMessage {
             .unwrap_or(true)
     }
     pub fn get_name(&self) -> Option<String> {
-        self.0.get_name
-            .and_then(|get_name| unsafe{ get_name(self.as_ptr()).as_mut() })
+        self.0
+            .get_name
+            .and_then(|get_name| unsafe { get_name(self.as_ptr()).as_mut() })
             .map(|cef_string| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(cef_string));
                 cef_string_userfree_utf16_free(cef_string);

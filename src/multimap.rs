@@ -119,9 +119,7 @@ impl Into<HashMap<String, Vec<String>>> for MultiMap {
     fn into(self) -> HashMap<String, Vec<String>> {
         let mut result = HashMap::new();
         for idx in 0..self.len() {
-            if let (Ok(key), Ok(value)) =
-                (self.get_key(idx), self.get_value(idx))
-            {
+            if let (Ok(key), Ok(value)) = (self.get_key(idx), self.get_value(idx)) {
                 result.entry(key).or_insert_with(Vec::new).push(value);
             }
         }

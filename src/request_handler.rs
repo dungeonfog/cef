@@ -1,19 +1,19 @@
-use cef_sys::{cef_request_handler_t, cef_window_open_disposition_t, _cef_select_client_certificate_callback_t, cef_termination_status_t};
-use num_enum::UnsafeFromPrimitive;
-use std::{
-    ptr::null_mut,
-    sync::Arc,
+use cef_sys::{
+    _cef_select_client_certificate_callback_t, cef_request_handler_t, cef_termination_status_t,
+    cef_window_open_disposition_t,
 };
+use num_enum::UnsafeFromPrimitive;
+use std::{ptr::null_mut, sync::Arc};
 
 use crate::{
-    refcounted::{Wrapper, RefCountedPtr},
-    load_handler::ErrorCode,
     browser::Browser,
     frame::Frame,
+    load_handler::ErrorCode,
+    refcounted::{RefCountedPtr, Wrapper},
     request::Request,
-    resource_request_handler::{ResourceRequestHandler},
+    resource_request_handler::ResourceRequestHandler,
+    ssl::{SSLInfo, X509Certificate},
     url_request::{AuthCallback, RequestCallback},
-    ssl::{X509Certificate, SSLInfo},
 };
 
 #[repr(i32)]
@@ -52,7 +52,16 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// [ErrorCode::Aborted]. The `user_gesture` value will be true if the browser
     /// navigated via explicit user gesture (e.g. clicking a link) or false if
     /// it navigated automatically (e.g. via the DomContentLoaded event).
-    fn on_before_browser(&self, browser: &Browser, frame: &Frame, request: &Request, user_gesture: bool, is_redirect: bool) -> bool { false }
+    fn on_before_browser(
+        &self,
+        browser: &Browser,
+        frame: &Frame,
+        request: &Request,
+        user_gesture: bool,
+        is_redirect: bool,
+    ) -> bool {
+        false
+    }
     /// Called on the UI thread before OnBeforeBrowse in certain limited cases
     /// where navigating a new or different browser might be desirable. This
     /// includes user-initiated navigation that might open in a special way (e.g.
@@ -67,7 +76,16 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// it navigated automatically (e.g. via the DomContentLoaded event). Return
     /// true to cancel the navigation or false to allow the navigation to
     /// proceed in the source browser's top-level frame.
-    fn on_open_urlfrom_tab(&self, browser: &Browser, frame: &Frame, target_url: &str, target_disposition: WindowOpenDisposition, user_gesture: bool) -> bool { false }
+    fn on_open_urlfrom_tab(
+        &self,
+        browser: &Browser,
+        frame: &Frame,
+        target_url: &str,
+        target_disposition: WindowOpenDisposition,
+        user_gesture: bool,
+    ) -> bool {
+        false
+    }
     /// Called on the browser process IO thread before a resource request is
     /// initiated. The `browser` and `frame` values represent the source of the
     /// request. `request` represents the request contents and cannot be modified
@@ -82,7 +100,18 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// [ResourceRequestHandler] object. If this callback returns None the
     /// same function will be called on the associated [RequestContextHandler],
     /// if any.
-    fn get_resource_request_handler(&self, browser: &Browser, frame: &Frame, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Arc<dyn ResourceRequestHandler>> { None }
+    fn get_resource_request_handler(
+        &self,
+        browser: &Browser,
+        frame: &Frame,
+        request: &Request,
+        is_navigation: bool,
+        is_download: bool,
+        request_initiator: &str,
+        disable_default_handling: &mut bool,
+    ) -> Option<Arc<dyn ResourceRequestHandler>> {
+        None
+    }
     /// Called on the IO thread when the browser needs credentials from the user.
     /// `origin_url` is the origin making this authentication request. `is_proxy`
     /// indicates whether the host is a proxy server. `host` contains the hostname
@@ -93,7 +122,19 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// [AuthCallback::cont] either in this function or at a later time when
     /// the authentication information is available. Return false to cancel the
     /// request immediately.
-    fn get_auth_credentials(&self, browser: &Browser, origin_url: &str, is_proxy: bool, host: &str, port: u16, realm: Option<&str>, scheme: Option<&str>, callback: AuthCallback) -> bool { false }
+    fn get_auth_credentials(
+        &self,
+        browser: &Browser,
+        origin_url: &str,
+        is_proxy: bool,
+        host: &str,
+        port: u16,
+        realm: Option<&str>,
+        scheme: Option<&str>,
+        callback: AuthCallback,
+    ) -> bool {
+        false
+    }
     /// Called on the IO thread when JavaScript requests a specific storage quota
     /// size via the webkitStorageInfo.requestQuota function. `origin_url` is the
     /// origin of the page making the request. `new_size` is the requested quota
@@ -101,14 +142,31 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// [RequestCallback::cont] either in this function or at a later time to
     /// grant or deny the request. Return false to cancel the request
     /// immediately.
-    fn on_quota_request(&self, browser: &Browser, origin_url: &str, new_size: i64, callback: RequestCallback) -> bool { false }
+    fn on_quota_request(
+        &self,
+        browser: &Browser,
+        origin_url: &str,
+        new_size: i64,
+        callback: RequestCallback,
+    ) -> bool {
+        false
+    }
     /// Called on the UI thread to handle requests for URLs with an invalid SSL
     /// certificate. Return true and call [RequestCallback::cont] either
     /// in this function or at a later time to continue or cancel the request.
     /// Return false to cancel the request immediately. If
     /// [CefSettings::ignore_certificate_errors] is set all invalid certificates will
     /// be accepted without calling this function.
-    fn on_certificate_error(&self, browser: &Browser, cert_error: ErrorCode, request_url: &str, ssl_info: &SSLInfo, callback: RequestCallback) -> bool { false }
+    fn on_certificate_error(
+        &self,
+        browser: &Browser,
+        cert_error: ErrorCode,
+        request_url: &str,
+        ssl_info: &SSLInfo,
+        callback: RequestCallback,
+    ) -> bool {
+        false
+    }
     /// Called on the UI thread when a client certificate is being requested for
     /// authentication. Return false to use the default behavior and
     /// automatically select the first certificate available. Return true and
@@ -120,7 +178,17 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// is the list of certificates to choose from; this list has already been
     /// pruned by Chromium so that it only contains certificates from issuers that
     /// the server trusts.
-    fn on_select_client_certificate(&self, browser: &Browser, is_proxy: bool, host: &str, port: u16, certificates: &[X509Certificate], callback: SelectClientCertificateCallback) -> bool { false }
+    fn on_select_client_certificate(
+        &self,
+        browser: &Browser,
+        is_proxy: bool,
+        host: &str,
+        port: u16,
+        certificates: &[X509Certificate],
+        callback: SelectClientCertificateCallback,
+    ) -> bool {
+        false
+    }
     /// Called on the browser process UI thread when a plugin has crashed.
     /// `plugin_path` is the path of the plugin that crashed.
     fn on_plugin_crashed(&self, browser: &Browser, plugin_path: &str) {}
@@ -167,7 +235,10 @@ impl SelectClientCertificateCallback {
     /// None value means that no client certificate should be used.
     pub fn select(&self, cert: Option<X509Certificate>) {
         unsafe {
-            self.0.select.unwrap()(self.0.as_ptr(), cert.map(|cert| cert.as_ptr()).unwrap_or_else(null_mut));
+            self.0.select.unwrap()(
+                self.0.as_ptr(),
+                cert.map(|cert| cert.as_ptr()).unwrap_or_else(null_mut),
+            );
         }
     }
 }

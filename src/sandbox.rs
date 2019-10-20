@@ -1,4 +1,3 @@
-
 use cef_sys::{cef_sandbox_info_create, cef_sandbox_info_destroy};
 
 /// The sandbox is used to restrict sub-processes (renderer, plugin, GPU, etc)

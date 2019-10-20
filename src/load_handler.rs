@@ -1,6 +1,6 @@
 use cef_sys::{
-    cef_browser_t, cef_errorcode_t, cef_frame_t, cef_load_handler_t,
-    cef_string_t, cef_transition_type_t,
+    cef_browser_t, cef_errorcode_t, cef_frame_t, cef_load_handler_t, cef_string_t,
+    cef_transition_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashSet, convert::TryFrom, sync::Arc};
@@ -155,7 +155,8 @@ impl Into<i32> for TransitionType {
 ///   800-899 DNS resolver errors
 #[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, UnsafeFromPrimitive)]
-pub enum ErrorCode { // this list is generated from cef_net_error_list.h using regex magic
+pub enum ErrorCode {
+    // this list is generated from cef_net_error_list.h using regex magic
     /// No error.
     None = cef_errorcode_t::ERR_NONE,
 
@@ -813,7 +814,8 @@ pub enum ErrorCode { // this list is generated from cef_net_error_list.h using r
     Http2CompressionError = cef_errorcode_t::ERR_HTTP2_COMPRESSION_ERROR,
 
     /// Proxy Auth Requested without a valid Client Socket Handle.
-    ProxyAuthRequestedWithNoConnection = cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
+    ProxyAuthRequestedWithNoConnection =
+        cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
 
     /// HTTP_1_1_REQUIRED error code received on HTTP/2 session.
     Http11Required = cef_errorcode_t::ERR_HTTP_1_1_REQUIRED,
@@ -841,7 +843,8 @@ pub enum ErrorCode { // this list is generated from cef_net_error_list.h using r
 
     /// A pushed stream was claimed and later reset by the server. When this happens,
     /// the request should be retried.
-    Http2ClaimedPushedStreamResetByServer = cef_errorcode_t::ERR_HTTP2_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER,
+    Http2ClaimedPushedStreamResetByServer =
+        cef_errorcode_t::ERR_HTTP2_CLAIMED_PUSHED_STREAM_RESET_BY_SERVER,
 
     /// An HTTP transaction was retried too many times due for authentication or
     /// invalid certificates. This may be due to a bug in the net stack that would
@@ -1083,7 +1086,7 @@ pub trait LoadHandler: Send + Sync {
 }
 
 pub(crate) struct LoadHandlerWrapper {
-    delegate: Arc<dyn LoadHandler>
+    delegate: Arc<dyn LoadHandler>,
 }
 
 impl LoadHandlerWrapper {
@@ -1115,7 +1118,7 @@ impl Wrapper for LoadHandlerWrapper {
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for LoadHandlerWrapper: cef_load_handler_t {
         fn loading_state_change(
             &self,

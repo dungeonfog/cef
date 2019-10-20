@@ -35,11 +35,10 @@ impl ExactSizeIterator for DictionaryValueKeysIter<'_> {}
 impl<'a> Iterator for DictionaryValueIter<'a> {
     type Item = (String, StoredValue);
     fn next(&mut self) -> Option<(String, StoredValue)> {
-        self.keys.next()
-            .map(|key| {
-                let value = self.dictionary.get_value_inner(&key).into();
-                (key.into(), value)
-            })
+        self.keys.next().map(|key| {
+            let value = self.dictionary.get_value_inner(&key).into();
+            (key.into(), value)
+        })
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.keys.size_hint()
@@ -53,7 +52,7 @@ impl IntoIterator for ListValue {
     fn into_iter(self) -> ListValueIntoIter {
         ListValueIntoIter {
             range: 0..self.len(),
-            list: self
+            list: self,
         }
     }
 }
@@ -64,7 +63,7 @@ impl<'a> IntoIterator for &'a ListValue {
     fn into_iter(self) -> ListValueIter<'a> {
         ListValueIter {
             range: 0..self.len(),
-            list: self
+            list: self,
         }
     }
 }

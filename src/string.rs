@@ -1,16 +1,11 @@
 use cef_sys::{
-    cef_string_list_alloc, cef_string_list_free, cef_string_list_size,
-    cef_string_list_t, cef_string_list_value, cef_string_list_append, cef_string_t, cef_string_utf8_to_utf16,
+    cef_string_list_alloc, cef_string_list_append, cef_string_list_free, cef_string_list_size,
+    cef_string_list_t, cef_string_list_value, cef_string_t, cef_string_utf8_to_utf16,
     cef_string_visitor_t,
 };
 use std::ptr::null_mut;
 
-use std::{
-    iter::FromIterator,
-    ops::Range,
-    mem,
-    sync::Arc
-};
+use std::{iter::FromIterator, mem, ops::Range, sync::Arc};
 
 use crate::refcounted::{RefCountedPtr, Wrapper};
 
@@ -47,9 +42,7 @@ impl CefString {
         }
     }
     pub fn into_raw(self) -> cef_string_t {
-        let result = cef_string_t {
-            ..self.0
-        };
+        let result = cef_string_t { ..self.0 };
         mem::forget(self);
         result
     }
@@ -106,9 +99,7 @@ impl CefString {
     }
 
     pub unsafe fn move_from(source: *mut cef_string_t) -> Self {
-        let result = cef_string_t {
-            ..*source
-        };
+        let result = cef_string_t { ..*source };
         (*source).str = null_mut();
         (*source).length = 0;
         (*source).dtor = None;
@@ -159,9 +150,7 @@ impl From<CefString> for String {
 
 impl<'a> From<&'a CefString> for String {
     fn from(cef: &'a CefString) -> String {
-        String::from_utf16_lossy(
-            unsafe{ std::slice::from_raw_parts(cef.0.str, cef.0.length) }
-        )
+        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(cef.0.str, cef.0.length) })
     }
 }
 
@@ -195,17 +184,11 @@ impl CefStringList {
         self.0
     }
     pub fn len(&self) -> usize {
-        unsafe{ cef_string_list_size(self.0) }
+        unsafe { cef_string_list_size(self.0) }
     }
     pub fn get(&self, index: usize) -> Option<CefString> {
         let mut string = CefString::default();
-        let result = unsafe {
-            cef_string_list_value(
-                self.0,
-                index,
-                string.as_ptr_mut(),
-            )
-        };
+        let result = unsafe { cef_string_list_value(self.0, index, string.as_ptr_mut()) };
         if result == 0 {
             None
         } else {
@@ -213,7 +196,9 @@ impl CefStringList {
         }
     }
     pub fn push(&mut self, s: &CefString) {
-        unsafe { cef_string_list_append(self.0, s.as_ptr()); }
+        unsafe {
+            cef_string_list_append(self.0, s.as_ptr());
+        }
     }
     pub unsafe fn from_raw(raw: cef_string_list_t) -> CefStringList {
         CefStringList(raw)
@@ -287,8 +272,8 @@ impl<'a> ExactSizeIterator for CefStringListIntoIter {}
 
 impl<'a> FromIterator<&'a str> for CefStringList {
     fn from_iter<T>(iter: T) -> Self
-        where
-            T: IntoIterator<Item = &'a str>
+    where
+        T: IntoIterator<Item = &'a str>,
     {
         let mut list = Self::new();
         list.extend(iter);
@@ -296,10 +281,10 @@ impl<'a> FromIterator<&'a str> for CefStringList {
     }
 }
 
-impl<'a> Extend<&'a str> for CefStringList  {
+impl<'a> Extend<&'a str> for CefStringList {
     fn extend<T>(&mut self, iter: T)
-        where
-            T: IntoIterator<Item = &'a str>
+    where
+        T: IntoIterator<Item = &'a str>,
     {
         for s in iter {
             self.push(&s.into());
@@ -307,17 +292,16 @@ impl<'a> Extend<&'a str> for CefStringList  {
     }
 }
 
-impl<'a> Extend<&'a CefString> for CefStringList  {
+impl<'a> Extend<&'a CefString> for CefStringList {
     fn extend<T>(&mut self, iter: T)
-        where
-            T: IntoIterator<Item = &'a CefString>
+    where
+        T: IntoIterator<Item = &'a CefString>,
     {
         for s in iter {
             self.push(s);
         }
     }
 }
-
 
 impl From<CefStringList> for Vec<String> {
     fn from(list: CefStringList) -> Self {
@@ -363,13 +347,11 @@ impl Wrapper for StringVisitorWrapper {
 
 impl StringVisitorWrapper {
     pub(crate) fn new(delegate: Arc<dyn StringVisitor>) -> StringVisitorWrapper {
-        StringVisitorWrapper {
-            delegate,
-        }
+        StringVisitorWrapper { delegate }
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for StringVisitorWrapper: cef_string_visitor_t {
         fn visit(
             &self,

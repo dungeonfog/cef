@@ -43,7 +43,8 @@ pub(crate) struct RefCountedPtr<C: RefCounter> {
 }
 
 pub(crate) struct RefCountedPtrCache<W>
-    where W: Wrapper + Borrow<Arc<<W as Wrapper>::Inner>>,
+where
+    W: Wrapper + Borrow<Arc<<W as Wrapper>::Inner>>,
 {
     pub ptr: RefCountedPtr<W::Cef>,
     pub arc: Arc<W::Inner>,
@@ -53,7 +54,7 @@ unsafe impl<C: RefCounter> Send for RefCountedPtr<C> {}
 unsafe impl<C: RefCounter> Sync for RefCountedPtr<C> {}
 
 impl<C: RefCounter> RefCountedPtr<C> {
-    pub(crate) fn wrap<W: Wrapper<Cef=C>>(cefobj: C, object: W) -> RefCountedPtr<C> {
+    pub(crate) fn wrap<W: Wrapper<Cef = C>>(cefobj: C, object: W) -> RefCountedPtr<C> {
         unsafe { RefCountedPtr::from_ptr_unchecked(RefCounted::new(cefobj, object) as *mut C) }
     }
 
@@ -86,7 +87,8 @@ impl<C: RefCounter> RefCountedPtr<C> {
 }
 
 impl<W> RefCountedPtrCache<W>
-    where W: Wrapper + Borrow<Arc<<W as Wrapper>::Inner>>,
+where
+    W: Wrapper + Borrow<Arc<<W as Wrapper>::Inner>>,
 {
     pub fn new(wrapper: W) -> Self {
         RefCountedPtrCache {
@@ -185,7 +187,6 @@ pub(crate) struct RefCounted<W: Wrapper> {
     object: W,
 }
 
-
 unsafe impl<W: Wrapper> Sync for RefCounted<W> {}
 unsafe impl<W: Wrapper> Send for RefCounted<W> {}
 
@@ -209,10 +210,7 @@ impl<W: Wrapper> RefCounted<W> {
 
         // TODO: SHOULD WE GIT RID OF THE POINTER CAST? THIS IS BEING SHARED ACROSS THREADS AFTER
         // ALL
-        Arc::into_raw(Arc::new(Self {
-            cefobj,
-            object,
-        })) as *mut Self
+        Arc::into_raw(Arc::new(Self { cefobj, object })) as *mut Self
     }
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
@@ -220,7 +218,8 @@ impl<W: Wrapper> RefCounted<W> {
         let _: ManuallyDrop<Arc<Self>> = this;
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this: Arc<Self> = ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut W::Cef) });
+        let this: Arc<Self> =
+            ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut W::Cef) });
         (Arc::strong_count(&this) > 1) as c_int
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
@@ -231,7 +230,6 @@ impl<W: Wrapper> RefCounted<W> {
         let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
         (Arc::strong_count(&this) >= 1) as c_int
     }
-
 }
 
 ref_counter!(cef_app_t);

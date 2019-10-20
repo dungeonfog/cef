@@ -1,7 +1,3 @@
-use std::{
-    convert::TryFrom,
-    os::raw::c_int,
-};
 use crate::{
     app::App,
     browser::Browser,
@@ -23,6 +19,7 @@ use crate::{
     v8context::{V8Context, V8Exception, V8StackTrace},
     values::{DictionaryValue, ListValue, Value},
 };
+use std::{convert::TryFrom, os::raw::c_int};
 
 pub trait Pointer: Copy {
     fn is_null(self) -> bool;
@@ -106,14 +103,20 @@ macro_rules! owned_casts_from_unchecked {
         impl<'a> CToRustType for &'a $Self {
             type CType = *mut $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
-                assert_eq!(std::mem::size_of::<Self::CType>(), std::mem::size_of::<Self>());
+                assert_eq!(
+                    std::mem::size_of::<Self::CType>(),
+                    std::mem::size_of::<Self>()
+                );
                 &*(c_type as *mut Self)
             }
         }
         impl<'a> CToRustType for &'a mut $Self {
             type CType = *mut $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
-                assert_eq!(std::mem::size_of::<Self::CType>(), std::mem::size_of::<Self>());
+                assert_eq!(
+                    std::mem::size_of::<Self::CType>(),
+                    std::mem::size_of::<Self>()
+                );
                 &mut *(c_type as *mut Self)
             }
         }
@@ -236,7 +239,6 @@ impl<T> CToRustType for *mut T {
         c_type
     }
 }
-
 
 macro_rules! cef_callback_impl {
     (impl$(<$($generic:ident $(: $bound:path)?),+>)? for $RefCounted:ty: $CType:ty {

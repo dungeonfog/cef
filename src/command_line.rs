@@ -7,9 +7,7 @@ use std::{collections::HashMap, ptr::null_mut};
 #[cfg(not(target_os = "windows"))]
 use std::{ffi::CString, os::raw::c_char};
 
-use crate::{
-    string::{CefString, CefStringList},
-};
+use crate::string::{CefString, CefStringList};
 
 ref_counted_ptr! {
     /// Structure used to create and/or parse command line arguments. Arguments with

@@ -1,6 +1,6 @@
 use cef_sys::{
     cef_event_flags_t, cef_key_event_t, cef_key_event_type_t, cef_mouse_button_type_t,
-    cef_pointer_type_t, cef_touch_event_type_t, cef_touch_event_t, cef_mouse_event_t,
+    cef_mouse_event_t, cef_pointer_type_t, cef_touch_event_t, cef_touch_event_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
 

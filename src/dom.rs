@@ -1,11 +1,6 @@
-use cef_sys::{
-    cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t,
-};
+use cef_sys::{cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t};
 use num_enum::UnsafeFromPrimitive;
-use std::{
-    collections::HashMap,
-    sync::Arc,
-};
+use std::{collections::HashMap, sync::Arc};
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
@@ -188,13 +183,11 @@ impl Wrapper for DOMVisitorWrapper {
 
 impl DOMVisitorWrapper {
     pub(crate) fn new(delegate: Arc<dyn DOMVisitor>) -> DOMVisitorWrapper {
-        DOMVisitorWrapper {
-            delegate,
-        }
+        DOMVisitorWrapper { delegate }
     }
 }
 
-cef_callback_impl!{
+cef_callback_impl! {
     impl for DOMVisitorWrapper: cef_domvisitor_t {
         fn visit(
             &self,

@@ -1,16 +1,16 @@
-use cef_sys::{cef_client_t, cef_load_handler_t, cef_browser_t, cef_frame_t, cef_process_id_t, cef_process_message_t, cef_request_handler_t};
-use std::{
-    ptr::null_mut,
-    sync::Arc,
+use cef_sys::{
+    cef_browser_t, cef_client_t, cef_frame_t, cef_load_handler_t, cef_process_id_t,
+    cef_process_message_t, cef_request_handler_t,
 };
-use downcast_rs::{Downcast, impl_downcast};
+use downcast_rs::{impl_downcast, Downcast};
+use std::{ptr::null_mut, sync::Arc};
 
 use crate::{
     browser::Browser,
     frame::Frame,
-    refcounted::{RefCountedPtr, Wrapper},
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
+    refcounted::{RefCountedPtr, Wrapper},
     request_handler::{RequestHandler, RequestHandlerWrapper},
 };
 
@@ -43,14 +43,26 @@ pub trait Client: 'static + Send + Sync + Downcast {
     // /// Return the handler for browser life span events.
     // fn get_life_span_handler(&self) -> Option<Box<dyn LifeSpanHandler>> { None }
     /// Return the handler for browser load status events.
-    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler>> { None }
+    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler>> {
+        None
+    }
     // /// Return the handler for off-screen rendering events.
     // fn get_render_handler(&self) -> Option<Box<dyn RenderHandler>> { None }
     /// Return the handler for browser request events.
-    fn get_request_handler(&self) -> Option<Arc<dyn RequestHandler>> { None }
+    fn get_request_handler(&self) -> Option<Arc<dyn RequestHandler>> {
+        None
+    }
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
-    fn on_process_message_received(&self, browser: Browser, frame: Frame, process_id: ProcessId, message: ProcessMessage) -> bool { false }
+    fn on_process_message_received(
+        &self,
+        browser: Browser,
+        frame: Frame,
+        process_id: ProcessId,
+        message: ProcessMessage,
+    ) -> bool {
+        false
+    }
 }
 
 impl_downcast!(Client);

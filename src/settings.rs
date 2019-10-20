@@ -1,4 +1,4 @@
-use crate::{color::Color};
+use crate::color::Color;
 use cef_sys::{cef_log_severity_t, cef_settings_t, cef_string_utf8_to_utf16};
 use num_enum::UnsafeFromPrimitive;
 

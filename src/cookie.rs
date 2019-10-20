@@ -34,10 +34,18 @@ pub struct Cookie {
 impl Cookie {
     pub(crate) unsafe fn new(cookie: *const cef_cookie_t) -> Self {
         let cookie = cookie.as_ref().unwrap();
-        let name = CefString::from_ptr(&cookie.name).map(String::from).unwrap_or_default();
-        let value = CefString::from_ptr(&cookie.value).map(String::from).unwrap_or_default();
-        let domain = CefString::from_ptr(&cookie.domain).map(String::from).unwrap_or_default();
-        let path = CefString::from_ptr(&cookie.path).map(String::from).unwrap_or_default();
+        let name = CefString::from_ptr(&cookie.name)
+            .map(String::from)
+            .unwrap_or_default();
+        let value = CefString::from_ptr(&cookie.value)
+            .map(String::from)
+            .unwrap_or_default();
+        let domain = CefString::from_ptr(&cookie.domain)
+            .map(String::from)
+            .unwrap_or_default();
+        let path = CefString::from_ptr(&cookie.path)
+            .map(String::from)
+            .unwrap_or_default();
         let mut creation = 0.0;
         cef_time_to_doublet(&cookie.creation, &mut creation);
         let mut last_access = 0.0;

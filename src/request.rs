@@ -1,7 +1,7 @@
 use cef_sys::{
-    cef_post_data_create, cef_post_data_element_create,
-    cef_post_data_element_t, cef_post_data_t, cef_postdataelement_type_t, cef_referrer_policy_t,
-    cef_request_create, cef_request_t, cef_resource_type_t, cef_string_userfree_utf16_free,
+    cef_post_data_create, cef_post_data_element_create, cef_post_data_element_t, cef_post_data_t,
+    cef_postdataelement_type_t, cef_referrer_policy_t, cef_request_create, cef_request_t,
+    cef_resource_type_t, cef_string_userfree_utf16_free,
 };
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, convert::TryFrom, ptr::null_mut};
@@ -174,8 +174,9 @@ impl Request {
     }
     /// Get the fully qualified URL.
     pub fn get_url(&self) -> String {
-        self.0.get_url
-            .and_then(|get_url| unsafe{ get_url(self.as_ptr()).as_mut() })
+        self.0
+            .get_url
+            .and_then(|get_url| unsafe { get_url(self.as_ptr()).as_mut() })
             .map(|url| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(url));
                 cef_string_userfree_utf16_free(url);
@@ -194,8 +195,9 @@ impl Request {
     /// Get the request function type. The value will default to POST if post data
     /// is provided and GET otherwise.
     pub fn get_method(&self) -> String {
-        self.0.get_method
-            .and_then(|get_method| unsafe{ get_method(self.as_ptr()).as_mut() })
+        self.0
+            .get_method
+            .and_then(|get_method| unsafe { get_method(self.as_ptr()).as_mut() })
             .map(|cef_string| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(cef_string));
                 cef_string_userfree_utf16_free(cef_string);
@@ -229,8 +231,9 @@ impl Request {
     }
     /// Get the referrer URL.
     pub fn get_referrer_url(&self) -> String {
-        self.0.get_referrer_url
-            .and_then(|get_referrer_url| unsafe{ get_referrer_url(self.as_ptr()).as_mut() })
+        self.0
+            .get_referrer_url
+            .and_then(|get_referrer_url| unsafe { get_referrer_url(self.as_ptr()).as_mut() })
             .map(|cef_string| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(cef_string));
                 cef_string_userfree_utf16_free(cef_string);
@@ -242,10 +245,8 @@ impl Request {
     pub fn get_referrer_policy(&self) -> ReferrerPolicy {
         self.0
             .get_referrer_policy
-            .map(|get_referrer_policy| {
-                unsafe {
-                    ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32)
-                }
+            .map(|get_referrer_policy| unsafe {
+                ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32)
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
@@ -276,8 +277,11 @@ impl Request {
     /// Will not return the Referer value if any. Use [Request::get_header_map] instead if
     /// `name` might have multiple values.
     pub fn get_header_by_name(&self, name: &str) -> Option<String> {
-        self.0.get_header_by_name
-            .and_then(|get_header_by_name| unsafe{ get_header_by_name(self.as_ptr(), CefString::new(name).as_ptr()).as_mut() })
+        self.0
+            .get_header_by_name
+            .and_then(|get_header_by_name| unsafe {
+                get_header_by_name(self.as_ptr(), CefString::new(name).as_ptr()).as_mut()
+            })
             .map(|cef_string| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(cef_string));
                 cef_string_userfree_utf16_free(cef_string);
@@ -345,8 +349,11 @@ impl Request {
     /// Get the URL to the first party for cookies used in combination with
     /// [URLRequest].
     pub fn get_first_party_for_cookies(&self) -> String {
-        self.0.get_first_party_for_cookies
-            .and_then(|get_first_party_for_cookies| unsafe{ get_first_party_for_cookies(self.as_ptr()).as_mut() })
+        self.0
+            .get_first_party_for_cookies
+            .and_then(|get_first_party_for_cookies| unsafe {
+                get_first_party_for_cookies(self.as_ptr()).as_mut()
+            })
             .map(|cef_string| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(cef_string));
                 cef_string_userfree_utf16_free(cef_string);
@@ -425,9 +432,7 @@ impl PostData {
     pub fn has_excluded_elements(&self) -> bool {
         self.0
             .has_excluded_elements
-            .map(|has_excluded_elements| {
-                unsafe { has_excluded_elements(self.as_ptr()) != 0 }
-            })
+            .map(|has_excluded_elements| unsafe { has_excluded_elements(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the number of existing post data elements.
@@ -549,8 +554,9 @@ impl PostDataElement {
     }
     /// Return the file name.
     pub fn get_file(&self) -> String {
-        self.0.get_file
-            .and_then(|get_file| unsafe{ get_file(self.as_ptr()).as_mut() })
+        self.0
+            .get_file
+            .and_then(|get_file| unsafe { get_file(self.as_ptr()).as_mut() })
             .map(|cef_string| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(cef_string));
                 cef_string_userfree_utf16_free(cef_string);
