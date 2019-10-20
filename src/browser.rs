@@ -13,13 +13,13 @@ ref_counted_ptr! {
     /// process the functions of this structure may be called on any thread unless
     /// otherwise indicated in the comments. When used in the render process the
     /// functions of this structure may only be called on the main thread.
-    pub struct Browser<C: Client>(*mut cef_browser_t);
+    pub struct Browser(*mut cef_browser_t);
 }
 
-impl<C> Browser<C> where C: Client {
+impl Browser {
     /// Returns the browser host object. This function can only be called in the
     /// browser process.
-    pub fn get_host(&self) -> BrowserHost<C> {
+    pub fn get_host(&self) -> BrowserHost {
         unsafe { BrowserHost::from_ptr_unchecked((self.0.get_host.unwrap())(self.0.as_ptr())) }
     }
     /// Returns true if the browser can navigate backwards.
@@ -78,15 +78,15 @@ impl<C> Browser<C> where C: Client {
         unsafe { (self.0.has_document.unwrap())(self.0.as_ptr()) != 0 }
     }
     /// Returns the main (top-level) frame for the browser window.
-    pub fn get_main_frame(&self) -> Frame<C> {
+    pub fn get_main_frame(&self) -> Frame {
         unsafe { Frame::from_ptr_unchecked((self.0.get_main_frame.unwrap())(self.0.as_ptr())) }
     }
     /// Returns the focused frame for the browser window.
-    pub fn get_focused_frame(&self) -> Option<Frame<C>> {
+    pub fn get_focused_frame(&self) -> Option<Frame> {
         unsafe { Frame::from_ptr((self.0.get_focused_frame.unwrap())(self.0.as_ptr())) }
     }
     /// Returns the frame with the specified identifier, or None if not found.
-    pub fn get_frame_byident(&self, identifier: i64) -> Option<Frame<C>> {
+    pub fn get_frame_byident(&self, identifier: i64) -> Option<Frame> {
         unsafe {
             Frame::from_ptr((self.0.get_frame_byident.unwrap())(
                 self.0.as_ptr(),
@@ -95,7 +95,7 @@ impl<C> Browser<C> where C: Client {
         }
     }
     /// Returns the frame with the specified name, or None if not found.
-    pub fn get_frame(&self, name: &str) -> Option<Frame<C>> {
+    pub fn get_frame(&self, name: &str) -> Option<Frame> {
         unsafe {
             Frame::from_ptr((self.0.get_frame.unwrap())(
                 self.0.as_ptr(),
@@ -142,9 +142,11 @@ pub enum State {
     Disabled = cef_state_t::STATE_DISABLED,
 }
 
+
 impl Into<cef_state_t::Type> for State {
     fn into(self) -> cef_state_t::Type {
         match self {
+            Self::Default => cef_state_t::STATE_DEFAULT,
             Self::Default => cef_state_t::STATE_DEFAULT,
             Self::Enabled => cef_state_t::STATE_ENABLED,
             Self::Disabled => cef_state_t::STATE_DISABLED,
@@ -157,6 +159,7 @@ impl Into<cef_state_t::Type> for State {
 /// tested. Many of these and other settings can also configured using command-
 /// line switches.
 pub struct BrowserSettings(cef_browser_settings_t);
+
 
 impl BrowserSettings {
     pub fn new() -> Self {

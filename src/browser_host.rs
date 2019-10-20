@@ -1,10 +1,15 @@
-use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t};
+use cef_sys::{cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t, cef_paint_element_type_t, cef_download_image_callback_t, cef_pdf_print_callback_t, cef_image_t, cef_string_t, cef_navigation_entry_visitor_t, cef_navigation_entry_t, cef_client_t};
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashMap, iter::FromIterator, ptr::{null_mut, null}};
+use std::{
+    collections::HashMap,
+    iter::FromIterator,
+    ptr::{null_mut, null},
+    sync::Arc,
+};
 use winapi::shared::minwindef::HINSTANCE;
 use parking_lot::Mutex;
 use crate::{
-    refcounted::{RefCountedPtr, Wrapper},
+    refcounted::{RefCounted, Wrapper, RefCountedPtr},
     string::{CefString, CefStringList},
     browser::{Browser, BrowserSettings, State},
     client::{Client, ClientWrapper},
@@ -25,8 +30,8 @@ use crate::{
 #[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum PaintElementType {
-    View = cef_paint_element_type_t::PET_VIEW as i32,
-    Popup = cef_paint_element_type_t::PET_POPUP as i32,
+    View = cef_paint_element_type_t::PET_VIEW,
+    Popup = cef_paint_element_type_t::PET_POPUP,
 }
 
 #[cfg(target_os = "windows")]
@@ -41,10 +46,10 @@ ref_counted_ptr! {
     /// The functions of this structure can only be called in the browser process.
     /// They may be called on any thread in that process unless otherwise indicated
     /// in the comments.
-    pub struct BrowserHost<C: Client>(*mut cef_browser_host_t);
+    pub struct BrowserHost(*mut cef_browser_host_t);
 }
 
-impl<C: Client> BrowserHost<C> {
+impl BrowserHost {
     /// Create a new browser window using the window parameters specified by
     /// `window_info`. All values will be copied internally and the actual window will
     /// be created on the UI thread. If `request_context` is None the global request
@@ -55,7 +60,7 @@ impl<C: Client> BrowserHost<C> {
     /// render process.
     pub fn create_browser(
         window_info: &WindowInfo,
-        client: C,
+        client: Arc<dyn Client>,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
@@ -87,12 +92,12 @@ impl<C: Client> BrowserHost<C> {
     /// [RenderProcessHandler::on_browser_created] in the render process.
     pub fn create_browser_sync(
         window_info: &WindowInfo,
-        client: C,
+        client: Arc<dyn Client>,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
-        ) -> Browser<C> {
+        ) -> Browser {
         let extra_info = extra_info.and_then(|ei| Some(DictionaryValue::from(ei)));
         let client = ClientWrapper::new(client).wrap();
 
@@ -112,7 +117,7 @@ impl<C: Client> BrowserHost<C> {
         }
     }
     /// Returns the hosted browser object.
-    pub fn get_browser(&self) -> Browser<C> {
+    pub fn get_browser(&self) -> Browser {
         unsafe { Browser::from_ptr_unchecked(self.0.get_browser.unwrap()(self.0.as_ptr())) }
     }
     /// Request that the browser close. The JavaScript 'onbeforeunload' event will
@@ -173,10 +178,10 @@ impl<C: Client> BrowserHost<C> {
             unsafe { has_view(self.0.as_ptr()) != 0 }
         }).unwrap_or(false)
     }
-    /// Returns the client for this browser.
-    pub fn get_client(&self) -> C {
+    /// Returns the client for this browser, None if the type is not correct.
+    pub fn get_client<C: Client>(&self) -> Option<&C> {
         let get_client = self.0.get_client.unwrap();
-        unsafe { Client::from_raw_unchecked(get_client(self.0.as_ptr())) }
+        unsafe { RefCounted::<ClientWrapper>::wrapper(get_client(self.0.as_ptr())) }.get_client()
     }
     /// Returns the request context for this browser.
     pub fn get_request_context(&self) -> RequestContext {
@@ -353,7 +358,7 @@ impl<C: Client> BrowserHost<C> {
     pub fn show_dev_tools(
         &self,
         window_info: &WindowInfo,
-        client: Option<impl Client + 'static>,
+        client: Option<Arc<dyn Client>>,
         settings: Option<BrowserSettings>,
         inspect_element_at: Point,
     ) {
@@ -783,7 +788,7 @@ impl Wrapper for DownloadImageCallbackWrapper {
 }
 
 impl DownloadImageCallbackWrapper {
-    pub(crate) fn new<F: Send + FnOnce(&str, u16, Option<Image>) + 'static>(callback: F) -> DownloadImageCallbackWrapper {
+    pub(crate) fn new(callback: impl Send + FnOnce(&str, u16, Option<Image>) + 'static) -> DownloadImageCallbackWrapper {
         DownloadImageCallbackWrapper {
             callback: Mutex::new(Some(Box::new(callback))),
         }

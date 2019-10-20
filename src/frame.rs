@@ -16,10 +16,10 @@ ref_counted_ptr! {
     /// browser process the functions of this structure may be called on any thread
     /// unless otherwise indicated in the comments. When used in the render process
     /// the functions of this structure may only be called on the main thread.
-    pub struct Frame<C: Client>(*mut cef_frame_t);
+    pub struct Frame(*mut cef_frame_t);
 }
 
-impl<C> Frame<C> where C: Client {
+impl Frame {
     /// True if this object is currently attached to a valid frame.
     pub fn is_valid(&self) -> bool {
         self.0
@@ -211,7 +211,7 @@ impl<C> Frame<C> where C: Client {
     }
     /// Returns the parent of this frame or None if this is the main (top-level)
     /// frame.
-    pub fn get_parent(&self) -> Option<Frame<C>> {
+    pub fn get_parent(&self) -> Option<Frame> {
         if let Some(get_parent) = self.0.get_parent {
             unsafe { Frame::from_ptr(get_parent(self.0.as_ptr())) }
         } else {
@@ -230,13 +230,13 @@ impl<C> Frame<C> where C: Client {
             .unwrap_or_default()
     }
     /// Returns the browser that this frame belongs to.
-    pub fn get_browser(&self) -> Browser<C> {
+    pub fn get_browser(&self) -> Browser {
         let browser = unsafe { self.0.get_browser.unwrap()(self.0.as_ptr()) };
         unsafe { Browser::from_ptr(browser).expect("CEF: Frame without a browser!") }
     }
     /// Get the V8 context associated with the frame. This function can only be
     /// called from the render process.
-    pub fn get_v8context(&self) -> V8Context<C> {
+    pub fn get_v8context(&self) -> V8Context {
         let context = unsafe { self.0.get_v8context.unwrap()(self.0.as_ptr()) };
         unsafe { V8Context::from_ptr(context).expect("CEF: Frame without a V8 context!") }
     }

@@ -1,5 +1,9 @@
-use cef_sys::{cef_client_t, cef_load_handler_t, cef_browser_t, cef_frame_t, cef_process_id_t, cef_process_message_t};
-use std::{ptr::null_mut, sync::Arc};
+use cef_sys::{cef_client_t, cef_load_handler_t, cef_browser_t, cef_frame_t, cef_process_id_t, cef_process_message_t, cef_request_handler_t};
+use std::{
+    ptr::null_mut,
+    sync::Arc,
+};
+use downcast_rs::{Downcast, impl_downcast};
 
 use crate::{
     browser::Browser,
@@ -7,11 +11,11 @@ use crate::{
     refcounted::{RefCountedPtr, Wrapper},
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
-    request_handler::RequestHandler,
+    request_handler::{RequestHandler, RequestHandlerWrapper},
 };
 
 /// Implement this trait to provide handler implementations.
-pub trait Client: 'static + Send + Sync {
+pub trait Client: 'static + Send + Sync + Downcast {
     // /// Return the handler for audio rendering events.
     // fn get_audio_handler(&self) -> Option<Box<dyn AudioHandler>> { None }
     // /// Return the handler for context menus. If no handler is provided the default
@@ -39,29 +43,30 @@ pub trait Client: 'static + Send + Sync {
     // /// Return the handler for browser life span events.
     // fn get_life_span_handler(&self) -> Option<Box<dyn LifeSpanHandler>> { None }
     /// Return the handler for browser load status events.
-    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler<Self>>> { None }
+    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler>> { None }
     // /// Return the handler for off-screen rendering events.
     // fn get_render_handler(&self) -> Option<Box<dyn RenderHandler>> { None }
     /// Return the handler for browser request events.
-    fn get_request_handler(&self) -> Option<Arc<dyn RequestHandler<Self>>> { None }
+    fn get_request_handler(&self) -> Option<Arc<dyn RequestHandler>> { None }
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
-    fn on_process_message_received(&self, browser: Browser<Self>, frame: Frame<Self>, process_id: ProcessId, message: ProcessMessage) -> bool { false }
+    fn on_process_message_received(&self, browser: Browser, frame: Frame, process_id: ProcessId, message: ProcessMessage) -> bool { false }
 }
 
-pub(crate) struct ClientWrapper<C> where C: Client {
-    delegate: C,
-    load_handler: Option<Box<dyn LoadHandler<Self>>>,
-}
+impl_downcast!(Client);
 
-impl<C> Wrapper for ClientWrapper<C> where C: Client {
+#[repr(transparent)]
+pub(crate) struct ClientWrapper(Arc<dyn Client>);
+
+impl Wrapper for ClientWrapper {
     type Cef = cef_client_t;
-    type Inner = C;
+    type Inner = Box<dyn Client>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_client_t {
                 base: unsafe { std::mem::zeroed() },
                 get_load_handler: Some(Self::get_load_handler),
+                get_request_handler: Some(Self::get_request_handler),
                 on_process_message_received: Some(Self::process_message_received),
                 ..unsafe { std::mem::zeroed() }
             },
@@ -70,34 +75,31 @@ impl<C> Wrapper for ClientWrapper<C> where C: Client {
     }
 }
 
-impl<C: Client> ClientWrapper<C> {
-    pub(crate) fn new(delegate: C) -> ClientWrapper<C> {
-        ClientWrapper {
-            delegate: Arc::new(delegate),
-        }
+impl ClientWrapper {
+    pub(crate) fn new(delegate: Arc<dyn Client>) -> Self {
+        Self(delegate)
+    }
+    pub(crate) fn get_client<C: Client>(&self) -> Option<&C> {
+        self.0.downcast_ref()
     }
 }
 
 cef_callback_impl! {
-    impl<C: Client> for ClientWrapper<C>: cef_client_t {
-        fn get_load_handler<C: Client>(&self) -> *mut cef_load_handler_t {
-            let load_handler = self.delegate.get_load_handler();
-            if let Some(load_handler) = load_handler {
-                self.load_handler.replace(load_handler);
-            } else {
-                self.load_handler.take();
-            }
-
-            load_handler.map(LoadHandlerWrapper::wrap).unwrap_or_else(null_mut)
+    impl for ClientWrapper: cef_client_t {
+        fn get_load_handler(&self) -> *mut cef_load_handler_t {
+            self.0.get_load_handler().map(|lh| LoadHandlerWrapper::new(lh).wrap().into_raw()).unwrap_or_else(null_mut)
         }
-        fn process_message_received<C: Client>(
+        fn get_request_handler(&self) -> *mut cef_request_handler_t {
+            self.0.get_request_handler().map(|rh| RequestHandlerWrapper::new(rh).wrap().into_raw()).unwrap_or_else(null_mut)
+        }
+        fn process_message_received(
             &self,
-            browser       : Browser<C>    : *mut cef_browser_t,
-            frame         : Frame<C>      : *mut cef_frame_t,
+            browser       : Browser       : *mut cef_browser_t,
+            frame         : Frame         : *mut cef_frame_t,
             source_process: ProcessId     : cef_process_id_t::Type,
             message       : ProcessMessage: *mut cef_process_message_t
         ) -> std::os::raw::c_int {
-            self.delegate.on_process_message_received(&browser, &frame, source_process, &message) as std::os::raw::c_int
+            self.0.on_process_message_received(browser, frame, source_process, message) as std::os::raw::c_int
         }
     }
 }

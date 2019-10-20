@@ -1,7 +1,7 @@
 use cef_sys::{_cef_task_runner_t, cef_thread_id_t, _cef_task_t, cef_task_runner_get_for_current_thread, cef_task_runner_get_for_thread, cef_currently_on, cef_post_task, cef_post_delayed_task};
 use parking_lot::Mutex;
 use crate::{
-    refcounted::RefCounted,
+    refcounted::{RefCounted, RefCountedPtr, Wrapper},
 };
 
 #[repr(i32)]
@@ -36,7 +36,7 @@ impl TaskRunner {
     }
     /// Returns the task runner for the specified CEF thread.
     pub fn get_for_thread(thread_id: ThreadId) -> Option<Self> {
-        unsafe { Self::from_ptr(cef_task_runner_get_for_thread()) }
+        unsafe { Self::from_ptr(cef_task_runner_get_for_thread(thread_id as i32)) }
     }
     /// Returns true if called on the specified thread. Equivalent to using
     /// `TaskRunner::get_for_thread(thread_id).belongs_to_current_thread()`.
@@ -45,18 +45,18 @@ impl TaskRunner {
     }
     /// Post a task for execution on the specified thread. Equivalent to using
     /// `TaskRunner::get_for_thread(thread_id).post_task(task)`.
-    pub fn post_task_on(thread_id: ThreadId, task: impl FnOnce() + Send) -> bool {
-        unsafe { cef_post_task(thread_id as cef_thread_id_t::Type, Task::new(task)) != 0 }
+    pub fn post_task_on(thread_id: ThreadId, task: impl FnOnce() + Send + 'static) -> bool {
+        unsafe { cef_post_task(thread_id as cef_thread_id_t::Type, Task::new(task).wrap().into_raw()) != 0 }
     }
     /// Post a task for delayed execution on the specified thread. Equivalent to
     /// using `TaskRunner::get_for_thread(thread_id)->post_delayed_task(task, delay_ms)`.
-    pub fn post_delayed_task_on(thread_id: ThreadId, task: impl FnOnce() + Send, delay_ms: i64) -> bool {
-        unsafe { cef_post_delayed_task(thread_id as cef_thread_id_t::Type, Task::new(task), delay_ms) != 0 }
+    pub fn post_delayed_task_on(thread_id: ThreadId, task: impl FnOnce() + Send + 'static, delay_ms: i64) -> bool {
+        unsafe { cef_post_delayed_task(thread_id as cef_thread_id_t::Type, Task::new(task).wrap().into_raw(), delay_ms) != 0 }
     }
 
     /// Returns true if this object is pointing to the same task runner as
     /// `that` object.
-    pub fn is_same(&self, that: &Self) {
+    pub fn is_same(&self, that: &Self) -> bool {
         self.0.is_same.map(|is_same| {
             unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0}
         }).unwrap_or(false)
@@ -75,47 +75,51 @@ impl TaskRunner {
     }
     /// Post a task for execution on the thread associated with this task runner.
     /// Execution will occur asynchronously.
-    pub fn post_task(&mut self, task: impl FnOnce() + Send) -> bool {
+    pub fn post_task(&mut self, task: impl FnOnce() + Send + 'static) -> bool {
         self.0.post_task.map(|post_task| {
-            unsafe { post_task(self.as_ptr(), Task::new(task)) != 0 }
+            unsafe { post_task(self.as_ptr(), Task::new(task).wrap().into_raw()) != 0 }
         }).unwrap_or(false)
     }
     /// Post a task for delayed execution on the thread associated with this task
     /// runner. Execution will occur asynchronously. Delayed tasks are not
     /// supported on V8 WebWorker threads and will be executed without the
     /// specified delay.
-    pub fn post_delayed_task(&mut self, task: impl FnOnce() + Send, delay_ms: i64) {
-        self.0.post_delayed_task.map(|post_task| {
-            unsafe { cef_post_delayed_task(self.as_ptr(), Task::new(task), delay_ms) != 0 }
+    pub fn post_delayed_task(&mut self, task: impl FnOnce() + Send + 'static, delay_ms: i64) -> bool {
+        self.0.post_delayed_task.map(|post_delayed_task| {
+            unsafe { post_delayed_task(self.as_ptr(), Task::new(task).wrap().into_raw(), delay_ms) != 0 }
         }).unwrap_or(false)
     }
 }
 
-ref_counted_ptr! {
-    pub struct Task(*mut _cef_task_t);
-}
 
-pub(crate) struct TaskWrapper {
-    callback: Mutex<Option<Box<dyn FnOnce() + Send>>>
-}
+pub struct Task(Mutex<Option<Box<dyn FnOnce() + Send + 'static>>>);
 
 impl Task {
-    pub(crate) fn new(task: impl FnOnce() + Send) -> *mut _cef_task_t {
-        let rc = RefCounted::new(
+    pub(crate) fn new(task: impl FnOnce() + Send + 'static) -> Self {
+        Task(Mutex::new(Some(Box::new(task))))
+    }
+}
+
+impl Wrapper for Task {
+    type Cef = _cef_task_t;
+    type Inner = dyn Send + FnOnce();
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
             _cef_task_t {
                 base: unsafe { std::mem::zeroed() },
                 execute: Some(Self::execute),
             },
-            Some(Box::new(task)),
-        );
-        unsafe { rc.as_mut() }.unwrap().get_cef()
+            self,
+        )
     }
-    extern "C" fn execute(
-        self_: *mut _cef_task_t,
-    ) {
-        let mut this = unsafe { RefCounted::<_cef_task_t>::make_temp(self_) };
-        if let Some(task) = this.take() {
-            task();
+}
+
+cef_callback_impl!{
+    impl for Task: _cef_task_t {
+        fn execute(&self) {
+            if let Some(task) = self.0.lock().take() {
+                task();
+            }
         }
     }
 }

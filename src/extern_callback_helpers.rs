@@ -122,14 +122,14 @@ macro_rules! owned_casts_from_unchecked {
 }
 
 owned_casts!(impl for App = *mut cef_sys::cef_app_t);
-owned_casts!(impl<C: Client> for Browser<C> = *mut cef_sys::cef_browser_t);
-owned_casts!(impl<C: Client> for BrowserHost<C> = *mut cef_sys::cef_browser_host_t);
+owned_casts!(impl for Browser = *mut cef_sys::cef_browser_t);
+owned_casts!(impl for BrowserHost = *mut cef_sys::cef_browser_host_t);
 owned_casts!(impl for Callback = *mut cef_sys::cef_callback_t);
 owned_casts!(impl for CommandLine = *mut cef_sys::cef_command_line_t);
 owned_casts!(impl for DOMNode = *mut cef_sys::cef_domnode_t);
 owned_casts!(impl for DOMDocument = *mut cef_sys::cef_domdocument_t);
 owned_casts!(impl for DragData = *mut cef_sys::cef_drag_data_t);
-owned_casts!(impl<C: Client> for Frame<C> = *mut cef_sys::cef_frame_t);
+owned_casts!(impl for Frame = *mut cef_sys::cef_frame_t);
 owned_casts!(impl for Image = *mut cef_sys::cef_image_t);
 owned_casts!(impl for NavigationEntry = *mut cef_sys::cef_navigation_entry_t);
 owned_casts!(impl for ProcessMessage = *mut cef_sys::cef_process_message_t);
@@ -140,7 +140,7 @@ owned_casts!(impl for URLRequest = *mut cef_sys::cef_urlrequest_t);
 owned_casts!(impl for AuthCallback = *mut cef_sys::cef_auth_callback_t);
 owned_casts!(impl for Response = *mut cef_sys::cef_response_t);
 owned_casts!(impl for RequestCallback = *mut cef_sys::cef_request_callback_t);
-owned_casts!(impl<C: Client> for V8Context<C> = *mut cef_sys::cef_v8context_t);
+owned_casts!(impl for V8Context = *mut cef_sys::cef_v8context_t);
 owned_casts!(impl for V8Exception = *mut cef_sys::cef_v8exception_t);
 owned_casts!(impl for V8StackTrace = *mut cef_sys::cef_v8stack_trace_t);
 owned_casts!(impl for Value = *mut cef_sys::cef_value_t);

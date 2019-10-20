@@ -6,6 +6,7 @@ use std::{
 };
 
 use crate::{
+    refcounted::{Wrapper, RefCountedPtr},
     load_handler::ErrorCode,
     browser::Browser,
     client::Client,
@@ -42,7 +43,7 @@ enum TerminationStatus {
 
 /// Implement this structure to handle events related to browser requests. The
 /// functions of this structure will be called on the thread indicated.
-pub trait RequestHandler<C: Client>: Sync + Send {
+pub trait RequestHandler: Sync + Send + 'static {
     /// Called on the UI thread before browser navigation. Return true to
     /// cancel the navigation or false (0) to allow the navigation to proceed.
     /// [LoadHandler::on_loading_state_change] will be called twice in all cases.
@@ -52,7 +53,7 @@ pub trait RequestHandler<C: Client>: Sync + Send {
     /// [ErrorCode::Aborted]. The `user_gesture` value will be true if the browser
     /// navigated via explicit user gesture (e.g. clicking a link) or false if
     /// it navigated automatically (e.g. via the DomContentLoaded event).
-    fn on_before_browser(&self, browser: &Browser<C>, frame: &Frame<C>, request: &Request, user_gesture: bool, is_redirect: bool) -> bool { false }
+    fn on_before_browser(&self, browser: &Browser, frame: &Frame, request: &Request, user_gesture: bool, is_redirect: bool) -> bool { false }
     /// Called on the UI thread before OnBeforeBrowse in certain limited cases
     /// where navigating a new or different browser might be desirable. This
     /// includes user-initiated navigation that might open in a special way (e.g.
@@ -67,7 +68,7 @@ pub trait RequestHandler<C: Client>: Sync + Send {
     /// it navigated automatically (e.g. via the DomContentLoaded event). Return
     /// true to cancel the navigation or false to allow the navigation to
     /// proceed in the source browser's top-level frame.
-    fn on_open_urlfrom_tab(&self, browser: &Browser<C>, frame: &Frame<C>, target_url: &str, target_disposition: WindowOpenDisposition, user_gesture: bool) -> bool { false }
+    fn on_open_urlfrom_tab(&self, browser: &Browser, frame: &Frame, target_url: &str, target_disposition: WindowOpenDisposition, user_gesture: bool) -> bool { false }
     /// Called on the browser process IO thread before a resource request is
     /// initiated. The `browser` and `frame` values represent the source of the
     /// request. `request` represents the request contents and cannot be modified
@@ -82,7 +83,7 @@ pub trait RequestHandler<C: Client>: Sync + Send {
     /// [ResourceRequestHandler] object. If this callback returns None the
     /// same function will be called on the associated [RequestContextHandler],
     /// if any.
-    fn get_resource_request_handler(&self, browser: &Browser<C>, frame: &Frame<C>, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Arc<dyn ResourceRequestHandler<C>>> { None }
+    fn get_resource_request_handler(&self, browser: &Browser, frame: &Frame, request: &Request, is_navigation: bool, is_download: bool, request_initiator: &str, disable_default_handling: &mut bool) -> Option<Arc<dyn ResourceRequestHandler>> { None }
     /// Called on the IO thread when the browser needs credentials from the user.
     /// `origin_url` is the origin making this authentication request. `is_proxy`
     /// indicates whether the host is a proxy server. `host` contains the hostname
@@ -93,7 +94,7 @@ pub trait RequestHandler<C: Client>: Sync + Send {
     /// [AuthCallback::cont] either in this function or at a later time when
     /// the authentication information is available. Return false to cancel the
     /// request immediately.
-    fn get_auth_credentials(&self, browser: &Browser<C>, origin_url: &str, is_proxy: bool, host: &str, port: u16, realm: Option<&str>, scheme: Option<&str>, callback: AuthCallback) -> bool { false }
+    fn get_auth_credentials(&self, browser: &Browser, origin_url: &str, is_proxy: bool, host: &str, port: u16, realm: Option<&str>, scheme: Option<&str>, callback: AuthCallback) -> bool { false }
     /// Called on the IO thread when JavaScript requests a specific storage quota
     /// size via the webkitStorageInfo.requestQuota function. `origin_url` is the
     /// origin of the page making the request. `new_size` is the requested quota
@@ -101,14 +102,14 @@ pub trait RequestHandler<C: Client>: Sync + Send {
     /// [RequestCallback::cont] either in this function or at a later time to
     /// grant or deny the request. Return false to cancel the request
     /// immediately.
-    fn on_quota_request(&self, browser: &Browser<C>, origin_url: &str, new_size: i64, callback: RequestCallback) -> bool { false }
+    fn on_quota_request(&self, browser: &Browser, origin_url: &str, new_size: i64, callback: RequestCallback) -> bool { false }
     /// Called on the UI thread to handle requests for URLs with an invalid SSL
     /// certificate. Return true and call [RequestCallback::cont] either
     /// in this function or at a later time to continue or cancel the request.
     /// Return false to cancel the request immediately. If
     /// [CefSettings::ignore_certificate_errors] is set all invalid certificates will
     /// be accepted without calling this function.
-    fn on_certificate_error(&self, browser: &Browser<C>, cert_error: ErrorCode, request_url: &str, ssl_info: &SSLInfo, callback: RequestCallback) -> bool { false }
+    fn on_certificate_error(&self, browser: &Browser, cert_error: ErrorCode, request_url: &str, ssl_info: &SSLInfo, callback: RequestCallback) -> bool { false }
     /// Called on the UI thread when a client certificate is being requested for
     /// authentication. Return false to use the default behavior and
     /// automatically select the first certificate available. Return true and
@@ -120,17 +121,41 @@ pub trait RequestHandler<C: Client>: Sync + Send {
     /// is the list of certificates to choose from; this list has already been
     /// pruned by Chromium so that it only contains certificates from issuers that
     /// the server trusts.
-    fn on_select_client_certificate(&self, browser: &Browser<C>, is_proxy: bool, host: &str, port: u16, certificates: &[X509Certificate], callback: SelectClientCertificateCallback) -> bool { false }
+    fn on_select_client_certificate(&self, browser: &Browser, is_proxy: bool, host: &str, port: u16, certificates: &[X509Certificate], callback: SelectClientCertificateCallback) -> bool { false }
     /// Called on the browser process UI thread when a plugin has crashed.
     /// `plugin_path` is the path of the plugin that crashed.
-    fn on_plugin_crashed(&self, browser: &Browser<C>, plugin_path: &str) {}
+    fn on_plugin_crashed(&self, browser: &Browser, plugin_path: &str) {}
     /// Called on the browser process UI thread when the render view associated
     /// with `browser|`is ready to receive/handle IPC messages in the render
     /// process.
-    fn on_render_view_ready(&self, browser: &Browser<C>) {}
+    fn on_render_view_ready(&self, browser: &Browser) {}
     /// Called on the browser process UI thread when the render process terminates
     /// unexpectedly. `status` indicates how the process terminated.
-    fn on_render_process_terminated(&self, browser: &Browser<C>, status: TerminationStatus) {}
+    fn on_render_process_terminated(&self, browser: &Browser, status: TerminationStatus) {}
+}
+
+#[repr(transparent)]
+pub struct RequestHandlerWrapper(Arc<dyn RequestHandler>);
+
+impl RequestHandlerWrapper {
+    pub(crate) fn new(delegate: Arc<dyn RequestHandler>) -> Self {
+        Self(delegate)
+    }
+}
+
+impl Wrapper for RequestHandlerWrapper {
+    type Cef = cef_request_handler_t;
+    type Inner = Box<dyn RequestHandler>;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
+            cef_request_handler_t {
+                base: unsafe { std::mem::zeroed() },
+                // TODO
+                ..unsafe { std::mem::zeroed() }
+            },
+            self,
+        )
+    }
 }
 
 ref_counted_ptr! {
@@ -143,7 +168,7 @@ impl SelectClientCertificateCallback {
     /// None value means that no client certificate should be used.
     pub fn select(&self, cert: Option<X509Certificate>) {
         unsafe {
-            self.0.select.unwrap()(self.0.as_ptr(), cert.map(|cert| cert.as_ptr_mut()).unwrap_or_else(null_mut));
+            self.0.select.unwrap()(self.0.as_ptr(), cert.map(|cert| cert.as_ptr()).unwrap_or_else(null_mut));
         }
     }
 }

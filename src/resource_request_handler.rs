@@ -25,7 +25,7 @@ use crate::{
 /// Implement this trait to handle events related to browser requests. The
 /// functions of this trait will be called on the IO thread unless otherwise
 /// indicated.
-pub trait ResourceRequestHandler<C: Client>: Sync + Send {
+pub trait ResourceRequestHandler: Sync + Send {
     /// Called on the IO thread before a resource request is loaded. The `browser`
     /// and `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest]. To
@@ -33,10 +33,10 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// [CookieAccessFilter] object.
     fn get_cookie_access_filter(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: &Request,
-    ) -> Option<Arc<dyn CookieAccessFilter<C>>> {
+    ) -> Option<Arc<dyn CookieAccessFilter>> {
         None
     }
     /// Called on the IO thread before a resource request is loaded. The `browser`
@@ -49,8 +49,8 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// request asynchronously. Return [ReturnValue::Cancel] to cancel the request immediately.
     fn on_before_resource_load(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: Request,
         callback: RequestCallback,
     ) -> ReturnValue {
@@ -63,8 +63,8 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// handler for the resource return a [ResourceHandler] object.
     fn get_resource_handler(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: &Request,
     ) -> Option<Arc<dyn ResourceHandler>> {
         None
@@ -78,8 +78,8 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// and can be changed if desired.
     fn on_resource_redirect(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: &Request,
         response: &Response,
         new_url: &mut String,
@@ -90,8 +90,8 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// requests originating from service workers or [URLRequest].
     fn on_resource_response(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: Request,
         response: &Response,
     ) {
@@ -101,8 +101,8 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// be None for requests originating from service workers or [URLRequest].
     fn get_resource_response_filter(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: &Request,
         response: &Response,
     ) -> Option<Arc<dyn ResponseFilter>> {
@@ -123,8 +123,8 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// frame is invalid.
     fn on_resource_load_complete(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: Request,
         response: Response,
         status: URLRequestStatus,
@@ -142,30 +142,19 @@ pub trait ResourceRequestHandler<C: Client>: Sync + Send {
     /// ANALYSIS BEFORE ALLOWING OS EXECUTION.
     fn on_protocol_execution(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: &Request,
     ) -> bool {
         false
     }
 }
 
-pub(crate) struct ResourceRequestHandlerWrapper<C: Client> {
-    delegate: Arc<dyn ResourceRequestHandler<C>>,
-    cookie_access_filter: Mutex<Option<RefCountedPtrCache<cef_cookie_access_filter_t>>>,
-    resource_handler: Mutex<Option<RefCountedPtrCache<cef_resource_handler_t>>>,
-    response_filter: Mutex<Option<RefCountedPtrCache<cef_response_filter_t>>>,
-}
+pub(crate) struct ResourceRequestHandlerWrapper(Arc<dyn ResourceRequestHandler>);
 
-impl<C: Client> std::borrow::Borrow<Arc<dyn ResourceRequestHandler<C>>> for ResourceRequestHandlerWrapper<C> {
-    fn borrow(&self) -> &Arc<dyn ResourceRequestHandler<C>> {
-        &self.delegate
-    }
-}
-
-impl<C: Client> Wrapper for ResourceRequestHandlerWrapper<C> {
+impl Wrapper for ResourceRequestHandlerWrapper {
     type Cef = cef_resource_request_handler_t;
-    type Inner = dyn ResourceRequestHandler<C>;
+    type Inner = Arc<dyn ResourceRequestHandler>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_resource_request_handler_t {
@@ -184,87 +173,63 @@ impl<C: Client> Wrapper for ResourceRequestHandlerWrapper<C> {
     }
 }
 
-impl<C: Client> ResourceRequestHandlerWrapper<C> {
+impl ResourceRequestHandlerWrapper {
     pub(crate) fn new(
-        delegate: Arc<dyn ResourceRequestHandler<C>>,
-    ) -> ResourceRequestHandlerWrapper<C> {
-        Self {
-            delegate,
-            cookie_access_filter: Mutex::new(None),
-            resource_handler: Mutex::new(None),
-            response_filter: Mutex::new(None),
-        }
+        delegate: Arc<dyn ResourceRequestHandler>,
+    ) -> ResourceRequestHandlerWrapper {
+        Self(delegate)
     }
 }
 
 cef_callback_impl! {
-    impl<C: Client> for ResourceRequestHandlerWrapper<C>: cef_resource_request_handler_t {
-        fn get_cookie_access_filter<C: Client>(
+    impl for ResourceRequestHandlerWrapper: cef_resource_request_handler_t {
+        fn get_cookie_access_filter(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame  : Option<Frame<C>>  : *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame  : Option<Frame>  : *mut cef_frame_t,
             request: Request        : *mut cef_request_t,
         ) -> *mut cef_cookie_access_filter_t
         {
-            if let Some(handler) = self.delegate.get_cookie_access_filter(browser, frame, &request) {
-                self.cookie_access_filter
-                    .lock()
-                    .get_or_insert_with(|| RefCountedPtrCache::new(CookieAccessFilterWrapper::new(handler.clone())))
-                    .get_ptr_or_rewrap(CookieAccessFilterWrapper::new(handler))
-                    .into_raw()
-            } else {
-                *self.cookie_access_filter.lock() = None;
-                null_mut()
-            }
+            self.0.get_cookie_access_filter(browser, frame, &request).map(|caf| CookieAccessFilterWrapper::new(caf).wrap().into_raw()).unwrap_or_else(null_mut)
         }
-        fn before_resource_load<C: Client>(
+        fn before_resource_load(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             callback: RequestCallback: *mut cef_request_callback_t,
         ) -> cef_return_value_t::Type {
-            let result = self.delegate.on_before_resource_load(
+            self.0.on_before_resource_load(
                 browser,
                 frame,
                 request,
                 callback
-            ) as i32;
-            result as cef_return_value_t::Type
+            ) as cef_return_value_t::Type
         }
 
-        fn get_resource_handler<C: Client>(
+        fn get_resource_handler(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
         ) -> *mut cef_resource_handler_t {
-            if let Some(handler) = self.delegate.get_resource_handler(
+            self.0.get_resource_handler(
                 browser,
                 frame,
                 &request,
-            ) {
-                self.resource_handler
-                    .lock()
-                    .get_or_insert_with(|| RefCountedPtrCache::new(ResourceHandlerWrapper::new(handler.clone())))
-                    .get_ptr_or_rewrap(ResourceHandlerWrapper::new(handler))
-                    .into_raw()
-            } else {
-                *self.resource_handler.lock() = None;
-                null_mut()
-            }
+            ).map(|rhw| ResourceHandlerWrapper::new(rhw).wrap().into_raw()).unwrap_or_else(null_mut)
         }
 
-        fn resource_redirect<C: Client>(
+        fn resource_redirect(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             response: Response: *mut cef_response_t,
             new_url: &mut CefString: *mut cef_string_t,
         ) {
             let mut new_url_rust = String::from(&*new_url);
-            self.delegate.on_resource_redirect(
+            self.0.on_resource_redirect(
                 browser,
                 frame,
                 &request,
@@ -274,14 +239,14 @@ cef_callback_impl! {
             new_url.set_string(&new_url_rust);
         }
 
-        fn resource_response<C: Client>(
+        fn resource_response(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             response: Response: *mut cef_response_t,
         ) -> std::os::raw::c_int {
-            self.delegate.on_resource_response(
+            self.0.on_resource_response(
                 browser,
                 frame,
                 request,
@@ -290,40 +255,31 @@ cef_callback_impl! {
             0
         }
 
-        fn get_resource_response_filter<C: Client>(
+        fn get_resource_response_filter(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             response: Response: *mut cef_response_t,
         ) -> *mut cef_response_filter_t {
-            if let Some(filter) = self.delegate.get_resource_response_filter(
+            self.0.get_resource_response_filter(
                 browser,
                 frame,
                 &request,
                 &response,
-            ) {
-                self.response_filter
-                    .lock()
-                    .get_or_insert_with(|| RefCountedPtrCache::new(ResponseFilterWrapper::new(filter.clone())))
-                    .get_ptr_or_rewrap(ResponseFilterWrapper::new(filter))
-                    .into_raw()
-            } else {
-                *self.response_filter.lock() = None;
-                null_mut()
-            }
+            ).map(|rrfw| ResponseFilterWrapper::new(rrfw).wrap().into_raw()).unwrap_or_else(null_mut)
         }
 
-        fn resource_load_complete<C: Client>(
+        fn resource_load_complete(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             response: Response: *mut cef_response_t,
             status: URLRequestStatus: cef_urlrequest_status_t::Type,
             received_content_length: i64: i64,
         ) {
-            self.delegate.on_resource_load_complete(
+            self.0.on_resource_load_complete(
                 browser,
                 frame,
                 request,
@@ -333,14 +289,14 @@ cef_callback_impl! {
             );
         }
 
-        fn protocol_execution<C: Client>(
+        fn protocol_execution(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             allow_os_execution: Option<&mut std::os::raw::c_int>: *mut std::os::raw::c_int,
         ) {
-            if self.delegate.on_protocol_execution(
+            if self.0.on_protocol_execution(
                 browser,
                 frame,
                 &request,

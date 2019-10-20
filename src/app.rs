@@ -1,5 +1,5 @@
 use cef_sys::{
-    cef_app_t, cef_browser_process_handler_t, cef_do_message_loop_work,
+    cef_app_t, cef_do_message_loop_work,
     cef_enable_highdpi_support, cef_execute_process, cef_initialize, cef_quit_message_loop,
     cef_render_process_handler_t, cef_resource_bundle_handler_t, cef_run_message_loop,
     cef_set_osmodal_loop, cef_shutdown,
@@ -8,13 +8,11 @@ use std::{
     ptr::null_mut,
     sync::Arc,
 };
-use parking_lot::Mutex;
 use crate::{
     browser_process_handler::{BrowserProcessHandler, BrowserProcessHandlerWrapper},
     command_line::CommandLine,
-    client::Client,
     main_args::MainArgs,
-    refcounted::{RefCountedPtr, RefCountedPtrCache, Wrapper},
+    refcounted::{RefCountedPtr, Wrapper},
     render_process_handler::{RenderProcessHandler, RenderProcessHandlerWrapper},
     resource_bundle_handler::{ResourceBundleHandler, ResourceBundleHandlerWrapper},
     scheme_registrar::SchemeRegistrar,
@@ -27,7 +25,7 @@ use crate::sandbox::SandboxInfo;
 
 /// Implement this structure to provide handler implementations. Methods will be
 /// called by the process and/or thread indicated.
-pub trait AppCallbacks<C: Client>: Send + Sync {
+pub trait AppCallbacks: 'static + Send + Sync {
     /// Provides an opportunity to view and/or modify command-line arguments before
     /// processing by CEF and Chromium. The `process_type` value will be `None` for
     /// the browser process. Do not keep a reference to the CommandLine
@@ -61,7 +59,7 @@ pub trait AppCallbacks<C: Client>: Send + Sync {
     }
     /// Return the handler for functionality specific to the render process. This
     /// function is called on the render process main thread.
-    fn get_render_process_handler(&self) -> Option<Arc<dyn RenderProcessHandler<C>>> {
+    fn get_render_process_handler(&self) -> Option<Arc<dyn RenderProcessHandler>> {
         None
     }
 }
@@ -71,22 +69,17 @@ ref_counted_ptr! {
     pub struct App(*mut cef_app_t);
 }
 
-pub struct AppWrapper<C: Client> {
-    delegate: Arc<dyn AppCallbacks<C>>,
-    resource_bundle_handler: Mutex<Option<RefCountedPtrCache<ResourceBundleHandlerWrapper>>>,
-    browser_process_handler: Mutex<Option<RefCountedPtrCache<BrowserProcessHandlerWrapper>>>,
-    render_process_handler: Mutex<Option<RefCountedPtrCache<RenderProcessHandlerWrapper<C>>>>,
-}
+pub struct AppWrapper(Arc<dyn AppCallbacks>);
 
-impl<C: Client> std::borrow::Borrow<Arc<dyn AppCallbacks<C>>> for AppWrapper<C> {
-    fn borrow(&self) -> &Arc<dyn AppCallbacks<C>> {
-        &self.delegate
+impl std::borrow::Borrow<Arc<dyn AppCallbacks>> for AppWrapper {
+    fn borrow(&self) -> &Arc<dyn AppCallbacks> {
+        &self.0
     }
 }
 
-impl<C: Client> Wrapper for AppWrapper<C> {
+impl Wrapper for AppWrapper {
     type Cef = cef_app_t;
-    type Inner = dyn AppCallbacks<C>;
+    type Inner = Arc<dyn AppCallbacks>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_app_t {
@@ -105,8 +98,8 @@ impl<C: Client> Wrapper for AppWrapper<C> {
 }
 
 impl App {
-    pub fn new<C: Client, T: AppCallbacks<C> + 'static>(delegate: T) -> Self {
-        App(AppWrapper::new(Arc::new(delegate)).wrap())
+    pub fn new(delegate: Arc<dyn AppCallbacks>) -> Self {
+        App(AppWrapper::new(delegate).wrap())
     }
     /// Call during process startup to enable High-DPI support on Windows 7 or newer.
     /// Older versions of Windows should be left DPI-unaware because they do not
@@ -260,25 +253,20 @@ impl App {
     }
 }
 
-impl<C: Client> AppWrapper<C> {
-    pub fn new(delegate: Arc<dyn AppCallbacks<C>>) -> AppWrapper<C> {
-        AppWrapper {
-            delegate,
-            resource_bundle_handler: Mutex::new(None),
-            browser_process_handler: Mutex::new(None),
-            render_process_handler: Mutex::new(None),
-        }
+impl AppWrapper {
+    pub fn new(delegate: Arc<dyn AppCallbacks>) -> AppWrapper {
+        AppWrapper(delegate)
     }
 }
 
 cef_callback_impl!{
-    impl<C: Client> for AppWrapper<C>: cef_app_t {
-        fn on_before_command_line_processing<C: Client>(
+    impl for AppWrapper: cef_app_t {
+        fn on_before_command_line_processing(
             &self,
             process_type: Option<&CefString>: *const cef_sys::cef_string_t,
             command_line: CommandLine: *mut cef_sys::cef_command_line_t,
         ) {
-            self.delegate.on_before_command_line_processing(
+            self.0.on_before_command_line_processing(
                 process_type
                     .map(String::from)
                     .as_ref()
@@ -286,49 +274,20 @@ cef_callback_impl!{
                 command_line
             );
         }
-        fn on_register_custom_schemes<C: Client>(
+        fn on_register_custom_schemes(
             &self,
             registrar: SchemeRegistrar: *mut cef_sys::cef_scheme_registrar_t,
         ) {
-            self
-                .delegate
-                .on_register_custom_schemes(registrar);
+            self.0.on_register_custom_schemes(registrar);
         }
-        fn get_resource_bundle_handler<C: Client>(&self) -> *mut cef_resource_bundle_handler_t {
-            if let Some(handler) = self.delegate.get_resource_bundle_handler() {
-                self.resource_bundle_handler
-                    .lock()
-                    .get_or_insert_with(|| RefCountedPtrCache::new(ResourceBundleHandlerWrapper::new(handler.clone())))
-                    .get_ptr_or_rewrap(ResourceBundleHandlerWrapper::new(handler))
-                    .into_raw()
-            } else {
-                *self.resource_bundle_handler.lock() = None;
-                null_mut()
-            }
+        fn get_resource_bundle_handler(&self) -> *mut cef_resource_bundle_handler_t {
+            self.0.get_resource_bundle_handler().map(|rbh| ResourceBundleHandlerWrapper::new(rbh).wrap().into_raw()).unwrap_or_else(null_mut)
         }
-        fn get_browser_process_handler<C: Client>(&self) -> *mut cef_sys::cef_browser_process_handler_t {
-            if let Some(handler) = self.delegate.get_browser_process_handler() {
-                self.browser_process_handler
-                    .lock()
-                    .get_or_insert_with(|| RefCountedPtrCache::new(BrowserProcessHandlerWrapper::new(handler.clone())))
-                    .get_ptr_or_rewrap(BrowserProcessHandlerWrapper::new(handler))
-                    .into_raw()
-            } else {
-                *self.browser_process_handler.lock() = None;
-                null_mut()
-            }
+        fn get_browser_process_handler(&self) -> *mut cef_sys::cef_browser_process_handler_t {
+            self.0.get_browser_process_handler().map(|bph| BrowserProcessHandlerWrapper::new(bph).wrap().into_raw()).unwrap_or_else(null_mut)
         }
-        fn get_render_process_handler<C: Client>(&self) -> *mut cef_render_process_handler_t {
-            if let Some(handler) = self.delegate.get_render_process_handler() {
-                self.render_process_handler
-                    .lock()
-                    .get_or_insert_with(|| RefCountedPtrCache::new(RenderProcessHandlerWrapper::new(handler.clone())))
-                    .get_ptr_or_rewrap(RenderProcessHandlerWrapper::new(handler))
-                    .into_raw()
-            } else {
-                *self.render_process_handler.lock() = None;
-                null_mut()
-            }
+        fn get_render_process_handler(&self) -> *mut cef_render_process_handler_t {
+            self.0.get_render_process_handler().map(|rph| RenderProcessHandlerWrapper::new(rph).wrap().into_raw()).unwrap_or_else(null_mut)
         }
     }
 }

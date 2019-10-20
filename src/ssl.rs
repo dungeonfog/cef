@@ -5,7 +5,7 @@ use std::collections::HashSet;
 /// for more information. CERT_STATUS_NONE is new in CEF because we use an
 /// enum while cert_status_flags.h uses a typedef and static const variables.
 #[repr(i32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CertStatus {
     None = cef_cert_status_t::CERT_STATUS_NONE.0,
     CommonNameInvalid = cef_cert_status_t::CERT_STATUS_COMMON_NAME_INVALID.0,
@@ -43,13 +43,13 @@ impl CertStatus {
             CertStatus::PinnedKeyMissing,
             CertStatus::NameConstraintViolation,
             CertStatus::ValidityTooLong,
-            CertStatus::IsEv,
+            CertStatus::IsEV,
             CertStatus::RevCheckingEnabled,
             CertStatus::Sha1SignaturePresent,
-            CertStatus::CtComplianceFailed,
+            CertStatus::CTComplianceFailed,
         ]
         .iter()
-        .filter(|flag| ((**flag) as u32 & status) != 0)
+        .filter(|flag| (**flag) as u32 & status.0 as u32 != 0)
         .cloned()
         .collect()
     }
@@ -81,7 +81,7 @@ impl SSLInfo {
     /// Returns the X.509 certificate.
     pub fn get_x509certificate(&self) -> X509Certificate {
         let get_x509certificate = self.0.get_x509certificate.unwrap();
-        unsafe { X509Certificate::from_raw_unchecked(get_x509certificate(self.0.as_ptr())) }
+        unsafe { X509Certificate::from_ptr_unchecked(get_x509certificate(self.0.as_ptr())) }
     }
 }
 

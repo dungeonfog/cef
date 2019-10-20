@@ -8,13 +8,6 @@ use std::{
     sync::Arc,
 };
 
-use crate::{
-    client::Client,
-    image::Image,
-    navigation::NavigationEntry,
-};
-
-
 /// # Safety
 /// This trait requires that a pointer to `Self` must also be a valid pointer to a
 /// `cef_base_ref_counted_t`. This can be achieved by having the `cef_base_ref_counted_t`

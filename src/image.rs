@@ -9,9 +9,9 @@ use crate::{
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ColorType {
     /// RGBA with 8 bits per pixel (32bits total).
-    RGBA_8888 = cef_color_type_t::CEF_COLOR_TYPE_RGBA_8888,
+    Rgba8888 = cef_color_type_t::CEF_COLOR_TYPE_RGBA_8888,
     /// BGRA with 8 bits per pixel (32bits total).
-    BGRA_8888 = cef_color_type_t::CEF_COLOR_TYPE_BGRA_8888,
+    Bgra8888 = cef_color_type_t::CEF_COLOR_TYPE_BGRA_8888,
 }
 
 /// Describes how to interpret the alpha component of a pixel.
@@ -83,23 +83,23 @@ impl Image {
     /// `color_type` and `alpha_type` values specify the pixel format.
     pub fn add_bitmap(&mut self, scale_factor: f32, pixel_width: i32, pixel_height: i32, color_type: ColorType, alpha_type: AlphaType, pixel_data: &[u8]) -> bool {
         self.0.add_bitmap.map(|add_bitmap| {
-            unsafe { add_bitmap(self.as_ptr(), scale_factor, pixel_width, pixel_height, color_type as cef_color_type_t::Type, alpha_type as cef_alpha_type_t::Type, pixel_data.as_ptr(), pixel_data.len()) != 0 }
+            unsafe { add_bitmap(self.as_ptr(), scale_factor, pixel_width, pixel_height, color_type as cef_color_type_t::Type, alpha_type as cef_alpha_type_t::Type, pixel_data.as_ptr() as *const std::ffi::c_void, pixel_data.len()) != 0 }
         }).unwrap_or(false)
     }
     /// Add a PNG image representation for `scale_factor`. `png_data` is the image
     /// data. Any alpha transparency in the PNG data will
     /// be maintained.
-    pub fn add_png(&mut self, scale_factor: f32, png_data: &[u8]) {
+    pub fn add_png(&mut self, scale_factor: f32, png_data: &[u8]) -> bool {
         self.0.add_png.map(|add_png| {
-            unsafe { add_png(self.as_ptr(), scale_factor, png_data.as_ptr(), png_data.len()) != 0 }
+            unsafe { add_png(self.as_ptr(), scale_factor, png_data.as_ptr() as *const std::ffi::c_void, png_data.len()) != 0 }
         }).unwrap_or(false)
     }
     /// Create a JPEG image representation for `scale_factor`. `jpeg_data` is the
     /// image data. The JPEG format does not support
     /// transparency so the alpha byte will be set to `0xFF` for all pixels.
-    pub fn add_jpeg(&mut self, scale_factor: f32, jpeg_data: &[u8]) {
+    pub fn add_jpeg(&mut self, scale_factor: f32, jpeg_data: &[u8]) -> bool {
         self.0.add_jpeg.map(|add_jpeg| {
-            unsafe { add_jpeg(self.as_ptr(), scale_factor, jpeg_data.as_ptr(), jpeg_data.len()) != 0 }
+            unsafe { add_jpeg(self.as_ptr(), scale_factor, jpeg_data.as_ptr() as *const std::ffi::c_void, jpeg_data.len()) != 0 }
         }).unwrap_or(false)
     }
     /// Returns the image width in density independent pixel (DIP) units.
@@ -153,11 +153,11 @@ impl Image {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
             let binary = unsafe { get_as_bitmap(self.as_ptr(), scale_factor, color_type as cef_color_type_t::Type, alpha_type as cef_alpha_type_t::Type, &mut pixel_width, &mut pixel_height) };
-            if binary.is_null() {
-                None
-            } else {
-                Some(BinaryValue::wrap(binary).to_vec())
-            }
+            BinaryValue::from_ptr(binary).map(|data| BinaryImage {
+                pixel_width,
+                pixel_height,
+                data: data.into(),
+            })
         })
     }
     /// Returns the PNG representation that most closely matches `scale_factor`. If
@@ -168,11 +168,11 @@ impl Image {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
             let binary = unsafe { get_as_png(self.as_ptr(), scale_factor, with_transparency as i32, &mut pixel_width, &mut pixel_height) };
-            if binary.is_null() {
-                None
-            } else {
-                Some(BinaryValue::wrap(binary).to_vec())
-            }
+            BinaryValue::from_ptr(binary).map(|data| BinaryImage {
+                pixel_width,
+                pixel_height,
+                data: data.into(),
+            })
         })
     }
     /// Returns the JPEG representation that most closely matches `scale_factor`.
@@ -184,11 +184,11 @@ impl Image {
             let mut pixel_width = 0;
             let mut pixel_height = 0;
             let binary = unsafe { get_as_jpeg(self.as_ptr(), scale_factor, std::cmp::min(100, quality) as i32, &mut pixel_width, &mut pixel_height) };
-            if binary.is_null() {
-                None
-            } else {
-                Some(BinaryValue::wrap(binary).to_vec())
-            }
+            BinaryValue::from_ptr(binary).map(|data| BinaryImage {
+                pixel_width,
+                pixel_height,
+                data: data.into(),
+            })
         })
     }
 }

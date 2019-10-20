@@ -318,8 +318,7 @@ impl TryFrom<StoredValue> for Value {
     }
 }
 
-// TODO: convert to ref_counted_ptr
-ref_counted_ptr!{
+ref_counted_ptr! {
     // #[derive(Eq)]
     pub struct BinaryValue(*mut cef_binary_value_t);
 }
@@ -333,9 +332,6 @@ impl BinaryValue {
                 cef_binary_value_create(data.as_ptr() as *const std::os::raw::c_void, data.len())
             )
         }
-    }
-    pub(crate) unsafe fn wrap(value: *mut cef_binary_value_t) {
-        Self(value)
     }
     /// Returns true if this object is valid. This object may become invalid if
     /// the underlying data is owned by another object (e.g. list or dictionary)
@@ -396,10 +392,16 @@ impl BinaryValue {
         self.0.get_data.map(|get_data| {
             let len = self.len();
             let mut result = vec![0; len];
-            let out_len = unsafe { get_data(self.as_ptr(), result.as_mut_ptr(), len, 0) };
+            let out_len = unsafe { get_data(self.as_ptr(), result.as_mut_ptr() as *mut std::ffi::c_void, len, 0) };
             result.truncate(out_len);
             result
         }).unwrap_or_default()
+    }
+}
+
+impl Into<Vec<u8>> for BinaryValue {
+    fn into(self) -> Vec<u8> {
+        self.to_vec()
     }
 }
 

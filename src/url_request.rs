@@ -328,15 +328,15 @@ impl RequestCallback {
 /// Implement this trait to filter cookies that may be sent or received from
 /// resource requests. The functions of this trait will be called on the IO
 /// thread unless otherwise indicated.
-pub trait CookieAccessFilter<C: Client>: Sync + Send {
+pub trait CookieAccessFilter: Sync + Send {
     /// Called on the IO thread before a resource request is sent. The `browser`
     /// and `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest].
     /// Return true if the specified  cookie can be sent with the request or false otherwise.
     fn can_send_cookie(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: Request,
         cookie: Cookie,
     ) -> bool {
@@ -350,8 +350,8 @@ pub trait CookieAccessFilter<C: Client>: Sync + Send {
     /// otherwise.
     fn can_save_cookie(
         &self,
-        browser: Option<Browser<C>>,
-        frame: Option<Frame<C>>,
+        browser: Option<Browser>,
+        frame: Option<Frame>,
         request: Request,
         response: Response,
         cookie: Cookie,
@@ -360,19 +360,19 @@ pub trait CookieAccessFilter<C: Client>: Sync + Send {
     }
 }
 
-pub(crate) struct CookieAccessFilterWrapper<C: Client> {
-    delegate: Arc<dyn CookieAccessFilter<C>>,
+pub(crate) struct CookieAccessFilterWrapper {
+    delegate: Arc<dyn CookieAccessFilter>,
 }
 
-impl<C: Client> std::borrow::Borrow<Arc<dyn CookieAccessFilter<C>>> for CookieAccessFilterWrapper<C> {
-    fn borrow(&self) -> &Arc<dyn CookieAccessFilter<C>> {
+impl std::borrow::Borrow<Arc<dyn CookieAccessFilter>> for CookieAccessFilterWrapper {
+    fn borrow(&self) -> &Arc<dyn CookieAccessFilter> {
         &self.delegate
     }
 }
 
-impl<C: Client> Wrapper for CookieAccessFilterWrapper<C> {
+impl Wrapper for CookieAccessFilterWrapper {
     type Cef = cef_cookie_access_filter_t;
-    type Inner = dyn CookieAccessFilter<C>;
+    type Inner = dyn CookieAccessFilter;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_cookie_access_filter_t {
@@ -385,10 +385,10 @@ impl<C: Client> Wrapper for CookieAccessFilterWrapper<C> {
     }
 }
 
-impl<C: Client> CookieAccessFilterWrapper<C> {
+impl CookieAccessFilterWrapper {
     pub(crate) fn new(
-        delegate: Arc<dyn CookieAccessFilter<C>>,
-    ) -> CookieAccessFilterWrapper<C> {
+        delegate: Arc<dyn CookieAccessFilter>,
+    ) -> CookieAccessFilterWrapper {
         CookieAccessFilterWrapper {
             delegate
         }
@@ -396,11 +396,11 @@ impl<C: Client> CookieAccessFilterWrapper<C> {
 }
 
 cef_callback_impl!{
-    impl<C: Client> for CookieAccessFilterWrapper<C>: cef_cookie_access_filter_t {
-        fn can_send_cookie<C: Client>(
+    impl for CookieAccessFilterWrapper: cef_cookie_access_filter_t {
+        fn can_send_cookie(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             cookie: Cookie: *const cef_cookie_t,
         ) -> std::os::raw::c_int {
@@ -412,10 +412,10 @@ cef_callback_impl!{
             ) as std::os::raw::c_int
         }
 
-        fn can_save_cookie<C: Client>(
+        fn can_save_cookie(
             &self,
-            browser: Option<Browser<C>>: *mut cef_browser_t,
-            frame: Option<Frame<C>>: *mut cef_frame_t,
+            browser: Option<Browser>: *mut cef_browser_t,
+            frame: Option<Frame>: *mut cef_frame_t,
             request: Request: *mut cef_request_t,
             response: Response: *mut cef_response_t,
             cookie: Cookie: *const cef_cookie_t,

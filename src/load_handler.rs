@@ -1034,7 +1034,7 @@ pub enum ErrorCode { // this list is generated from cef_net_error_list.h using r
 /// Implement this trait to handle events related to browser load status. The
 /// functions of this trait will be called on the browser process UI thread
 /// or render process main thread ([ProcessId::Renderer]).
-pub trait LoadHandler<C>: Send + Sync where C: Client {
+pub trait LoadHandler: Send + Sync {
     /// Called when the loading state has changed. This callback will be executed
     /// twice -- once when loading is initiated either programmatically or by user
     /// action, and once when loading is terminated due to completion, cancellation
@@ -1042,7 +1042,7 @@ pub trait LoadHandler<C>: Send + Sync where C: Client {
     /// calls to [LoadHandler::on_load_error] and/or [LoadHandler::on_load_end].
     fn on_loading_state_change(
         &self,
-        browser: Browser<C>,
+        browser: Browser,
         is_loading: bool,
         can_go_back: bool,
         can_go_forward: bool,
@@ -1058,7 +1058,7 @@ pub trait LoadHandler<C>: Send + Sync where C: Client {
     /// called for same page navigations (fragments, history state, etc.) or for
     /// navigations that fail or are canceled before commit. For notification of
     /// overall browser load status use [LoadHandler::on_loading_state_change] instead.
-    fn on_load_start(&self, browser: Browser<C>, frame: Frame<C>, transition_type: TransitionType) {}
+    fn on_load_start(&self, browser: Browser, frame: Frame, transition_type: TransitionType) {}
     /// Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
     /// main frame. Multiple frames may be loading at the same time. Sub-frames may
     /// start or continue loading after the main frame load has ended. This
@@ -1066,7 +1066,7 @@ pub trait LoadHandler<C>: Send + Sync where C: Client {
     /// state, etc.) or for navigations that fail or are canceled before commit.
     /// For notification of overall browser load status use [LoadHandler::on_loading_state_change]
     /// instead.
-    fn on_load_end(&self, browser: Browser<C>, frame: Frame<C>, http_status_code: i32) {}
+    fn on_load_end(&self, browser: Browser, frame: Frame, http_status_code: i32) {}
     /// Called when a navigation fails or is canceled. This function may be called
     /// by itself if before commit or in combination with [LoadHandler::on_load_start]/[LoadHandler::on_load_end] if
     /// after commit. `error_code` is the error code number, `error_text` is the
@@ -1074,8 +1074,8 @@ pub trait LoadHandler<C>: Send + Sync where C: Client {
     /// net\base\net_error_list.h for complete descriptions of the error codes.
     fn on_load_error(
         &self,
-        browser: Browser<C>,
-        frame: Frame<C>,
+        browser: Browser,
+        frame: Frame,
         error_code: ErrorCode,
         error_text: &str,
         failed_url: &str,
@@ -1083,25 +1083,25 @@ pub trait LoadHandler<C>: Send + Sync where C: Client {
     }
 }
 
-pub(crate) struct LoadHandlerWrapper<C: Client> {
-    delegate: Arc<dyn LoadHandler<C>>
+pub(crate) struct LoadHandlerWrapper {
+    delegate: Arc<dyn LoadHandler>
 }
 
-impl<C: Client> LoadHandlerWrapper<C> {
-    pub(crate) fn new(delegate: Arc<dyn LoadHandler<C>>) -> LoadHandlerWrapper<C> {
+impl LoadHandlerWrapper {
+    pub(crate) fn new(delegate: Arc<dyn LoadHandler>) -> LoadHandlerWrapper {
         LoadHandlerWrapper { delegate }
     }
 }
 
-impl<C: Client> std::borrow::Borrow<Arc<dyn LoadHandler<C>>> for LoadHandlerWrapper<C> {
-    fn borrow(&self) -> &Arc<dyn LoadHandler<C>> {
+impl std::borrow::Borrow<Arc<dyn LoadHandler>> for LoadHandlerWrapper {
+    fn borrow(&self) -> &Arc<dyn LoadHandler> {
         &self.delegate
     }
 }
 
-impl<C: Client> Wrapper for LoadHandlerWrapper<C> {
+impl Wrapper for LoadHandlerWrapper {
     type Cef = cef_load_handler_t;
-    type Inner = dyn LoadHandler<C>;
+    type Inner = dyn LoadHandler;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_load_handler_t {
@@ -1117,10 +1117,10 @@ impl<C: Client> Wrapper for LoadHandlerWrapper<C> {
 }
 
 cef_callback_impl!{
-    impl<C: Client> for LoadHandlerWrapper<C>: cef_load_handler_t {
-        fn loading_state_change<C: Client>(
+    impl for LoadHandlerWrapper: cef_load_handler_t {
+        fn loading_state_change(
             &self,
-            browser: Browser<C>: *mut cef_browser_t,
+            browser: Browser: *mut cef_browser_t,
             is_loading: bool: std::os::raw::c_int,
             can_go_back: bool: std::os::raw::c_int,
             can_go_forward: bool: std::os::raw::c_int,
@@ -1132,10 +1132,10 @@ cef_callback_impl!{
                 can_go_forward,
             );
         }
-        fn load_start<C: Client>(
+        fn load_start(
             &self,
-            browser: Browser<C>: *mut cef_browser_t,
-            frame: Frame<C>: *mut cef_frame_t,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
             transition_type: TransitionType: cef_transition_type_t,
         ) {
             self.delegate.on_load_start(
@@ -1144,10 +1144,10 @@ cef_callback_impl!{
                 transition_type,
             );
         }
-        fn load_end<C: Client>(
+        fn load_end(
             &self,
-            browser: Browser<C>: *mut cef_browser_t,
-            frame: Frame<C>: *mut cef_frame_t,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
             http_status_code: std::os::raw::c_int: std::os::raw::c_int,
         ) {
             self.delegate.on_load_end(
@@ -1156,10 +1156,10 @@ cef_callback_impl!{
                 http_status_code,
             );
         }
-        fn load_error<C: Client>(
+        fn load_error(
             &self,
-            browser: Browser<C>: *mut cef_browser_t,
-            frame: Frame<C>: *mut cef_frame_t,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
             error_code: ErrorCode: cef_errorcode_t::Type,
             error_text: &CefString: *const cef_string_t,
             failed_url: &CefString: *const cef_string_t,
