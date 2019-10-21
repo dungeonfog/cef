@@ -25,12 +25,13 @@ pub trait ResourceRequestHandler: Sync + Send {
     /// and `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest]. To
     /// optionally filter cookies for the request return a
-    /// [CookieAccessFilter] object.
+    /// [CookieAccessFilter] object. The `request` object cannot be modified in this
+    /// callback.
     fn get_cookie_access_filter(
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
-        request: &Request,
+        request: Request,
     ) -> Option<Arc<dyn CookieAccessFilter>> {
         None
     }
@@ -60,7 +61,7 @@ pub trait ResourceRequestHandler: Sync + Send {
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
-        request: &Request,
+        request: Request,
     ) -> Option<Arc<dyn ResourceHandler>> {
         None
     }
@@ -75,31 +76,33 @@ pub trait ResourceRequestHandler: Sync + Send {
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
-        request: &Request,
-        response: &Response,
+        request: Request,
+        response: Response,
         new_url: &mut String,
     ) {
     }
     /// Called on the IO thread when a resource response is received. The `browser`
     /// and `frame` values represent the source of the request, and may be None for
-    /// requests originating from service workers or [URLRequest].
+    /// requests originating from service workers or [URLRequest]. The `response`
+    /// object cannot be modified in this callback.
     fn on_resource_response(
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
         request: Request,
-        response: &Response,
+        response: Response,
     ) {
     }
     /// Called on the IO thread to optionally filter resource response content. The
     /// `browser` and `frame` values represent the source of the request, and may
-    /// be None for requests originating from service workers or [URLRequest].
+    /// be None for requests originating from service workers or [URLRequest]. `request`
+    /// and `response` canoot be modified in this callback.
     fn get_resource_response_filter(
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
-        request: &Request,
-        response: &Response,
+        request: Request,
+        response: Response,
     ) -> Option<Arc<dyn ResponseFilter>> {
         None
     }
@@ -129,7 +132,7 @@ pub trait ResourceRequestHandler: Sync + Send {
     /// Called on the IO thread to handle requests for URLs with an unknown
     /// protocol component. The `browser` and `frame` values represent the source
     /// of the request, and may be None for requests originating from service
-    /// workers or [URLRequest].
+    /// workers or [URLRequest]. `request` cannot be modified in this callback.
     /// Return true to attempt execution via the registered OS protocol handler, if any.
     ///
     /// SECURITY WARNING: YOU SHOULD USE
@@ -139,7 +142,7 @@ pub trait ResourceRequestHandler: Sync + Send {
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
-        request: &Request,
+        request: Request,
     ) -> bool {
         false
     }
@@ -182,7 +185,7 @@ cef_callback_impl! {
             request: Request        : *mut cef_request_t,
         ) -> *mut cef_cookie_access_filter_t
         {
-            self.0.get_cookie_access_filter(browser, frame, &request).map(|caf| CookieAccessFilterWrapper::new(caf).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_cookie_access_filter(browser, frame, request).map(|caf| CookieAccessFilterWrapper::new(caf).wrap().into_raw()).unwrap_or_else(null_mut)
         }
         fn before_resource_load(
             &self,
@@ -208,7 +211,7 @@ cef_callback_impl! {
             self.0.get_resource_handler(
                 browser,
                 frame,
-                &request,
+                request,
             ).map(|rhw| ResourceHandlerWrapper::new(rhw).wrap().into_raw()).unwrap_or_else(null_mut)
         }
 
@@ -224,8 +227,8 @@ cef_callback_impl! {
             self.0.on_resource_redirect(
                 browser,
                 frame,
-                &request,
-                &response,
+                request,
+                response,
                 &mut new_url_rust,
             );
             new_url.set_string(&new_url_rust);
@@ -242,7 +245,7 @@ cef_callback_impl! {
                 browser,
                 frame,
                 request,
-                &response,
+                response,
             );
             0
         }
@@ -257,8 +260,8 @@ cef_callback_impl! {
             self.0.get_resource_response_filter(
                 browser,
                 frame,
-                &request,
-                &response,
+                request,
+                response,
             ).map(|rrfw| ResponseFilterWrapper::new(rrfw).wrap().into_raw()).unwrap_or_else(null_mut)
         }
 
@@ -291,7 +294,7 @@ cef_callback_impl! {
             if self.0.on_protocol_execution(
                 browser,
                 frame,
-                &request,
+                request,
             ) {
                 if let Some(allow_os_execution) = allow_os_execution {
                     *allow_os_execution = 1;

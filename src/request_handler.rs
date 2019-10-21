@@ -45,6 +45,7 @@ pub enum TerminationStatus {
 pub trait RequestHandler: Sync + Send + 'static {
     /// Called on the UI thread before browser navigation. Return true to
     /// cancel the navigation or false (0) to allow the navigation to proceed.
+    /// The `request` object canoot be modified in this callback.
     /// [LoadHandler::on_loading_state_change] will be called twice in all cases.
     /// If the navigation is allowed [LoadHandler::on_load_start] and
     /// [LoadHandler::on_load_end] will be called. If the navigation is canceled
@@ -52,7 +53,7 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// [ErrorCode::Aborted]. The `user_gesture` value will be true if the browser
     /// navigated via explicit user gesture (e.g. clicking a link) or false if
     /// it navigated automatically (e.g. via the DomContentLoaded event).
-    fn on_before_browser(
+    fn on_before_browse(
         &self,
         browser: Browser,
         frame: Frame,
