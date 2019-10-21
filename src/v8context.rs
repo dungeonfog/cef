@@ -1205,11 +1205,11 @@ pub trait V8Accessor: 'static + Send {
     fn set(&mut self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
-pub(crate) struct V8AccessorWrapper(Mutex<RefCell<Box<dyn V8Accessor>>>);
+pub(crate) struct V8AccessorWrapper(Mutex<Box<dyn V8Accessor>>);
 
 impl V8AccessorWrapper {
     pub(crate) fn new(delegate: impl V8Accessor) -> Self {
-        Self(Mutex::new(RefCell::new(Box::new(delegate))))
+        Self(Mutex::new(Box::new(delegate)))
     }
 }
 
@@ -1236,7 +1236,7 @@ cef_callback_impl! {
             exception: &mut CefString         : *mut cef_string_t,
         ) -> std::os::raw::c_int {
             let name: String = name.into();
-            match self.0.lock().borrow().get(&name, &object) {
+            match self.0.lock().get(&name, &object) {
                 Ok(value) => {
                     unsafe { (*retval) = value.into_raw(); }
                     1
@@ -1255,7 +1255,7 @@ cef_callback_impl! {
             exception: &mut CefString     : *mut cef_string_t,
         ) -> std::os::raw::c_int {
             let name: String = name.into();
-            if let Err(exception_str) = self.0.lock().borrow_mut().set(&name, &object, &value) {
+            if let Err(exception_str) = self.0.get_mut().set(&name, &object, &value) {
                 exception.set_string(&exception_str);
                 0
             } else {
