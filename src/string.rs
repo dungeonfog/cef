@@ -85,33 +85,6 @@ impl CefString {
     pub unsafe fn from_raw(raw: cef_string_t) -> CefString {
         CefString(raw)
     }
-
-    pub unsafe fn move_to(&mut self, destination: *mut cef_string_t) {
-        if let Some(dtor) = (*destination).dtor {
-            dtor((*destination).str);
-        }
-        (*destination).str = self.0.str;
-        (*destination).length = self.0.length;
-        (*destination).dtor = self.0.dtor;
-        self.0.str = null_mut();
-        self.0.length = 0;
-        self.0.dtor = None;
-    }
-
-    pub unsafe fn move_from(source: *mut cef_string_t) -> Self {
-        let result = cef_string_t { ..*source };
-        (*source).str = null_mut();
-        (*source).length = 0;
-        (*source).dtor = None;
-        Self(result)
-    }
-}
-
-impl crate::extern_callback_helpers::CToRustType for CefString {
-    type CType = *mut cef_string_t;
-    unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        Self::move_from(c_type)
-    }
 }
 
 impl Default for CefString {
@@ -145,6 +118,12 @@ impl<'a> From<&'a str> for CefString {
 impl From<CefString> for String {
     fn from(cef: CefString) -> String {
         String::from(&cef)
+    }
+}
+
+impl<'a> From<&'a mut CefString> for String {
+    fn from(cef: &'a mut CefString) -> String {
+        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(cef.0.str, cef.0.length) })
     }
 }
 
@@ -333,7 +312,6 @@ impl std::borrow::Borrow<Arc<dyn StringVisitor>> for StringVisitorWrapper {
 
 impl Wrapper for StringVisitorWrapper {
     type Cef = cef_string_visitor_t;
-    type Inner = dyn StringVisitor;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_string_visitor_t {

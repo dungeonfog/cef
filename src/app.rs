@@ -76,7 +76,6 @@ impl std::borrow::Borrow<Arc<dyn AppCallbacks>> for AppWrapper {
 
 impl Wrapper for AppWrapper {
     type Cef = cef_app_t;
-    type Inner = Arc<dyn AppCallbacks>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_app_t {

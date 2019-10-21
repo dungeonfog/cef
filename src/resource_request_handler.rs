@@ -149,7 +149,6 @@ pub(crate) struct ResourceRequestHandlerWrapper(Arc<dyn ResourceRequestHandler>)
 
 impl Wrapper for ResourceRequestHandlerWrapper {
     type Cef = cef_resource_request_handler_t;
-    type Inner = Arc<dyn ResourceRequestHandler>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_resource_request_handler_t {

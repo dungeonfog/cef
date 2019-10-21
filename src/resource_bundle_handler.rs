@@ -84,7 +84,6 @@ impl std::borrow::Borrow<Arc<dyn ResourceBundleHandler>> for ResourceBundleHandl
 
 impl Wrapper for ResourceBundleHandlerWrapper {
     type Cef = cef_resource_bundle_handler_t;
-    type Inner = dyn ResourceBundleHandler;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_resource_bundle_handler_t {

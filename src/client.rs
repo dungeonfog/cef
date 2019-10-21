@@ -72,7 +72,6 @@ pub(crate) struct ClientWrapper(Arc<dyn Client>);
 
 impl Wrapper for ClientWrapper {
     type Cef = cef_client_t;
-    type Inner = Box<dyn Client>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_client_t {

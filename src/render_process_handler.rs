@@ -5,7 +5,7 @@ use crate::{
     load_handler::{LoadHandler, LoadHandlerWrapper},
     process::{ProcessId, ProcessMessage},
     refcounted::{RefCountedPtr, Wrapper},
-    v8context::{V8Context, V8Exception, V8StackFrame},
+    v8context::{V8Context, V8Exception, V8StackFrame, V8StackTrace},
     values::{DictionaryValue, ListValue},
 };
 use cef_sys::{
@@ -91,7 +91,6 @@ impl RenderProcessHandlerWrapper {
 
 impl Wrapper for RenderProcessHandlerWrapper {
     type Cef = cef_render_process_handler_t;
-    type Inner = Arc<dyn RenderProcessHandler>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_render_process_handler_t {
@@ -178,14 +177,14 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             context: V8Context: *mut cef_v8context_t,
             exception: V8Exception: *mut cef_v8exception_t,
-            stack_trace: Vec<V8StackFrame>: *mut cef_v8stack_trace_t,
+            stack_trace: V8StackTrace: *mut cef_v8stack_trace_t,
         ) {
             self.0.on_uncaught_exception(
                 browser,
                 frame,
                 context,
                 exception,
-                &stack_trace,
+                &Vec::from(stack_trace),
             );
         }
 

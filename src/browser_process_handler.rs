@@ -61,7 +61,6 @@ impl std::borrow::Borrow<Arc<dyn BrowserProcessHandler>> for BrowserProcessHandl
 
 impl Wrapper for BrowserProcessHandlerWrapper {
     type Cef = cef_browser_process_handler_t;
-    type Inner = dyn BrowserProcessHandler;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_browser_process_handler_t {

@@ -1103,7 +1103,6 @@ impl std::borrow::Borrow<Arc<dyn LoadHandler>> for LoadHandlerWrapper {
 
 impl Wrapper for LoadHandlerWrapper {
     type Cef = cef_load_handler_t;
-    type Inner = dyn LoadHandler;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_load_handler_t {

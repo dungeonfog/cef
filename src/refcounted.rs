@@ -1,6 +1,5 @@
 use cef_sys::cef_base_ref_counted_t;
 use std::{
-    borrow::Borrow,
     mem::ManuallyDrop,
     ops::{Deref, DerefMut},
     os::raw::c_int,
@@ -20,7 +19,6 @@ pub(crate) unsafe trait RefCounter: Sized {
 
 pub(crate) trait Wrapper: Sized + Send + Sync {
     type Cef: RefCounter;
-    type Inner: ?Sized;
     fn wrap(self) -> RefCountedPtr<Self::Cef>;
 }
 
@@ -40,14 +38,6 @@ macro_rules! ref_counter {
 #[repr(transparent)]
 pub(crate) struct RefCountedPtr<C: RefCounter> {
     cef: NonNull<C>,
-}
-
-pub(crate) struct RefCountedPtrCache<W>
-where
-    W: Wrapper + Borrow<Arc<<W as Wrapper>::Inner>>,
-{
-    pub ptr: RefCountedPtr<W::Cef>,
-    pub arc: Arc<W::Inner>,
 }
 
 unsafe impl<C: RefCounter> Send for RefCountedPtr<C> {}
@@ -83,26 +73,6 @@ impl<C: RefCounter> RefCountedPtr<C> {
         let ptr = self.cef.as_ptr();
         std::mem::forget(self);
         ptr
-    }
-}
-
-impl<W> RefCountedPtrCache<W>
-where
-    W: Wrapper + Borrow<Arc<<W as Wrapper>::Inner>>,
-{
-    pub fn new(wrapper: W) -> Self {
-        RefCountedPtrCache {
-            arc: wrapper.borrow().clone(),
-            ptr: wrapper.wrap(),
-        }
-    }
-
-    pub fn get_ptr_or_rewrap(&mut self, wrapper: W) -> RefCountedPtr<W::Cef> {
-        if !Arc::ptr_eq(&self.arc, wrapper.borrow()) {
-            self.arc = wrapper.borrow().clone();
-            self.ptr = wrapper.wrap();
-        }
-        self.ptr.clone()
     }
 }
 

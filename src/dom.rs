@@ -169,7 +169,6 @@ impl std::borrow::Borrow<Arc<dyn DOMVisitor>> for DOMVisitorWrapper {
 
 impl Wrapper for DOMVisitorWrapper {
     type Cef = cef_domvisitor_t;
-    type Inner = dyn DOMVisitor;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_domvisitor_t {

@@ -398,9 +398,9 @@ impl BinaryValue {
     }
 }
 
-impl Into<Vec<u8>> for BinaryValue {
-    fn into(self) -> Vec<u8> {
-        self.to_vec()
+impl From<BinaryValue> for Vec<u8> {
+    fn from(value: BinaryValue) -> Vec<u8> {
+        value.to_vec()
     }
 }
 

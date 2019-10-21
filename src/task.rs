@@ -23,7 +23,7 @@ ref_counted_ptr! {
     ///
     /// CEF maintains multiple internal threads that are used for handling different
     /// types of tasks in different processes. The [ThreadId] definitions
-    /// list the common CEF threads. Task runners are also available for
+    /// list the common CEF threads. TaskWrapper runners are also available for
     /// other CEF threads as appropriate (for example, V8 WebWorker threads).
     pub struct TaskRunner(*mut _cef_task_runner_t);
 }
@@ -50,7 +50,7 @@ impl TaskRunner {
         unsafe {
             cef_post_task(
                 thread_id as cef_thread_id_t::Type,
-                Task::new(task).wrap().into_raw(),
+                TaskWrapper::new(task).wrap().into_raw(),
             ) != 0
         }
     }
@@ -64,7 +64,7 @@ impl TaskRunner {
         unsafe {
             cef_post_delayed_task(
                 thread_id as cef_thread_id_t::Type,
-                Task::new(task).wrap().into_raw(),
+                TaskWrapper::new(task).wrap().into_raw(),
                 delay_ms,
             ) != 0
         }
@@ -102,7 +102,7 @@ impl TaskRunner {
         self.0
             .post_task
             .map(|post_task| unsafe {
-                post_task(self.as_ptr(), Task::new(task).wrap().into_raw()) != 0
+                post_task(self.as_ptr(), TaskWrapper::new(task).wrap().into_raw()) != 0
             })
             .unwrap_or(false)
     }
@@ -118,23 +118,26 @@ impl TaskRunner {
         self.0
             .post_delayed_task
             .map(|post_delayed_task| unsafe {
-                post_delayed_task(self.as_ptr(), Task::new(task).wrap().into_raw(), delay_ms) != 0
+                post_delayed_task(self.as_ptr(), TaskWrapper::new(task).wrap().into_raw(), delay_ms) != 0
             })
             .unwrap_or(false)
     }
 }
 
-pub struct Task(Mutex<Option<Box<dyn FnOnce() + Send + 'static>>>);
+pub struct TaskWrapper(Mutex<Option<Box<dyn FnOnce() + Send + 'static>>>);
 
-impl Task {
+ref_counted_ptr!{
+    struct TaskPtr(*mut _cef_task_t);
+}
+
+impl TaskWrapper {
     pub(crate) fn new(task: impl FnOnce() + Send + 'static) -> Self {
-        Task(Mutex::new(Some(Box::new(task))))
+        TaskWrapper(Mutex::new(Some(Box::new(task))))
     }
 }
 
-impl Wrapper for Task {
+impl Wrapper for TaskWrapper {
     type Cef = _cef_task_t;
-    type Inner = dyn Send + FnOnce();
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             _cef_task_t {
@@ -147,7 +150,7 @@ impl Wrapper for Task {
 }
 
 cef_callback_impl! {
-    impl for Task: _cef_task_t {
+    impl for TaskWrapper: _cef_task_t {
         fn execute(&self) {
             if let Some(task) = self.0.lock().take() {
                 task();

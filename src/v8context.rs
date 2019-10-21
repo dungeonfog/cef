@@ -23,7 +23,6 @@ use std::{
 
 use crate::{
     browser::Browser,
-    extern_callback_helpers::CToRustType,
     frame::Frame,
     refcounted::{RefCountedPtr, Wrapper},
     string::{CefString, CefStringList},
@@ -420,13 +419,6 @@ impl From<V8StackTrace> for Vec<V8StackFrame> {
         } else {
             Vec::new()
         }
-    }
-}
-
-impl CToRustType for Vec<V8StackFrame> {
-    type CType = *mut cef_v8stack_trace_t;
-    unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        Self::from(V8StackTrace::from_ptr_unchecked(c_type))
     }
 }
 
@@ -1142,24 +1134,6 @@ impl V8Value {
     }
 }
 
-// impl Drop for V8Value {
-//     fn drop(&mut self) {
-//         if self.0.is_null.map(|is_null| unsafe { is_null(self.as_ptr()) == 0 }).unwrap_or(false) {
-//             let release = self.0.base.release.unwrap();
-//             unsafe {
-//                 release(self.as_ptr() as *mut _);
-//             }
-//         }
-//     }
-// }
-
-impl crate::extern_callback_helpers::CToRustType for Vec<V8Value> {
-    type CType = *mut *mut cef_v8value_t;
-    unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        Vec::new()
-    }
-}
-
 impl From<bool> for V8Value {
     /// Create a new V8Value object of type bool.
     fn from(value: bool) -> Self {
@@ -1247,7 +1221,6 @@ impl V8AccessorWrapper {
 
 impl Wrapper for V8AccessorWrapper {
     type Cef = cef_v8accessor_t;
-    type Inner = Arc<dyn V8Accessor>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_v8accessor_t {
@@ -1263,33 +1236,33 @@ cef_callback_impl! {
     impl for V8AccessorWrapper: cef_v8accessor_t {
         fn get(
             &self,
-            name:      *const cef_string_t    : *const cef_string_t,
+            name:      &CefString             : *const cef_string_t,
             object:    V8Value                : *mut cef_v8value_t,
             retval:    *mut *mut cef_v8value_t: *mut *mut cef_v8value_t,
-            exception: *mut cef_string_t      : *mut cef_string_t,
+            exception: &mut CefString         : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            let name: String = name.into();
             match self.0.lock().borrow().get(&name, &object) {
                 Ok(value) => {
                     unsafe { (*retval) = value.into_raw(); }
                     1
                 }
                 Err(exception_str) => {
-                    unsafe { CefString::new(&exception_str).move_to(exception); }
+                    exception.set_string(&exception_str);
                     0
                 },
             }
         }
         fn set(
             &self,
-            name     : *const cef_string_t: *const cef_string_t,
+            name     : &CefString         : *const cef_string_t,
             object   : V8Value            : *mut cef_v8value_t,
             value    : V8Value            : *mut cef_v8value_t,
-            exception: *mut cef_string_t  : *mut cef_string_t,
+            exception: &mut CefString     : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name: String = unsafe { CefString::from_ptr_unchecked(name).into() };
+            let name: String = name.into();
             if let Err(exception_str) = self.0.lock().borrow_mut().set(&name, &object, &value) {
-                unsafe { CefString::new(&exception_str).move_to(exception); }
+                exception.set_string(&exception_str);
                 0
             } else {
                 1
@@ -1342,7 +1315,6 @@ impl V8InterceptorWrapper {
 
 impl Wrapper for V8InterceptorWrapper {
     type Cef = cef_v8interceptor_t;
-    type Inner = Mutex<Arc<dyn V8Interceptor>>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_v8interceptor_t {
@@ -1361,12 +1333,12 @@ cef_callback_impl! {
     impl for V8InterceptorWrapper: cef_v8interceptor_t {
         fn get_byname(
             &self,
-            name:      *const cef_string_t    : *const cef_string_t,
+            name:      &CefString             : *const cef_string_t,
             object:    V8Value                : *mut cef_v8value_t,
             retval:    *mut *mut cef_v8value_t: *mut *mut cef_v8value_t,
-            exception: *mut cef_string_t      : *mut cef_string_t,
+            exception: &mut CefString         : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            let name: String = name.into();
             if let Some(found) = self.0.lock().borrow().get_byname(&name, &object) {
                 match found {
                     Ok(value) => {
@@ -1374,7 +1346,7 @@ cef_callback_impl! {
                         1
                     },
                     Err(exception_str) => {
-                        unsafe { CefString::new(&exception_str).move_to(exception); }
+                        exception.set_string(&exception_str);
                         0
                     },
                 }
@@ -1387,7 +1359,7 @@ cef_callback_impl! {
             index:     i32                    : std::os::raw::c_int,
             object:    V8Value                : *mut cef_v8value_t,
             retval:    *mut *mut cef_v8value_t: *mut *mut cef_v8value_t,
-            exception: *mut cef_string_t      : *mut cef_string_t,
+            exception: &mut CefString         : *mut cef_string_t,
         ) -> std::os::raw::c_int {
             if let Some(found) = self.0.lock().borrow().get_byindex(index, &object) {
                 match found {
@@ -1396,7 +1368,7 @@ cef_callback_impl! {
                         1
                     },
                     Err(exception_str) => {
-                        unsafe { CefString::new(&exception_str).move_to(exception); }
+                        exception.set_string(&exception_str);
                         0
                     },
                 }
@@ -1406,14 +1378,14 @@ cef_callback_impl! {
         }
         fn set_byname(
             &self,
-            name     : *const cef_string_t: *const cef_string_t,
-            object   : V8Value            : *mut cef_v8value_t,
-            value    : V8Value            : *mut cef_v8value_t,
-            exception: *mut cef_string_t  : *mut cef_string_t,
+            name     : &CefString    : *const cef_string_t,
+            object   : V8Value       : *mut cef_v8value_t,
+            value    : V8Value       : *mut cef_v8value_t,
+            exception: &mut CefString: *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            let name: String = name.into();
             if let Err(exception_str) = self.0.lock().borrow_mut().set_byname(&name, &object, &value) {
-                unsafe { CefString::new(&exception_str).move_to(exception); }
+                exception.set_string(&exception_str);
                 0
             } else {
                 1
@@ -1421,13 +1393,13 @@ cef_callback_impl! {
         }
         fn set_byindex(
             &self,
-            index    : i32              : std::os::raw::c_int,
-            object   : V8Value          : *mut cef_v8value_t,
-            value    : V8Value          : *mut cef_v8value_t,
-            exception: *mut cef_string_t: *mut cef_string_t,
+            index    : i32           : std::os::raw::c_int,
+            object   : V8Value       : *mut cef_v8value_t,
+            value    : V8Value       : *mut cef_v8value_t,
+            exception: &mut CefString: *mut cef_string_t,
         ) -> std::os::raw::c_int {
             if let Err(exception_str) = self.0.lock().borrow_mut().set_byindex(index, &object, &value) {
-                unsafe { CefString::new(&exception_str).move_to(exception); }
+                exception.set_string(&exception_str);
                 0
             } else {
                 1
@@ -1448,7 +1420,6 @@ impl V8ArrayBufferReleaseCallbackWrapper {
 
 impl Wrapper for V8ArrayBufferReleaseCallbackWrapper {
     type Cef = cef_v8array_buffer_release_callback_t;
-    type Inner = Mutex<Option<Arc<dyn FnOnce(*mut u8) + Send + 'static>>>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_v8array_buffer_release_callback_t {
@@ -1486,8 +1457,6 @@ impl V8HandlerWrapper {
 
 impl Wrapper for V8HandlerWrapper {
     type Cef = cef_v8handler_t;
-    type Inner =
-        Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_v8handler_t {
@@ -1503,22 +1472,22 @@ cef_callback_impl! {
     impl for V8HandlerWrapper: cef_v8handler_t {
         fn execute(
             &self,
-            name           : *const cef_string_t       : *const cef_string_t,
+            name           : &CefString                : *const cef_string_t,
             object         : V8Value                   : *mut cef_v8value_t,
             arguments_count: usize                     : usize,
             arguments      : *const *mut cef_v8value_t : *const *mut cef_v8value_t,
-            retval         : *mut *mut cef_v8value_t   : *mut *mut cef_v8value_t,
-            exception      : *mut cef_string_t         : *mut cef_string_t,
+            retval         : &mut *mut cef_v8value_t   : *mut *mut cef_v8value_t,
+            exception      : &mut CefString            : *mut cef_string_t,
         ) -> std::os::raw::c_int {
-            let name: String = unsafe { CefString::from_ptr_unchecked(name) }.into();
+            let name: String = name.into();
             let args: Vec<V8Value> = unsafe { std::slice::from_raw_parts(arguments, arguments_count) }.iter().map(|val| unsafe { V8Value::from_ptr_unchecked(*val) }).collect();
             match self.0(&name, object, &args) {
                 Ok(value) => {
-                    unsafe { (*retval) = value.into_raw(); }
+                    *retval = value.into_raw();
                     1
                 }
                 Err(err) => {
-                    unsafe { CefString::new(&err).move_to(exception); }
+                    exception.set_string(&err);
                     0
                 }
             }

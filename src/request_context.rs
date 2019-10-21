@@ -100,7 +100,6 @@ pub(crate) struct RequestContextHandlerWrapper(Arc<dyn RequestContextHandler>);
 
 impl Wrapper for RequestContextHandlerWrapper {
     type Cef = cef_request_context_handler_t;
-    type Inner = Arc<dyn RequestContextHandler>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_request_context_handler_t {

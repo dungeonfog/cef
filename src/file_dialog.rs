@@ -96,7 +96,6 @@ pub(crate) struct RunFileDialogCallbackWrapper {
 
 impl Wrapper for RunFileDialogCallbackWrapper {
     type Cef = cef_run_file_dialog_callback_t;
-    type Inner = Mutex<Option<Box<dyn Send + FnOnce(usize, Option<Vec<String>>)>>>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_run_file_dialog_callback_t {

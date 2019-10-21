@@ -206,7 +206,6 @@ impl std::borrow::Borrow<Arc<dyn URLRequestClient>> for URLRequestClientWrapper 
 
 impl Wrapper for URLRequestClientWrapper {
     type Cef = cef_urlrequest_client_t;
-    type Inner = dyn URLRequestClient;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_urlrequest_client_t {
@@ -366,7 +365,6 @@ impl std::borrow::Borrow<Arc<dyn CookieAccessFilter>> for CookieAccessFilterWrap
 
 impl Wrapper for CookieAccessFilterWrapper {
     type Cef = cef_cookie_access_filter_t;
-    type Inner = dyn CookieAccessFilter;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_cookie_access_filter_t {
@@ -487,7 +485,6 @@ impl std::borrow::Borrow<Arc<dyn ResponseFilter>> for ResponseFilterWrapper {
 
 impl Wrapper for ResponseFilterWrapper {
     type Cef = cef_response_filter_t;
-    type Inner = dyn ResponseFilter;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_response_filter_t {
@@ -600,7 +597,6 @@ impl std::borrow::Borrow<Arc<dyn ResourceHandler>> for ResourceHandlerWrapper {
 
 impl Wrapper for ResourceHandlerWrapper {
     type Cef = cef_resource_handler_t;
-    type Inner = dyn ResourceHandler;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_resource_handler_t {

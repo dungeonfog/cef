@@ -54,9 +54,9 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// it navigated automatically (e.g. via the DomContentLoaded event).
     fn on_before_browser(
         &self,
-        browser: &Browser,
-        frame: &Frame,
-        request: &Request,
+        browser: Browser,
+        frame: Frame,
+        request: Request,
         user_gesture: bool,
         is_redirect: bool,
     ) -> bool {
@@ -78,8 +78,8 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// proceed in the source browser's top-level frame.
     fn on_open_urlfrom_tab(
         &self,
-        browser: &Browser,
-        frame: &Frame,
+        browser: Browser,
+        frame: Frame,
         target_url: &str,
         target_disposition: WindowOpenDisposition,
         user_gesture: bool,
@@ -102,9 +102,9 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// if any.
     fn get_resource_request_handler(
         &self,
-        browser: &Browser,
-        frame: &Frame,
-        request: &Request,
+        browser: Browser,
+        frame: Frame,
+        request: Request,
         is_navigation: bool,
         is_download: bool,
         request_initiator: &str,
@@ -124,7 +124,7 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// request immediately.
     fn get_auth_credentials(
         &self,
-        browser: &Browser,
+        browser: Browser,
         origin_url: &str,
         is_proxy: bool,
         host: &str,
@@ -144,7 +144,7 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// immediately.
     fn on_quota_request(
         &self,
-        browser: &Browser,
+        browser: Browser,
         origin_url: &str,
         new_size: i64,
         callback: RequestCallback,
@@ -159,7 +159,7 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// be accepted without calling this function.
     fn on_certificate_error(
         &self,
-        browser: &Browser,
+        browser: Browser,
         cert_error: ErrorCode,
         request_url: &str,
         ssl_info: &SSLInfo,
@@ -180,7 +180,7 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// the server trusts.
     fn on_select_client_certificate(
         &self,
-        browser: &Browser,
+        browser: Browser,
         is_proxy: bool,
         host: &str,
         port: u16,
@@ -191,14 +191,14 @@ pub trait RequestHandler: Sync + Send + 'static {
     }
     /// Called on the browser process UI thread when a plugin has crashed.
     /// `plugin_path` is the path of the plugin that crashed.
-    fn on_plugin_crashed(&self, browser: &Browser, plugin_path: &str) {}
+    fn on_plugin_crashed(&self, browser: Browser, plugin_path: &str) {}
     /// Called on the browser process UI thread when the render view associated
     /// with `browser|`is ready to receive/handle IPC messages in the render
     /// process.
-    fn on_render_view_ready(&self, browser: &Browser) {}
+    fn on_render_view_ready(&self, browser: Browser) {}
     /// Called on the browser process UI thread when the render process terminates
     /// unexpectedly. `status` indicates how the process terminated.
-    fn on_render_process_terminated(&self, browser: &Browser, status: TerminationStatus) {}
+    fn on_render_process_terminated(&self, browser: Browser, status: TerminationStatus) {}
 }
 
 #[repr(transparent)]
@@ -212,7 +212,6 @@ impl RequestHandlerWrapper {
 
 impl Wrapper for RequestHandlerWrapper {
     type Cef = cef_request_handler_t;
-    type Inner = Box<dyn RequestHandler>;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_request_handler_t {

@@ -926,7 +926,6 @@ pub(crate) struct DownloadImageCallbackWrapper {
 
 impl Wrapper for DownloadImageCallbackWrapper {
     type Cef = cef_download_image_callback_t;
-    type Inner = dyn Send + FnOnce(&str, u16, Option<Image>);
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_download_image_callback_t {
@@ -969,7 +968,6 @@ pub(crate) struct PDFPrintCallbackWrapper {
 
 impl Wrapper for PDFPrintCallbackWrapper {
     type Cef = cef_pdf_print_callback_t;
-    type Inner = dyn Send + FnOnce(&str, bool);
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_pdf_print_callback_t {
@@ -1011,7 +1009,6 @@ pub(crate) struct NavigationEntryVisitorWrapper {
 
 impl Wrapper for NavigationEntryVisitorWrapper {
     type Cef = cef_navigation_entry_visitor_t;
-    type Inner = dyn Send + FnMut(NavigationEntry, bool, usize, usize) -> bool;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             cef_navigation_entry_visitor_t {
