@@ -1162,12 +1162,6 @@ impl From<f64> for V8Value {
     }
 }
 
-impl Clone for V8Value {
-    fn clone(&self) -> Self {
-        unsafe { Self::from_ptr_unchecked(&mut *self.0.clone()) }
-    }
-}
-
 impl TryFrom<SystemTime> for V8Value {
     type Error = SystemTimeError;
     /// Create a new V8Value object of type Date. This function should only be

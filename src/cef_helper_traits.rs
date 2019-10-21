@@ -4,6 +4,10 @@ pub trait IsSame {
     fn is_same(&self, other: Self) -> bool;
 }
 
+pub trait DeepClone {
+    fn deep_clone(&self) -> Self;
+}
+
 macro_rules! is_same {
     ($cef:ident) => {
         impl IsSame for RefCountedPtr<cef_sys::$cef> {

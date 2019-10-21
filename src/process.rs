@@ -49,8 +49,8 @@ impl ProcessMessage {
     }
 }
 
-impl Clone for ProcessMessage {
-    fn clone(&self) -> Self {
+impl crate::cef_helper_traits::DeepClone for ProcessMessage {
+    fn deep_clone(&self) -> Self {
         unsafe { Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
     }
 }

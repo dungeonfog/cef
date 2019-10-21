@@ -83,6 +83,7 @@ macro_rules! ref_counted_ptr {
     ) => {
         $(#[$meta])*
         #[repr(transparent)]
+        #[derive(Clone)]
         $vis struct $Struct$(<$($generic $(: $bound)?),+>)?(crate::refcounted::RefCountedPtr<cef_sys::$cef>);
 
         unsafe impl$(<$($generic $(: $bound)?),+>)? Send for $Struct$(<$($generic),+>)? {}

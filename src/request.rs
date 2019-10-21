@@ -155,7 +155,6 @@ pub enum PostDataElementType {
 ref_counted_ptr! {
     /// Structure used to represent a web request. The functions of this structure
     /// may be called on any thread.
-    #[derive(Clone)]
     pub struct Request(*mut cef_request_t);
 }
 
@@ -409,7 +408,6 @@ impl Default for Request {
 ref_counted_ptr! {
     /// Structure used to represent post data for a web request. The functions of
     /// this structure may be called on any thread.
-    #[derive(Clone)]
     pub struct PostData(*mut cef_post_data_t);
 }
 
@@ -498,7 +496,6 @@ impl Default for PostData {
 ref_counted_ptr! {
     /// Structure used to represent a single element in the request post data. The
     /// functions of this structure may be called on any thread.
-    #[derive(Clone)]
     pub struct PostDataElement(*mut cef_post_data_element_t);
 }
 
