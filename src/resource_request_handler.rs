@@ -5,8 +5,8 @@ use crate::{
     request::Request,
     string::CefString,
     url_request::{
-        CookieAccessFilter, CookieAccessFilterWrapper, RequestCallback, ResourceHandler,
-        ResourceHandlerWrapper, Response, ResponseFilter, ResponseFilterWrapper, URLRequestStatus,
+        CookieAccessFilter, RequestCallback, ResourceHandler,
+        Response, ResponseFilter, URLRequestStatus,
     },
     ReturnValue,
 };
@@ -15,24 +15,34 @@ use cef_sys::{
     cef_resource_handler_t, cef_resource_request_handler_t, cef_response_filter_t, cef_response_t,
     cef_return_value_t, cef_string_t, cef_urlrequest_status_t,
 };
-use std::{ptr::null_mut, sync::Arc};
+use std::{ptr::null_mut};
+
+ref_counted_ptr!{
+    pub struct ResourceRequestHandler(*mut cef_resource_request_handler_t);
+}
+
+impl ResourceRequestHandler {
+    pub fn new<C: ResourceRequestHandlerCallbacks>(callbacks: C) -> ResourceRequestHandler {
+        unsafe{ ResourceRequestHandler::from_ptr_unchecked(ResourceRequestHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
 
 /// Implement this trait to handle events related to browser requests. The
 /// functions of this trait will be called on the IO thread unless otherwise
 /// indicated.
-pub trait ResourceRequestHandler: Sync + Send {
+pub trait ResourceRequestHandlerCallbacks: 'static + Sync + Send {
     /// Called on the IO thread before a resource request is loaded. The `browser`
     /// and `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest]. To
     /// optionally filter cookies for the request return a
-    /// [CookieAccessFilter] object. The `request` object cannot be modified in this
+    /// [CookieAccessFilterCallbacks] object. The `request` object cannot be modified in this
     /// callback.
     fn get_cookie_access_filter(
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
         request: Request,
-    ) -> Option<Arc<dyn CookieAccessFilter>> {
+    ) -> Option<CookieAccessFilter> {
         None
     }
     /// Called on the IO thread before a resource request is loaded. The `browser`
@@ -56,13 +66,13 @@ pub trait ResourceRequestHandler: Sync + Send {
     /// `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest]. To allow the
     /// resource to load using the default network loader return None. To specify a
-    /// handler for the resource return a [ResourceHandler] object.
+    /// handler for the resource return a [ResourceHandlerCallbacks] object.
     fn get_resource_handler(
         &self,
         browser: Option<Browser>,
         frame: Option<Frame>,
         request: Request,
-    ) -> Option<Arc<dyn ResourceHandler>> {
+    ) -> Option<ResourceHandler> {
         None
     }
     /// Called on the IO thread when a resource load is redirected. The `browser`
@@ -103,7 +113,7 @@ pub trait ResourceRequestHandler: Sync + Send {
         frame: Option<Frame>,
         request: Request,
         response: Response,
-    ) -> Option<Arc<dyn ResponseFilter>> {
+    ) -> Option<ResponseFilter> {
         None
     }
     /// Called on the IO thread when a resource load has completed. The `browser`
@@ -148,7 +158,7 @@ pub trait ResourceRequestHandler: Sync + Send {
     }
 }
 
-pub(crate) struct ResourceRequestHandlerWrapper(Arc<dyn ResourceRequestHandler>);
+pub(crate) struct ResourceRequestHandlerWrapper(Box<dyn ResourceRequestHandlerCallbacks>);
 
 impl Wrapper for ResourceRequestHandlerWrapper {
     type Cef = cef_resource_request_handler_t;
@@ -171,7 +181,7 @@ impl Wrapper for ResourceRequestHandlerWrapper {
 }
 
 impl ResourceRequestHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn ResourceRequestHandler>) -> ResourceRequestHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn ResourceRequestHandlerCallbacks>) -> ResourceRequestHandlerWrapper {
         Self(delegate)
     }
 }
@@ -185,7 +195,7 @@ cef_callback_impl! {
             request: Request        : *mut cef_request_t,
         ) -> *mut cef_cookie_access_filter_t
         {
-            self.0.get_cookie_access_filter(browser, frame, request).map(|caf| CookieAccessFilterWrapper::new(caf).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_cookie_access_filter(browser, frame, request).map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn before_resource_load(
             &self,
@@ -212,7 +222,7 @@ cef_callback_impl! {
                 browser,
                 frame,
                 request,
-            ).map(|rhw| ResourceHandlerWrapper::new(rhw).wrap().into_raw()).unwrap_or_else(null_mut)
+            ).map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
 
         fn resource_redirect(
@@ -262,7 +272,7 @@ cef_callback_impl! {
                 frame,
                 request,
                 response,
-            ).map(|rrfw| ResponseFilterWrapper::new(rrfw).wrap().into_raw()).unwrap_or_else(null_mut)
+            ).map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
 
         fn resource_load_complete(

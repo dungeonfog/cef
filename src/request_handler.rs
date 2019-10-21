@@ -3,7 +3,7 @@ use cef_sys::{
     cef_window_open_disposition_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{ptr::null_mut, sync::Arc};
+use std::{ptr::null_mut};
 
 use crate::{
     browser::Browser,
@@ -40,16 +40,26 @@ pub enum TerminationStatus {
     ProcessOom = cef_termination_status_t::TS_PROCESS_OOM,
 }
 
+ref_counted_ptr!{
+    pub struct RequestHandler(*mut cef_request_handler_t);
+}
+
+impl RequestHandler {
+    pub fn new<C: RequestHandlerCallbacks>(callbacks: C) -> RequestHandler {
+        unsafe{ RequestHandler::from_ptr_unchecked(RequestHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Implement this structure to handle events related to browser requests. The
 /// functions of this structure will be called on the thread indicated.
-pub trait RequestHandler: Sync + Send + 'static {
+pub trait RequestHandlerCallbacks: Sync + Send + 'static {
     /// Called on the UI thread before browser navigation. Return true to
     /// cancel the navigation or false (0) to allow the navigation to proceed.
     /// The `request` object canoot be modified in this callback.
-    /// [LoadHandler::on_loading_state_change] will be called twice in all cases.
-    /// If the navigation is allowed [LoadHandler::on_load_start] and
-    /// [LoadHandler::on_load_end] will be called. If the navigation is canceled
-    /// [LoadHandler::on_load_error] will be called with an `errorCode` value of
+    /// [LoadHandlerCallbacks::on_loading_state_change] will be called twice in all cases.
+    /// If the navigation is allowed [LoadHandlerCallbacks::on_load_start] and
+    /// [LoadHandlerCallbacks::on_load_end] will be called. If the navigation is canceled
+    /// [LoadHandlerCallbacks::on_load_error] will be called with an `errorCode` value of
     /// [ErrorCode::Aborted]. The `user_gesture` value will be true if the browser
     /// navigated via explicit user gesture (e.g. clicking a link) or false if
     /// it navigated automatically (e.g. via the DomContentLoaded event).
@@ -95,10 +105,10 @@ pub trait RequestHandler: Sync + Send + 'static {
     /// a download. `request_initiator` is the origin (scheme + domain) of the page
     /// that initiated the request. Set `disable_default_handling` to true to
     /// disable default handling of the request, in which case it will need to be
-    /// handled via [ResourceRequestHandler::get_resource_handler] or it will
+    /// handled via [ResourceRequestHandlerCallbacks::get_resource_handler] or it will
     /// be canceled. To allow the resource load to proceed with default handling
     /// return None. To specify a handler for the resource return a
-    /// [ResourceRequestHandler] object. If this callback returns None the
+    /// [ResourceRequestHandlerCallbacks] object. If this callback returns None the
     /// same function will be called on the associated [RequestContextHandler],
     /// if any.
     fn get_resource_request_handler(
@@ -110,7 +120,7 @@ pub trait RequestHandler: Sync + Send + 'static {
         is_download: bool,
         request_initiator: &str,
         disable_default_handling: &mut bool,
-    ) -> Option<Arc<dyn ResourceRequestHandler>> {
+    ) -> Option<ResourceRequestHandler> {
         None
     }
     /// Called on the IO thread when the browser needs credentials from the user.
@@ -203,10 +213,10 @@ pub trait RequestHandler: Sync + Send + 'static {
 }
 
 #[repr(transparent)]
-pub struct RequestHandlerWrapper(Arc<dyn RequestHandler>);
+pub struct RequestHandlerWrapper(Box<dyn RequestHandlerCallbacks>);
 
 impl RequestHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn RequestHandler>) -> Self {
+    pub(crate) fn new(delegate: Box<dyn RequestHandlerCallbacks>) -> Self {
         Self(delegate)
     }
 }

@@ -2,7 +2,7 @@ use crate::{
     browser::Browser,
     dom::DOMNode,
     frame::Frame,
-    load_handler::{LoadHandler, LoadHandlerWrapper},
+    load_handler::{LoadHandler},
     process::{ProcessId, ProcessMessage},
     refcounted::{RefCountedPtr, Wrapper},
     v8context::{V8Context, V8Exception, V8StackFrame, V8StackTrace},
@@ -13,15 +13,25 @@ use cef_sys::{
     cef_load_handler_t, cef_process_id_t, cef_process_message_t, cef_render_process_handler_t,
     cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
 };
-use std::{ptr::null_mut, sync::Arc};
+use std::{ptr::null_mut};
+
+ref_counted_ptr!{
+    pub struct RenderProcessHandler(*mut cef_render_process_handler_t);
+}
+
+impl RenderProcessHandler {
+    pub fn new<C: RenderProcessHandlerCallbacks>(callbacks: C) -> RenderProcessHandler {
+        unsafe{ RenderProcessHandler::from_ptr_unchecked(RenderProcessHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
 
 /// Trait used to implement render process callbacks. The functions of this
 /// trait will be called on the render process main thread ([ProcessId::Renderer])
 /// unless otherwise indicated.
-pub trait RenderProcessHandler: Send + Sync {
+pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
     /// Called after the render process main thread has been created. `extra_info`
     /// is originating from
-    /// [BrowserProcessHandler::on_render_process_thread_created].
+    /// [BrowserProcessHandlerCallbacks::on_render_process_thread_created].
     fn on_render_thread_created(&self, extra_info: &ListValue) {}
     /// Called after WebKit has been initialized.
     fn on_web_kit_initialized(&self) {}
@@ -35,7 +45,7 @@ pub trait RenderProcessHandler: Send + Sync {
     /// Called before a browser is destroyed.
     fn on_browser_destroyed(&self, browser: Browser) {}
     /// Return the handler for browser load status events.
-    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler + 'static>> {
+    fn get_load_handler(&self) -> Option<LoadHandler> {
         None
     }
     /// Called immediately after the V8 context for a frame has been created. To
@@ -78,13 +88,13 @@ pub trait RenderProcessHandler: Send + Sync {
 }
 
 #[repr(transparent)]
-pub(crate) struct RenderProcessHandlerWrapper(Arc<dyn RenderProcessHandler>);
+pub(crate) struct RenderProcessHandlerWrapper(Box<dyn RenderProcessHandlerCallbacks>);
 
 unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RenderProcessHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn RenderProcessHandler>) -> Self {
+    pub(crate) fn new(delegate: Box<dyn RenderProcessHandlerCallbacks>) -> Self {
         Self(delegate)
     }
 }
@@ -142,7 +152,7 @@ cef_callback_impl! {
         fn get_load_handler(
             &self,
         ) -> *mut cef_load_handler_t {
-            self.0.get_load_handler().map(|lh| LoadHandlerWrapper::new(lh).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
 
         fn context_created(

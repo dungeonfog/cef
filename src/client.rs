@@ -8,10 +8,10 @@ use std::{ptr::null_mut, sync::Arc};
 use crate::{
     browser::Browser,
     frame::Frame,
-    load_handler::{LoadHandler, LoadHandlerWrapper},
+    load_handler::{LoadHandler},
     process::{ProcessId, ProcessMessage},
     refcounted::{RefCountedPtr, Wrapper},
-    request_handler::{RequestHandler, RequestHandlerWrapper},
+    request_handler::{RequestHandler},
 };
 
 /// Implement this trait to provide handler implementations.
@@ -43,13 +43,13 @@ pub trait Client: 'static + Send + Sync + Downcast {
     // /// Return the handler for browser life span events.
     // fn get_life_span_handler(&self) -> Option<Box<dyn LifeSpanHandler>> { None }
     /// Return the handler for browser load status events.
-    fn get_load_handler(&self) -> Option<Arc<dyn LoadHandler>> {
+    fn get_load_handler(&self) -> Option<LoadHandler> {
         None
     }
     // /// Return the handler for off-screen rendering events.
     // fn get_render_handler(&self) -> Option<Box<dyn RenderHandler>> { None }
     /// Return the handler for browser request events.
-    fn get_request_handler(&self) -> Option<Arc<dyn RequestHandler>> {
+    fn get_request_handler(&self) -> Option<RequestHandler> {
         None
     }
     /// Called when a new message is received from a different process. Return true
@@ -98,10 +98,10 @@ impl ClientWrapper {
 cef_callback_impl! {
     impl for ClientWrapper: cef_client_t {
         fn get_load_handler(&self) -> *mut cef_load_handler_t {
-            self.0.get_load_handler().map(|lh| LoadHandlerWrapper::new(lh).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn get_request_handler(&self) -> *mut cef_request_handler_t {
-            self.0.get_request_handler().map(|rh| RequestHandlerWrapper::new(rh).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_request_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn process_message_received(
             &self,

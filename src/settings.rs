@@ -124,7 +124,7 @@ impl Settings {
         self.0.multi_threaded_message_loop = 1;
     }
     /// Call to control browser process main (UI) thread message pump
-    /// scheduling via the [BrowserProcessHandler::on_schedule_message_pump_work]
+    /// scheduling via the [BrowserProcessHandlerCallbacks::on_schedule_message_pump_work]
     /// callback. This option is recommended for use in combination with the
     /// [App::do_message_loop_work] function in cases where the CEF message loop must be
     /// integrated into an existing application message loop (see additional
@@ -333,8 +333,8 @@ impl Settings {
         self.0.remote_debugging_port = port as i32;
     }
     /// The number of stack trace frames to capture for uncaught exceptions.
-    /// Specify a positive value to enable the [RenderProcessHandler::on_uncaught_exception] callback. Specify 0 (default value) and
-    /// [RenderProcessHandler::on_uncaught_exception] will not be called. Also configurable using the
+    /// Specify a positive value to enable the [RenderProcessHandlerCallbacks::on_uncaught_exception] callback. Specify 0 (default value) and
+    /// [RenderProcessHandlerCallbacks::on_uncaught_exception] will not be called. Also configurable using the
     /// "uncaught-exception-stack-size" command-line switch.
     pub fn set_uncaught_exception_stack_size(&mut self, stack_size: i32) {
         self.0.uncaught_exception_stack_size = stack_size;

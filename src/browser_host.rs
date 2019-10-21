@@ -61,7 +61,7 @@ impl BrowserHost {
     /// context will be used. This function can be called on any browser process
     /// thread and will not block. The optional `extra_info` parameter provides an
     /// opportunity to specify extra information specific to the created browser that
-    /// will be passed to [RenderProcessHandler::on_browser_created] in the
+    /// will be passed to [RenderProcessHandlerCallbacks::on_browser_created] in the
     /// render process.
     pub fn create_browser(
         window_info: &WindowInfo,
@@ -92,7 +92,7 @@ impl BrowserHost {
     /// used. This function can only be called on the browser process UI thread. The
     /// optional `extra_info` parameter provides an opportunity to specify extra
     /// information specific to the created browser that will be passed to
-    /// [RenderProcessHandler::on_browser_created] in the render process.
+    /// [RenderProcessHandlerCallbacks::on_browser_created] in the render process.
     pub fn create_browser_sync(
         window_info: &WindowInfo,
         client: Arc<dyn Client>,

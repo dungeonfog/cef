@@ -17,7 +17,7 @@ use crate::{
     frame::Frame,
     refcounted::{RefCountedPtr, Wrapper},
     request::Request,
-    resource_request_handler::{ResourceRequestHandler, ResourceRequestHandlerWrapper},
+    resource_request_handler::{ResourceRequestHandler},
     string::CefString,
     web_plugin::WebPluginInfo,
 };
@@ -75,12 +75,12 @@ pub trait RequestContextHandler: Send + Sync {
     /// request is a download. `request_initiator` is the origin (scheme + domain)
     /// of the page that initiated the request. Set `disable_default_handling` to
     /// true to disable default handling of the request, in which case it will
-    /// need to be handled via [ResourceRequestHandler::get_resource_handler]
+    /// need to be handled via [ResourceRequestHandlerCallbacks::get_resource_handler]
     /// or it will be canceled. To allow the resource load to proceed with default
     /// handling return None. To specify a handler for the resource return a
-    /// [ResourceRequestHandler] object. This function will not be called if
+    /// [ResourceRequestHandlerCallbacks] object. This function will not be called if
     /// the client associated with `browser` returns a non-None value from
-    /// [RequestHandler::get_resource_request_handler] for the same request
+    /// [RequestHandlerCallbacks::get_resource_request_handler] for the same request
     /// (identified by [Request::get_identifier]).
     fn get_resource_request_handler(
         &self,
@@ -91,7 +91,7 @@ pub trait RequestContextHandler: Send + Sync {
         is_download: bool,
         request_initiator: &str,
         disable_default_handling: &mut bool,
-    ) -> Option<Arc<dyn ResourceRequestHandler>> {
+    ) -> Option<ResourceRequestHandler> {
         None
     }
 }
@@ -175,7 +175,7 @@ cef_callback_impl! {
                 is_download,
                 &String::from(request_initiator),
                 &mut local_disable_default_handling,
-            ).map(|rrh| ResourceRequestHandlerWrapper::new(rrh).wrap().into_raw()).unwrap_or_else(null_mut);
+            ).map(|cef| cef.into_raw()).unwrap_or(null_mut());
             *disable_default_handling = local_disable_default_handling as std::os::raw::c_int;
             ret
         }

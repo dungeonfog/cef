@@ -501,7 +501,7 @@ impl V8Value {
     }
     /// Create a new V8Value object of type object with optional accessor
     /// and/or interceptor. This function should only be called from within the scope
-    /// of a [RenderProcessHandler], [V8Handler] or [V8Accessor]
+    /// of a [RenderProcessHandlerCallbacks], [V8Handler] or [V8Accessor]
     /// callback, or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored
     /// [V8Context] reference.
     pub fn new_object(
@@ -522,7 +522,7 @@ impl V8Value {
     /// Create a new V8Value object of type array with the specified `length`.
     /// If `length` is negative the returned array will have length 0. This function
     /// should only be called from within the scope of a
-    /// [RenderProcessHandler], [V8Handler] or [V8Accessor] callback,
+    /// [RenderProcessHandlerCallbacks], [V8Handler] or [V8Accessor] callback,
     /// or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored V8Context
     /// reference.
     pub fn new_array(length: i32) -> Self {
@@ -530,7 +530,7 @@ impl V8Value {
     }
     /// Create a new V8Value object of type ArrayBuffer which wraps the
     /// provided `buffer` (without copying it). This function should only
-    /// be called from within the scope of a [RenderProcessHandler], [V8Handler]
+    /// be called from within the scope of a [RenderProcessHandlerCallbacks], [V8Handler]
     /// or [V8Accessor] callback, or in combination with calling
     /// [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
@@ -553,7 +553,7 @@ impl V8Value {
     }
     /// Create a new V8Value object of type function. This function
     /// should only be called from within the scope of a
-    /// [RenderProcessHandler], [V8Handler] or [V8Accessor] callback,
+    /// [RenderProcessHandlerCallbacks], [V8Handler] or [V8Accessor] callback,
     /// or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
     pub fn new_function(
@@ -1165,7 +1165,7 @@ impl From<f64> for V8Value {
 impl TryFrom<SystemTime> for V8Value {
     type Error = SystemTimeError;
     /// Create a new V8Value object of type Date. This function should only be
-    /// called from within the scope of a [RenderProcessHandler],
+    /// called from within the scope of a [RenderProcessHandlerCallbacks],
     /// [V8Handler] or [V8AccessorHandler] callback, or in combination with calling
     /// [V8Context::enter] and [V8Context::exit] on a stored [V8Context] reference.
     fn try_from(value: SystemTime) -> Result<Self, Self::Error> {

@@ -1,10 +1,10 @@
 use crate::{
-    browser_process_handler::{BrowserProcessHandler, BrowserProcessHandlerWrapper},
+    browser_process_handler::{BrowserProcessHandler},
     command_line::CommandLine,
     main_args::MainArgs,
     refcounted::{RefCountedPtr, Wrapper},
-    render_process_handler::{RenderProcessHandler, RenderProcessHandlerWrapper},
-    resource_bundle_handler::{ResourceBundleHandler, ResourceBundleHandlerWrapper},
+    render_process_handler::{RenderProcessHandler},
+    resource_bundle_handler::{ResourceBundleHandler},
     scheme_registrar::SchemeRegistrar,
     settings::Settings,
     string::CefString,
@@ -46,17 +46,17 @@ pub trait AppCallbacks: 'static + Send + Sync {
     /// [CefSettings.pack_loading_disabled] is true a handler must be returned.
     /// If no handler is returned resources will be loaded from pack files. This
     /// function is called by the browser and render processes on multiple threads.
-    fn get_resource_bundle_handler(&self) -> Option<Arc<dyn ResourceBundleHandler>> {
+    fn get_resource_bundle_handler(&self) -> Option<ResourceBundleHandler> {
         None
     }
     /// Return the handler for functionality specific to the browser process. This
     /// function is called on multiple threads in the browser process.
-    fn get_browser_process_handler(&self) -> Option<Arc<dyn BrowserProcessHandler>> {
+    fn get_browser_process_handler(&self) -> Option<BrowserProcessHandler> {
         None
     }
     /// Return the handler for functionality specific to the render process. This
     /// function is called on the render process main thread.
-    fn get_render_process_handler(&self) -> Option<Arc<dyn RenderProcessHandler>> {
+    fn get_render_process_handler(&self) -> Option<RenderProcessHandler> {
         None
     }
 }
@@ -204,7 +204,7 @@ impl App {
     /// care must be taken to balance performance against excessive CPU usage. It is
     /// recommended to enable the [Settings::external_message_pump] option when using
     /// this function so that
-    /// [BrowserProcessHandler::on_schedule_message_pump_work] callbacks can
+    /// [BrowserProcessHandlerCallbacks::on_schedule_message_pump_work] callbacks can
     /// facilitate the scheduling process. This function should only be called on the
     /// main application thread and only if [App::initialize] is called with a
     /// [Settings::multi_threaded_message_loop] value of false. This function
@@ -271,13 +271,13 @@ cef_callback_impl! {
             self.0.on_register_custom_schemes(registrar);
         }
         fn get_resource_bundle_handler(&self) -> *mut cef_resource_bundle_handler_t {
-            self.0.get_resource_bundle_handler().map(|rbh| ResourceBundleHandlerWrapper::new(rbh).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_resource_bundle_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn get_browser_process_handler(&self) -> *mut cef_sys::cef_browser_process_handler_t {
-            self.0.get_browser_process_handler().map(|bph| BrowserProcessHandlerWrapper::new(bph).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_browser_process_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn get_render_process_handler(&self) -> *mut cef_render_process_handler_t {
-            self.0.get_render_process_handler().map(|rph| RenderProcessHandlerWrapper::new(rph).wrap().into_raw()).unwrap_or_else(null_mut)
+            self.0.get_render_process_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
     }
 }

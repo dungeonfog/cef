@@ -1,7 +1,5 @@
 use cef_sys::{cef_browser_process_handler_t, cef_command_line_t, cef_list_value_t};
 
-use std::sync::Arc;
-
 use crate::{
     command_line::CommandLine,
     refcounted::{RefCountedPtr, Wrapper},
@@ -9,10 +7,20 @@ use crate::{
     // print_handler::PrintHandler,
 };
 
+ref_counted_ptr!{
+    pub struct BrowserProcessHandler(*mut cef_browser_process_handler_t);
+}
+
+impl BrowserProcessHandler {
+    pub fn new<C: BrowserProcessHandlerCallbacks>(callbacks: C) -> BrowserProcessHandler {
+        unsafe{ BrowserProcessHandler::from_ptr_unchecked(BrowserProcessHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Trait used to implement browser process callbacks. The functions of this
 /// trait will be called on the browser process main thread unless otherwise
 /// indicated.
-pub trait BrowserProcessHandler: Sync + Send {
+pub trait BrowserProcessHandlerCallbacks: 'static + Sync + Send {
     /// Called on the browser process UI thread immediately after the CEF context
     /// has been initialized.
     fn on_context_initialized(&self) {}
@@ -24,7 +32,7 @@ pub trait BrowserProcessHandler: Sync + Send {
     /// Called on the browser process IO thread after the main thread has been
     /// created for a new render process. Provides an opportunity to specify extra
     /// information that will be passed to
-    /// [RenderProcessHandler::on_render_thread_created()] in the render
+    /// [RenderProcessHandlerCallbacks::on_render_thread_created()] in the render
     /// process.
     fn on_render_process_thread_created(&self, _extra_info: ListValue) {}
     /// Return the handler for printing on Linux. If a print handler is not
@@ -48,15 +56,9 @@ pub trait BrowserProcessHandler: Sync + Send {
 }
 
 pub(crate) struct BrowserProcessHandlerWrapper {
-    delegate: Arc<dyn BrowserProcessHandler>,
+    delegate: Box<dyn BrowserProcessHandlerCallbacks>,
     #[cfg(target_os = "linux")]
     print_handler: Option<RefCountedPtr<cef_print_handler_t>>,
-}
-
-impl std::borrow::Borrow<Arc<dyn BrowserProcessHandler>> for BrowserProcessHandlerWrapper {
-    fn borrow(&self) -> &Arc<dyn BrowserProcessHandler> {
-        &self.delegate
-    }
 }
 
 impl Wrapper for BrowserProcessHandlerWrapper {
@@ -80,7 +82,7 @@ impl Wrapper for BrowserProcessHandlerWrapper {
 }
 
 impl BrowserProcessHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn BrowserProcessHandler>) -> BrowserProcessHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn BrowserProcessHandlerCallbacks>) -> BrowserProcessHandlerWrapper {
         Self {
             delegate,
             #[cfg(target_os = "linux")]

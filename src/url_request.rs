@@ -54,7 +54,7 @@ impl URLRequest {
     /// process and the render process.
     ///
     /// For requests originating from the browser process:
-    ///   - It may be intercepted by the client via [ResourceRequestHandler] or
+    ///   - It may be intercepted by the client via [ResourceRequestHandlerCallbacks] or
     ///     [SchemeHandlerFactory].
     ///   - POST data may only contain only a single element of type [PostDataElementType::File]
     ///     or [PostDataElementType::Bytes].
@@ -177,8 +177,8 @@ pub trait URLRequestClient: Send + Sync {
     /// hostname and `port` contains the port number. Return true to continue
     /// the request and call [AuthCallback::cont] when the authentication
     /// information is available. If the request has an associated browser/frame
-    /// then returning false will result in a call to [RequestHandler::GetAuthCredentials] on the
-    /// [RequestHandler] associated with that browser, if any. Otherwise,
+    /// then returning false will result in a call to [RequestHandlerCallbacks::GetAuthCredentials] on the
+    /// [RequestHandlerCallbacks] associated with that browser, if any. Otherwise,
     /// returning false will cancel the request immediately. This function will
     /// only be called for requests initiated from the browser process.
     fn get_auth_credentials(
@@ -196,12 +196,6 @@ pub trait URLRequestClient: Send + Sync {
 
 pub(crate) struct URLRequestClientWrapper {
     delegate: Arc<dyn URLRequestClient>,
-}
-
-impl std::borrow::Borrow<Arc<dyn URLRequestClient>> for URLRequestClientWrapper {
-    fn borrow(&self) -> &Arc<dyn URLRequestClient> {
-        &self.delegate
-    }
 }
 
 impl Wrapper for URLRequestClientWrapper {
@@ -318,10 +312,20 @@ impl RequestCallback {
     }
 }
 
+ref_counted_ptr!{
+    pub struct CookieAccessFilter(*mut cef_cookie_access_filter_t);
+}
+
+impl CookieAccessFilter {
+    pub fn new<C: CookieAccessFilterCallbacks>(callbacks: C) -> CookieAccessFilter {
+        unsafe{ CookieAccessFilter::from_ptr_unchecked(CookieAccessFilterWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Implement this trait to filter cookies that may be sent or received from
 /// resource requests. The functions of this trait will be called on the IO
 /// thread unless otherwise indicated.
-pub trait CookieAccessFilter: Sync + Send {
+pub trait CookieAccessFilterCallbacks: 'static + Sync + Send {
     /// Called on the IO thread before a resource request is sent. The `browser`
     /// and `frame` values represent the source of the request, and may be None for
     /// requests originating from service workers or [URLRequest].
@@ -354,13 +358,7 @@ pub trait CookieAccessFilter: Sync + Send {
 }
 
 pub(crate) struct CookieAccessFilterWrapper {
-    delegate: Arc<dyn CookieAccessFilter>,
-}
-
-impl std::borrow::Borrow<Arc<dyn CookieAccessFilter>> for CookieAccessFilterWrapper {
-    fn borrow(&self) -> &Arc<dyn CookieAccessFilter> {
-        &self.delegate
-    }
+    delegate: Box<dyn CookieAccessFilterCallbacks>,
 }
 
 impl Wrapper for CookieAccessFilterWrapper {
@@ -378,7 +376,7 @@ impl Wrapper for CookieAccessFilterWrapper {
 }
 
 impl CookieAccessFilterWrapper {
-    pub(crate) fn new(delegate: Arc<dyn CookieAccessFilter>) -> CookieAccessFilterWrapper {
+    pub(crate) fn new(delegate: Box<dyn CookieAccessFilterCallbacks>) -> CookieAccessFilterWrapper {
         CookieAccessFilterWrapper { delegate }
     }
 }
@@ -427,9 +425,19 @@ pub enum ResponseFilterStatus {
     Error = cef_response_filter_status_t::RESPONSE_FILTER_ERROR as i32,
 }
 
+ref_counted_ptr!{
+    pub struct ResponseFilter(*mut cef_response_filter_t);
+}
+
+impl ResponseFilter {
+    pub fn new<C: ResponseFilterCallbacks>(callbacks: C) -> ResponseFilter {
+        unsafe{ ResponseFilter::from_ptr_unchecked(ResponseFilterWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Implement this trait to filter resource response content. The functions
 /// of this trait will be called on the browser process IO thread.
-pub trait ResponseFilter: Send + Sync {
+pub trait ResponseFilterCallbacks: 'static + Send + Sync {
     /// Initialize the response filter. Will only be called a single time. The
     /// filter will not be installed if this function returns false.
     fn init_filter(&self) -> bool {
@@ -474,13 +482,7 @@ pub trait ResponseFilter: Send + Sync {
 }
 
 pub(crate) struct ResponseFilterWrapper {
-    delegate: Arc<dyn ResponseFilter>,
-}
-
-impl std::borrow::Borrow<Arc<dyn ResponseFilter>> for ResponseFilterWrapper {
-    fn borrow(&self) -> &Arc<dyn ResponseFilter> {
-        &self.delegate
-    }
+    delegate: Box<dyn ResponseFilterCallbacks>,
 }
 
 impl Wrapper for ResponseFilterWrapper {
@@ -498,7 +500,7 @@ impl Wrapper for ResponseFilterWrapper {
 }
 
 impl ResponseFilterWrapper {
-    pub(crate) fn new(delegate: Arc<dyn ResponseFilter>) -> ResponseFilterWrapper {
+    pub(crate) fn new(delegate: Box<dyn ResponseFilterCallbacks>) -> ResponseFilterWrapper {
         ResponseFilterWrapper { delegate }
     }
 }
@@ -526,9 +528,19 @@ cef_callback_impl! {
     }
 }
 
+ref_counted_ptr!{
+    pub struct ResourceHandler(*mut cef_resource_handler_t);
+}
+
+impl ResourceHandler {
+    pub fn new<C: ResourceHandlerCallbacks>(callbacks: C) -> ResourceHandler {
+        unsafe{ ResourceHandler::from_ptr_unchecked(ResourceHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Structure used to implement a custom request handler structure. The functions
 /// of this structure will be called on the IO thread unless otherwise indicated.
-pub trait ResourceHandler: Send + Sync {
+pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// Open the response stream. To handle the request immediately set
     /// `handle_request` to true and return true. To decide at a later time
     /// set `handle_request` to false, return true, and execute `callback`
@@ -540,9 +552,9 @@ pub trait ResourceHandler: Send + Sync {
         false
     }
     /// Retrieve response header information. If the response length is not known
-    /// set `response_length` to -1 and [ResourceHandler::read_response] will be called until it
+    /// set `response_length` to -1 and [ResourceHandlerCallbacks::read_response] will be called until it
     /// returns false. If the response length is known set `response_length` to
-    /// a positive value and [ResourceHandler::read_response] will be called until it returns false
+    /// a positive value and [ResourceHandlerCallbacks::read_response] will be called until it returns false
     /// or the specified number of bytes have been read. Use the `response`
     /// object to set the mime type, http status code and other optional header
     /// values. To redirect the request to a new URL set `redirect_url` to the new
@@ -586,13 +598,7 @@ pub trait ResourceHandler: Send + Sync {
 }
 
 pub(crate) struct ResourceHandlerWrapper {
-    delegate: Arc<dyn ResourceHandler>,
-}
-
-impl std::borrow::Borrow<Arc<dyn ResourceHandler>> for ResourceHandlerWrapper {
-    fn borrow(&self) -> &Arc<dyn ResourceHandler> {
-        &self.delegate
-    }
+    delegate: Box<dyn ResourceHandlerCallbacks>,
 }
 
 impl Wrapper for ResourceHandlerWrapper {
@@ -616,7 +622,7 @@ impl Wrapper for ResourceHandlerWrapper {
 }
 
 impl ResourceHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn ResourceHandler>) -> ResourceHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn ResourceHandlerCallbacks>) -> ResourceHandlerWrapper {
         ResourceHandlerWrapper { delegate }
     }
     // TODO: move to cef_callback_impl

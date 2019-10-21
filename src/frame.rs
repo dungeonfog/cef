@@ -250,7 +250,7 @@ impl Frame {
     }
     /// Create a new URL request that will be treated as originating from this
     /// frame and the associated browser. This request may be intercepted by the
-    /// client via [ResourceRequestHandler] or [SchemeHandlerFactory].
+    /// client via [ResourceRequestHandlerCallbacks] or [SchemeHandlerFactory].
     /// Use [URLRequest::new] instead if you do not want the request to have
     /// this association, in which case it may be handled differently (see
     /// documentation on that function). Requests may originate from both the

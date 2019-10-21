@@ -388,7 +388,7 @@ impl Request {
         .unwrap()
     }
     /// Returns the globally unique identifier for this request or 0 if not
-    /// specified. Can be used by [ResourceRequestHandler] implementations in
+    /// specified. Can be used by [ResourceRequestHandlerCallbacks] implementations in
     /// the browser process to track a single request across multiple callbacks.
     pub fn get_identifier(&self) -> u64 {
         if let Some(get_identifier) = self.0.get_identifier {

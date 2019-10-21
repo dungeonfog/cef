@@ -3,7 +3,7 @@ use cef_sys::{
     cef_transition_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashSet, convert::TryFrom, sync::Arc};
+use std::{collections::HashSet, convert::TryFrom};
 
 use crate::{
     browser::Browser,
@@ -1033,15 +1033,25 @@ pub enum ErrorCode {
     DnsHttpFailed = cef_errorcode_t::ERR_DNS_HTTP_FAILED,
 }
 
+ref_counted_ptr!{
+    pub struct LoadHandler(*mut cef_load_handler_t);
+}
+
+impl LoadHandler {
+    pub fn new<C: LoadHandlerCallbacks>(callbacks: C) -> LoadHandler {
+        unsafe{ LoadHandler::from_ptr_unchecked(LoadHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Implement this trait to handle events related to browser load status. The
 /// functions of this trait will be called on the browser process UI thread
 /// or render process main thread ([ProcessId::Renderer]).
-pub trait LoadHandler: Send + Sync {
+pub trait LoadHandlerCallbacks: 'static + Send + Sync {
     /// Called when the loading state has changed. This callback will be executed
     /// twice -- once when loading is initiated either programmatically or by user
     /// action, and once when loading is terminated due to completion, cancellation
-    /// of failure. It will be called before any calls to [LoadHandler::on_load_start] and after all
-    /// calls to [LoadHandler::on_load_error] and/or [LoadHandler::on_load_end].
+    /// of failure. It will be called before any calls to [LoadHandlerCallbacks::on_load_start] and after all
+    /// calls to [LoadHandlerCallbacks::on_load_error] and/or [LoadHandlerCallbacks::on_load_end].
     fn on_loading_state_change(
         &self,
         browser: Browser,
@@ -1059,18 +1069,18 @@ pub trait LoadHandler: Send + Sync {
     /// loading after the main frame load has ended. This function will not be
     /// called for same page navigations (fragments, history state, etc.) or for
     /// navigations that fail or are canceled before commit. For notification of
-    /// overall browser load status use [LoadHandler::on_loading_state_change] instead.
+    /// overall browser load status use [LoadHandlerCallbacks::on_loading_state_change] instead.
     fn on_load_start(&self, browser: Browser, frame: Frame, transition_type: TransitionType) {}
     /// Called when the browser is done loading a frame. Call the [Frame::is_main()] function to check if `frame` is the
     /// main frame. Multiple frames may be loading at the same time. Sub-frames may
     /// start or continue loading after the main frame load has ended. This
     /// function will not be called for same page navigations (fragments, history
     /// state, etc.) or for navigations that fail or are canceled before commit.
-    /// For notification of overall browser load status use [LoadHandler::on_loading_state_change]
+    /// For notification of overall browser load status use [LoadHandlerCallbacks::on_loading_state_change]
     /// instead.
     fn on_load_end(&self, browser: Browser, frame: Frame, http_status_code: i32) {}
     /// Called when a navigation fails or is canceled. This function may be called
-    /// by itself if before commit or in combination with [LoadHandler::on_load_start]/[LoadHandler::on_load_end] if
+    /// by itself if before commit or in combination with [LoadHandlerCallbacks::on_load_start]/[LoadHandlerCallbacks::on_load_end] if
     /// after commit. `error_code` is the error code number, `error_text` is the
     /// error text and `failed_url` is the URL that failed to load. See
     /// net\base\net_error_list.h for complete descriptions of the error codes.
@@ -1086,18 +1096,12 @@ pub trait LoadHandler: Send + Sync {
 }
 
 pub(crate) struct LoadHandlerWrapper {
-    delegate: Arc<dyn LoadHandler>,
+    delegate: Box<dyn LoadHandlerCallbacks>,
 }
 
 impl LoadHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn LoadHandler>) -> LoadHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn LoadHandlerCallbacks>) -> LoadHandlerWrapper {
         LoadHandlerWrapper { delegate }
-    }
-}
-
-impl std::borrow::Borrow<Arc<dyn LoadHandler>> for LoadHandlerWrapper {
-    fn borrow(&self) -> &Arc<dyn LoadHandler> {
-        &self.delegate
     }
 }
 

@@ -1,7 +1,5 @@
 use cef_sys::{cef_resource_bundle_handler_t, cef_scale_factor_t, cef_string_t};
 
-use std::sync::Arc;
-
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
     string::CefString,
@@ -40,12 +38,22 @@ impl ScaleFactor {
     }
 }
 
+ref_counted_ptr!{
+    pub struct ResourceBundleHandler(*mut cef_resource_bundle_handler_t);
+}
+
+impl ResourceBundleHandler {
+    pub fn new<C: ResourceBundleHandlerCallbacks>(callbacks: C) -> ResourceBundleHandler {
+        unsafe{ ResourceBundleHandler::from_ptr_unchecked(ResourceBundleHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Trait used for retrieving resources from the resource bundle (*.pak)
 /// files loaded by CEF during startup or via the cef_resource_bundle_handler
 /// returned from cef_app_t::GetResourceBundleHandler. See CefSettings for
 /// additional options related to resource bundle loading. The functions of this
 /// structure may be called on any thread unless otherwise indicated.
-pub trait ResourceBundleHandler: Send + Sync {
+pub trait ResourceBundleHandlerCallbacks: 'static + Send + Sync {
     /// Called to retrieve a localized translation for the specified |string_id|.
     /// To provide the translation return the translation string.
     /// To use the default translation return None.
@@ -72,14 +80,8 @@ pub trait ResourceBundleHandler: Send + Sync {
     }
 }
 
-pub struct ResourceBundleHandlerWrapper {
-    delegate: Arc<dyn ResourceBundleHandler>,
-}
-
-impl std::borrow::Borrow<Arc<dyn ResourceBundleHandler>> for ResourceBundleHandlerWrapper {
-    fn borrow(&self) -> &Arc<dyn ResourceBundleHandler> {
-        &self.delegate
-    }
+pub(crate) struct ResourceBundleHandlerWrapper {
+    delegate: Box<dyn ResourceBundleHandlerCallbacks>,
 }
 
 impl Wrapper for ResourceBundleHandlerWrapper {
@@ -98,7 +100,7 @@ impl Wrapper for ResourceBundleHandlerWrapper {
 }
 
 impl ResourceBundleHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn ResourceBundleHandler>) -> ResourceBundleHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn ResourceBundleHandlerCallbacks>) -> ResourceBundleHandlerWrapper {
         ResourceBundleHandlerWrapper { delegate }
     }
 }
