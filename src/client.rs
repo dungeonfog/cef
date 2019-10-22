@@ -3,7 +3,7 @@ use cef_sys::{
     cef_process_message_t, cef_request_handler_t,
 };
 use downcast_rs::{impl_downcast, Downcast};
-use std::{ptr::null_mut, sync::Arc};
+use std::{ptr::null_mut};
 
 use crate::{
     browser::Browser,
@@ -14,8 +14,18 @@ use crate::{
     request_handler::{RequestHandler},
 };
 
+ref_counted_ptr!{
+    pub struct Client(*mut cef_client_t);
+}
+
+impl Client {
+    pub fn new<C: ClientCallbacks>(callbacks: C) -> Client {
+        unsafe{ Client::from_ptr_unchecked(ClientWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Implement this trait to provide handler implementations.
-pub trait Client: 'static + Send + Sync + Downcast {
+pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // /// Return the handler for audio rendering events.
     // fn get_audio_handler(&self) -> Option<Box<dyn AudioHandler>> { None }
     // /// Return the handler for context menus. If no handler is provided the default
@@ -65,10 +75,10 @@ pub trait Client: 'static + Send + Sync + Downcast {
     }
 }
 
-impl_downcast!(Client);
+impl_downcast!(ClientCallbacks);
 
 #[repr(transparent)]
-pub(crate) struct ClientWrapper(Arc<dyn Client>);
+pub(crate) struct ClientWrapper(Box<dyn ClientCallbacks>);
 
 impl Wrapper for ClientWrapper {
     type Cef = cef_client_t;
@@ -87,10 +97,10 @@ impl Wrapper for ClientWrapper {
 }
 
 impl ClientWrapper {
-    pub(crate) fn new(delegate: Arc<dyn Client>) -> Self {
+    pub(crate) fn new(delegate: Box<dyn ClientCallbacks>) -> Self {
         Self(delegate)
     }
-    pub(crate) fn get_client<C: Client>(&self) -> Option<&C> {
+    pub(crate) fn get_client<C: ClientCallbacks>(&self) -> Option<&C> {
         self.0.downcast_ref()
     }
 }

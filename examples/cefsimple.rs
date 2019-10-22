@@ -9,9 +9,9 @@ pub struct AppCallbacks();
 
 impl cef::AppCallbacks for AppCallbacks {}
 
-pub struct Client();
+pub struct ClientCallbacks();
 
-impl cef::Client for Client {}
+impl cef::ClientCallbacks for ClientCallbacks {}
 
 fn main() {
     let app = cef::App::new(Arc::new(AppCallbacks()));
@@ -37,7 +37,7 @@ fn main() {
     window_info.set_window_name("cefsimple Rust example");
     let browser_settings = cef::BrowserSettings::new();
 
-    let client = Arc::new(Client());
+    let client = Arc::new(ClientCallbacks());
 
     cef::BrowserHost::create_browser(
         &window_info,

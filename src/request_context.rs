@@ -9,7 +9,6 @@ use cef_sys::{
 use num_enum::UnsafeFromPrimitive;
 use std::{
     ptr::{null, null_mut},
-    sync::Arc,
 };
 
 use crate::{
@@ -96,7 +95,7 @@ pub trait RequestContextHandler: Send + Sync {
     }
 }
 
-pub(crate) struct RequestContextHandlerWrapper(Arc<dyn RequestContextHandler>);
+pub(crate) struct RequestContextHandlerWrapper(Box<dyn RequestContextHandler>);
 
 impl Wrapper for RequestContextHandlerWrapper {
     type Cef = cef_request_context_handler_t;
@@ -114,7 +113,7 @@ impl Wrapper for RequestContextHandlerWrapper {
 }
 
 impl RequestContextHandlerWrapper {
-    pub(crate) fn new(delegate: Arc<dyn RequestContextHandler>) -> RequestContextHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn RequestContextHandler>) -> RequestContextHandlerWrapper {
         Self(delegate)
     }
 }
@@ -209,7 +208,7 @@ impl RequestContext {
     /// optional `handler`.
     pub fn new_shared(
         other: RequestContext,
-        handler: Option<Arc<dyn RequestContextHandler>>,
+        handler: Option<Box<dyn RequestContextHandler>>,
     ) -> Self {
         let handler_ptr = if let Some(handler) = handler {
             RequestContextHandlerWrapper::new(handler).wrap().into_raw()
@@ -225,7 +224,7 @@ impl RequestContext {
 /// Request context initialization settings.
 pub struct RequestContextBuilder(
     Option<cef_request_context_settings_t>,
-    Option<Arc<dyn RequestContextHandler>>,
+    Option<Box<dyn RequestContextHandler>>,
 );
 
 impl RequestContextBuilder {
@@ -266,7 +265,7 @@ impl RequestContextBuilder {
     }
 
     /// Optionally supply a handler to the request context. See [RequestContextHandler].
-    pub fn with_handler(mut self, handler: Arc<dyn RequestContextHandler>) -> Self {
+    pub fn with_handler(mut self, handler: Box<dyn RequestContextHandler>) -> Self {
         self.1.replace(handler);
         self
     }

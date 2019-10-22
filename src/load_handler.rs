@@ -777,7 +777,7 @@ pub enum ErrorCode {
     /// GOAWAY frame with error code NO_ERROR and Last-Stream-ID lower than the
     /// stream id corresponding to the request indicating that this request has not
     /// been processed yet, or a RST_STREAM frame with error code REFUSED_STREAM.
-    /// Client MAY retry (on a different connection).  See RFC7540 Section 8.1.4.
+    /// ClientCallbacks MAY retry (on a different connection).  See RFC7540 Section 8.1.4.
     Http2ServerRefusedStream = cef_errorcode_t::ERR_HTTP2_SERVER_REFUSED_STREAM,
 
     /// HTTP/2 server didn't respond to the PING message.
@@ -813,7 +813,7 @@ pub enum ErrorCode {
     /// Decoding or encoding of compressed HTTP/2 headers failed.
     Http2CompressionError = cef_errorcode_t::ERR_HTTP2_COMPRESSION_ERROR,
 
-    /// Proxy Auth Requested without a valid Client Socket Handle.
+    /// Proxy Auth Requested without a valid ClientCallbacks Socket Handle.
     ProxyAuthRequestedWithNoConnection =
         cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED_WITH_NO_CONNECTION,
 
@@ -855,7 +855,7 @@ pub enum ErrorCode {
     /// Received an HTTP/2 frame on a closed stream.
     Http2StreamClosed = cef_errorcode_t::ERR_HTTP2_STREAM_CLOSED,
 
-    /// Client is refusing an HTTP/2 stream.
+    /// ClientCallbacks is refusing an HTTP/2 stream.
     Http2ClientRefusedStream = cef_errorcode_t::ERR_HTTP2_CLIENT_REFUSED_STREAM,
 
     /// A pushed HTTP/2 stream was claimed by a request based on matching URL and

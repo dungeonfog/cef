@@ -6,7 +6,7 @@ use cef_sys::{
     cef_urlrequest_create, cef_urlrequest_status_t, cef_urlrequest_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{ptr::null_mut, sync::Arc};
+use std::{ptr::null_mut};
 
 use crate::{
     browser::Browser,
@@ -39,7 +39,7 @@ pub enum URLRequestStatus {
 
 ref_counted_ptr! {
     /// Structure used to make a URL request. URL requests are not associated with a
-    /// browser instance so no [Client] callbacks will be executed. URL requests
+    /// browser instance so no [ClientCallbacks] callbacks will be executed. URL requests
     /// can be created on any valid CEF thread in either the browser or render
     /// process. Once created the functions of the URL request object must be
     /// accessed on the same thread that created it.
@@ -68,7 +68,7 @@ impl URLRequest {
     /// The `request` object will be marked as read-only after calling this function.
     pub fn new(
         request: &mut Request,
-        client: Arc<dyn URLRequestClient>,
+        client: Box<dyn URLRequestClient>,
         request_context: Option<&RequestContext>,
     ) -> Self {
         unsafe {
@@ -195,7 +195,7 @@ pub trait URLRequestClient: Send + Sync {
 }
 
 pub(crate) struct URLRequestClientWrapper {
-    delegate: Arc<dyn URLRequestClient>,
+    delegate: Box<dyn URLRequestClient>,
 }
 
 impl Wrapper for URLRequestClientWrapper {
@@ -216,7 +216,7 @@ impl Wrapper for URLRequestClientWrapper {
 }
 
 impl URLRequestClientWrapper {
-    pub(crate) fn new(delegate: Arc<dyn URLRequestClient>) -> URLRequestClientWrapper {
+    pub(crate) fn new(delegate: Box<dyn URLRequestClient>) -> URLRequestClientWrapper {
         URLRequestClientWrapper { delegate }
     }
 }

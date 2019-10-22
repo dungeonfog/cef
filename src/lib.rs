@@ -47,7 +47,7 @@ pub use callback::Callback;
 mod resource_request_handler;
 pub use resource_request_handler::ResourceRequestHandlerCallbacks;
 mod client;
-pub use client::Client;
+pub use client::ClientCallbacks;
 mod image;
 pub use image::{AlphaType, BinaryImage, ColorType, Image, RepresentationInfo};
 

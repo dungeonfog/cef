@@ -203,6 +203,15 @@ impl<W: Wrapper> RefCounted<W> {
     }
 }
 
+unsafe impl RefCounter for cef_base_ref_counted_t {
+    fn base(&self) -> &cef_base_ref_counted_t {
+        self
+    }
+    fn base_mut(&mut self) -> &mut cef_base_ref_counted_t {
+        self
+    }
+}
+
 ref_counter!(cef_app_t);
 ref_counter!(cef_browser_process_handler_t);
 ref_counter!(cef_client_t);

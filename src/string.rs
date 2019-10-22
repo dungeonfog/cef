@@ -5,7 +5,7 @@ use cef_sys::{
 };
 use std::ptr::null_mut;
 
-use std::{iter::FromIterator, mem, ops::Range, sync::Arc};
+use std::{iter::FromIterator, mem, ops::Range};
 
 use crate::refcounted::{RefCountedPtr, Wrapper};
 
@@ -301,13 +301,7 @@ pub trait StringVisitor: Send + Sync {
 }
 
 pub(crate) struct StringVisitorWrapper {
-    delegate: Arc<dyn StringVisitor>,
-}
-
-impl std::borrow::Borrow<Arc<dyn StringVisitor>> for StringVisitorWrapper {
-    fn borrow(&self) -> &Arc<dyn StringVisitor> {
-        &self.delegate
-    }
+    delegate: Box<dyn StringVisitor>,
 }
 
 impl Wrapper for StringVisitorWrapper {
@@ -324,7 +318,7 @@ impl Wrapper for StringVisitorWrapper {
 }
 
 impl StringVisitorWrapper {
-    pub(crate) fn new(delegate: Arc<dyn StringVisitor>) -> StringVisitorWrapper {
+    pub(crate) fn new(delegate: Box<dyn StringVisitor>) -> StringVisitorWrapper {
         StringVisitorWrapper { delegate }
     }
 }

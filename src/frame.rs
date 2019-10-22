@@ -8,7 +8,6 @@ use crate::{
     v8context::V8Context,
 };
 use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
-use std::sync::Arc;
 
 ref_counted_ptr! {
     /// Structure used to represent a frame in the browser window. When used in the
@@ -94,7 +93,7 @@ impl Frame {
     }
     /// Retrieve this frame's HTML source as a string sent to the specified
     /// visitor.
-    pub fn get_source(&self, visitor: Arc<dyn StringVisitor>) {
+    pub fn get_source(&self, visitor: Box<dyn StringVisitor>) {
         if let Some(get_source) = self.0.get_source {
             let visitor = StringVisitorWrapper::new(visitor).wrap();
             unsafe {
@@ -104,7 +103,7 @@ impl Frame {
     }
     /// Retrieve this frame's display text as a string sent to the specified
     /// visitor.
-    pub fn get_text(&self, visitor: Arc<dyn StringVisitor>) {
+    pub fn get_text(&self, visitor: Box<dyn StringVisitor>) {
         if let Some(get_text) = self.0.get_text {
             let visitor = StringVisitorWrapper::new(visitor).wrap();
             unsafe {
@@ -242,7 +241,7 @@ impl Frame {
     }
     /// Visit the DOM document. This function can only be called from the render
     /// process.
-    pub fn visit_dom(&self, visitor: Arc<dyn DOMVisitor>) {
+    pub fn visit_dom(&self, visitor: Box<dyn DOMVisitor>) {
         if let Some(visit_dom) = self.0.visit_dom {
             let visitor = DOMVisitorWrapper::new(visitor).wrap();
             unsafe { visit_dom(self.0.as_ptr(), visitor.into_raw()) };
@@ -271,7 +270,7 @@ impl Frame {
     pub fn create_urlrequest(
         &self,
         request: &mut Request,
-        client: Arc<dyn URLRequestClient>,
+        client: Box<dyn URLRequestClient>,
     ) -> URLRequest {
         unsafe {
             let urlrequest = self.0.create_urlrequest.unwrap()(

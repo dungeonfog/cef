@@ -14,7 +14,7 @@ use cef_sys::{
     cef_initialize, cef_quit_message_loop, cef_render_process_handler_t,
     cef_resource_bundle_handler_t, cef_run_message_loop, cef_set_osmodal_loop, cef_shutdown,
 };
-use std::{ptr::null_mut, sync::Arc};
+use std::{ptr::null_mut};
 
 #[cfg(target_os = "windows")]
 use crate::sandbox::SandboxInfo;
@@ -66,13 +66,7 @@ ref_counted_ptr! {
     pub struct App(*mut cef_app_t);
 }
 
-pub struct AppWrapper(Arc<dyn AppCallbacks>);
-
-impl std::borrow::Borrow<Arc<dyn AppCallbacks>> for AppWrapper {
-    fn borrow(&self) -> &Arc<dyn AppCallbacks> {
-        &self.0
-    }
-}
+pub struct AppWrapper(Box<dyn AppCallbacks>);
 
 impl Wrapper for AppWrapper {
     type Cef = cef_app_t;
@@ -94,7 +88,7 @@ impl Wrapper for AppWrapper {
 }
 
 impl App {
-    pub fn new(delegate: Arc<dyn AppCallbacks>) -> Self {
+    pub fn new(delegate: Box<dyn AppCallbacks>) -> Self {
         App(AppWrapper::new(delegate).wrap())
     }
     /// Call during process startup to enable High-DPI support on Windows 7 or newer.
@@ -244,7 +238,7 @@ impl App {
 }
 
 impl AppWrapper {
-    pub fn new(delegate: Arc<dyn AppCallbacks>) -> AppWrapper {
+    pub fn new(delegate: Box<dyn AppCallbacks>) -> AppWrapper {
         AppWrapper(delegate)
     }
 }

@@ -17,7 +17,6 @@ use std::{
     collections::HashSet,
     convert::TryFrom,
     ptr::null_mut,
-    sync::Arc,
     time::{Duration, SystemTime, SystemTimeError},
 };
 
@@ -111,9 +110,7 @@ impl V8Context {
     pub fn register_extension(
         extension_name: &str,
         javascript_code: &str,
-        handler: Arc<
-            dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static,
-        >,
+        handler: impl Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static,
     ) {
         let name = CefString::new(extension_name);
         let js = CefString::new(javascript_code);
@@ -121,7 +118,7 @@ impl V8Context {
             cef_register_extension(
                 name.as_ptr(),
                 js.as_ptr(),
-                V8HandlerWrapper::new(handler).wrap().into_raw(),
+                V8HandlerWrapper::new(Box::new(handler)).wrap().into_raw(),
             );
         }
     }
@@ -558,15 +555,13 @@ impl V8Value {
     /// reference.
     pub fn new_function(
         name: &str,
-        handler: Arc<
-            dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static,
-        >,
+        handler: impl Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static,
     ) -> Self {
         let name = CefString::new(name);
         unsafe {
             V8Value::from_ptr_unchecked(cef_v8value_create_function(
                 name.as_ptr(),
-                V8HandlerWrapper::new(handler).wrap().into_raw(),
+                V8HandlerWrapper::new(Box::new(handler)).wrap().into_raw(),
             ))
         }
     }
@@ -979,23 +974,19 @@ impl V8Value {
     /// Sets the user data for this object and returns true on success. Returns
     /// false if this function is called incorrectly. This function can only be
     /// called on user created objects.
-    pub fn set_user_data(&mut self, user_data: impl Any + Send) -> bool {
+    pub fn set_user_data(&mut self, user_data: impl Any + Sync + Send) -> bool {
         self.0
             .set_user_data
             .map(|set_user_data| unsafe {
-                set_user_data(self.as_ptr(), UserData::new(user_data)) != 0
+                set_user_data(self.as_ptr(), UserData::new(user_data).into_raw()) != 0
             })
             .unwrap_or(false)
     }
     /// Returns the user data, if any and of the right type, assigned to this object.
-    pub fn get_user_data(&self) -> Option<Arc<impl std::ops::Deref<Target = Box<dyn Any + Send>>>> {
+    pub fn get_user_data(&self) -> Option<UserData> {
         self.0.get_user_data.and_then(|get_user_data| {
             let ptr = unsafe { get_user_data(self.as_ptr()) };
-            if ptr.is_null() {
-                None
-            } else {
-                Some(unsafe { UserData::clone_raw(ptr) })
-            }
+            unsafe { UserData::from_ptr(ptr) }
         })
     }
     /// Returns the amount of externally allocated memory registered for the
@@ -1436,12 +1427,12 @@ cef_callback_impl! {
 }
 
 struct V8HandlerWrapper(
-    Arc<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>,
+    Box<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static>,
 );
 
 impl V8HandlerWrapper {
     fn new(
-        delegate: Arc<
+        delegate: Box<
             dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Sync + Send + 'static,
         >,
     ) -> Self {
@@ -1557,60 +1548,33 @@ impl FnOnce<(&str, V8Value, &[V8Value])> for V8Handler {
     }
 }
 
-/// User Data wrapper used for storing in V8Value objects that takes care of
-/// memory management between CEF and Rust.
-#[repr(C)]
-pub(crate) struct UserData {
-    base: cef_base_ref_counted_t,
-    pub(crate) user_data: Box<dyn Any + Send>,
+ref_counted_ptr!{
+    /// User Data wrapper used for storing in V8Value objects that takes care of
+    /// memory management between CEF and Rust.
+    pub struct UserData(*mut cef_base_ref_counted_t);
 }
 
 impl UserData {
-    pub(crate) fn new(user_data: impl Any + Send) -> *mut cef_base_ref_counted_t {
-        let result = Arc::new(Self {
-            base: cef_base_ref_counted_t {
-                size: std::mem::size_of::<Self>(),
-                add_ref: Some(Self::add_ref),
-                release: Some(Self::release),
-                has_one_ref: Some(Self::has_one_ref),
-                has_at_least_one_ref: Some(Self::has_at_least_one_ref),
-            },
-            user_data: Box::new(user_data),
-        });
-        Arc::into_raw(result) as *mut _
+    pub fn new<T: Any + Sync + Send>(data: T) -> UserData {
+        unsafe{ UserData::from_ptr_unchecked(UserDataInner(Box::new(data)).wrap().into_raw()) }
     }
-    pub(crate) unsafe fn clone_raw(ptr: *mut cef_base_ref_counted_t) -> Arc<Self> {
-        let this = Arc::from_raw(ptr as *const UserData);
-        Arc::into_raw(this.clone());
-        this
-    }
+}
 
-    extern "C" fn add_ref(self_: *mut cef_base_ref_counted_t) {
-        let this = unsafe { Arc::from_raw(self_ as *const UserData) };
-        Arc::into_raw(this.clone());
-        Arc::into_raw(this);
-    }
-    extern "C" fn release(self_: *mut cef_base_ref_counted_t) -> i32 {
-        let this = unsafe { Arc::from_raw(self_ as *const UserData) };
-        (Arc::strong_count(&this) <= 1) as i32
-    }
-    extern "C" fn has_one_ref(self_: *mut cef_base_ref_counted_t) -> i32 {
-        let this = unsafe { Arc::from_raw(self_ as *const UserData) };
-        let result = Arc::strong_count(&this) == 1;
-        Arc::into_raw(this);
-        result as i32
-    }
-    extern "C" fn has_at_least_one_ref(self_: *mut cef_base_ref_counted_t) -> i32 {
-        let this = unsafe { Arc::from_raw(self_ as *const UserData) };
-        let result = Arc::strong_count(&this) >= 1;
-        Arc::into_raw(this);
-        result as i32
+struct UserDataInner(Box<dyn Any + Sync + Send>);
+
+impl Wrapper for UserDataInner {
+    type Cef = cef_base_ref_counted_t;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
+            unsafe{ std::mem::zeroed() },
+            self,
+        )
     }
 }
 
 impl std::ops::Deref for UserData {
-    type Target = Box<dyn Any + Send>;
-    fn deref(&self) -> &Box<dyn Any + Send> {
-        &self.user_data
+    type Target = dyn Any + Send + Sync;
+    fn deref(&self) -> &Self::Target {
+        unsafe{ crate::refcounted::RefCounted::<UserDataInner>::wrapper(self.as_ptr()) }
     }
 }

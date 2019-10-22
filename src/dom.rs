@@ -1,6 +1,6 @@
 use cef_sys::{cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t};
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashMap, sync::Arc};
+use std::{collections::HashMap};
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
@@ -158,13 +158,7 @@ pub trait DOMVisitor: Send + Sync {
 }
 
 pub(crate) struct DOMVisitorWrapper {
-    delegate: Arc<dyn DOMVisitor>,
-}
-
-impl std::borrow::Borrow<Arc<dyn DOMVisitor>> for DOMVisitorWrapper {
-    fn borrow(&self) -> &Arc<dyn DOMVisitor> {
-        &self.delegate
-    }
+    delegate: Box<dyn DOMVisitor>,
 }
 
 impl Wrapper for DOMVisitorWrapper {
@@ -181,7 +175,7 @@ impl Wrapper for DOMVisitorWrapper {
 }
 
 impl DOMVisitorWrapper {
-    pub(crate) fn new(delegate: Arc<dyn DOMVisitor>) -> DOMVisitorWrapper {
+    pub(crate) fn new(delegate: Box<dyn DOMVisitor>) -> DOMVisitorWrapper {
         DOMVisitorWrapper { delegate }
     }
 }

@@ -1,6 +1,6 @@
 use crate::{
     browser::{Browser, BrowserSettings, State},
-    client::{Client, ClientWrapper},
+    client::{ClientCallbacks, ClientWrapper},
     drag::{DragData, DragOperation},
     events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
     extension::Extension,
@@ -27,7 +27,6 @@ use std::{
     collections::HashMap,
     iter::FromIterator,
     ptr::{null, null_mut},
-    sync::Arc,
 };
 use winapi::shared::minwindef::HINSTANCE;
 
@@ -65,7 +64,7 @@ impl BrowserHost {
     /// render process.
     pub fn create_browser(
         window_info: &WindowInfo,
-        client: Arc<dyn Client>,
+        client: Box<dyn ClientCallbacks>,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
@@ -95,7 +94,7 @@ impl BrowserHost {
     /// [RenderProcessHandlerCallbacks::on_browser_created] in the render process.
     pub fn create_browser_sync(
         window_info: &WindowInfo,
-        client: Arc<dyn Client>,
+        client: Box<dyn ClientCallbacks>,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
@@ -189,7 +188,7 @@ impl BrowserHost {
             .unwrap_or(false)
     }
     /// Returns the client for this browser, None if the type is not correct.
-    pub fn get_client<C: Client>(&self) -> Option<&C> {
+    pub fn get_client<C: ClientCallbacks>(&self) -> Option<&C> {
         let get_client = self.0.get_client.unwrap();
         unsafe { RefCounted::<ClientWrapper>::wrapper(get_client(self.0.as_ptr())) }.get_client()
     }
@@ -352,7 +351,7 @@ impl BrowserHost {
     /// whether to search forward or backward within the page. `match_case`
     /// indicates whether the search should be case-sensitive. `find_next` indicates
     /// whether this is the first request or a follow-up. The [FindHandler]
-    /// instance, if any, returned via [Client::get_find_handler] will be called
+    /// instance, if any, returned via [ClientCallbacks::get_find_handler] will be called
     /// to report find results.
     pub fn find(
         &self,
@@ -393,7 +392,7 @@ impl BrowserHost {
     pub fn show_dev_tools(
         &self,
         window_info: &WindowInfo,
-        client: Option<Arc<dyn Client>>,
+        client: Option<Box<dyn ClientCallbacks>>,
         settings: Option<BrowserSettings>,
         inspect_element_at: Point,
     ) {
