@@ -1255,7 +1255,7 @@ cef_callback_impl! {
             exception: &mut CefString     : *mut cef_string_t,
         ) -> std::os::raw::c_int {
             let name: String = name.into();
-            if let Err(exception_str) = self.0.get_mut().set(&name, &object, &value) {
+            if let Err(exception_str) = self.0.lock().set(&name, &object, &value) {
                 exception.set_string(&exception_str);
                 0
             } else {
