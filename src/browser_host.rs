@@ -75,10 +75,10 @@ impl BrowserHost {
 
         unsafe {
             cef_browser_host_create_browser(
-                window_info.get(),
+                &window_info.into_raw(),
                 client.into_raw(),
                 CefString::new(url).as_ptr(),
-                settings.get(),
+                &settings.into_raw(),
                 extra_info.map(|ei| ei.as_ptr()).unwrap_or_else(null_mut),
                 request_context
                     .map(|rc| rc.as_ptr())
@@ -105,10 +105,10 @@ impl BrowserHost {
 
         unsafe {
             Browser::from_ptr_unchecked(cef_browser_host_create_browser_sync(
-                window_info.get(),
+                &window_info.into_raw(),
                 client.into_raw(),
                 CefString::new(url).as_ptr(),
-                settings.get(),
+                &settings.into_raw(),
                 extra_info.map(|ei| ei.as_ptr()).unwrap_or_else(null_mut),
                 request_context
                     .map(|rc| rc.as_ptr())
@@ -400,12 +400,13 @@ impl BrowserHost {
             let client = client
                 .map(|client| ClientWrapper::new(client).wrap().into_raw())
                 .unwrap_or_else(null_mut);
+            let settings = settings.map(|s| s.into_raw());
             unsafe {
                 show_dev_tools(
                     self.0.as_ptr(),
-                    window_info.get(),
+                    &window_info.into_raw(),
                     client,
-                    settings.map(|s| s.get()).unwrap_or_else(null),
+                    settings.map(|s| &s as *const _).unwrap_or_else(null),
                     &inspect_element_at.into(),
                 );
             }

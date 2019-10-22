@@ -2,7 +2,7 @@ use cef_sys::cef_color_t;
 
 /// 32-bit ARGB color value, not premultiplied. The color components are always
 /// in a known order. Equivalent to the SkColor type.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Default, Clone, Copy, PartialEq, Eq)]
 pub struct Color(u32);
 
 impl Color {

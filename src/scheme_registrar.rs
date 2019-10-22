@@ -88,6 +88,10 @@ impl SchemeRegistrar {
         SchemeRegistrar(ptr)
     }
 
+    pub(crate) unsafe fn from_ptr_ptr<'a>(ptr: *mut *mut cef_scheme_registrar_t) -> &'a mut Self {
+        &mut *(ptr as *mut Self)
+    }
+
     /// Register a custom scheme. This function should not be called for the built-
     /// in HTTP, HTTPS, FILE, FTP, ABOUT and DATA schemes.
     ///
@@ -105,14 +109,5 @@ impl SchemeRegistrar {
                 options,
             ) != 0
         }
-    }
-}
-
-unsafe impl Send for SchemeRegistrar {}
-unsafe impl Sync for SchemeRegistrar {}
-
-impl Drop for SchemeRegistrar {
-    fn drop(&mut self) {
-        unsafe { ((*self.0).base.del.unwrap())(&mut (*self.0).base) }
     }
 }

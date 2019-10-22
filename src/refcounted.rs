@@ -102,6 +102,10 @@ macro_rules! ref_counted_ptr {
                 Self(crate::refcounted::RefCountedPtr::from_ptr_unchecked(ptr))
             }
 
+            pub(crate) unsafe fn from_ptr_ptr<'a>(ptr: *mut *mut $cef) -> &'a mut Self {
+                &mut *(ptr as *mut Self)
+            }
+
             pub(crate) fn as_ptr(&self) -> *mut $cef {
                 self.0.as_ptr()
             }

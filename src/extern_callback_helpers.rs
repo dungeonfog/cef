@@ -4,6 +4,7 @@ use crate::{
     browser_host::BrowserHost,
     callback::Callback,
     command_line::CommandLine,
+    client::Client,
     dom::{DOMDocument, DOMNode},
     drag::DragData,
     frame::Frame,
@@ -64,6 +65,12 @@ macro_rules! owned_casts {
             type CType = $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 <$Self>::from_ptr_unchecked(c_type)
+            }
+        }
+        impl$(<$($generic $(: $bound)?),+>)? CToRustType for &mut $Self {
+            type CType = *mut $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                <$Self>::from_ptr_ptr(c_type)
             }
         }
     };
@@ -128,6 +135,7 @@ owned_casts!(impl for Browser = *mut cef_sys::cef_browser_t);
 owned_casts!(impl for BrowserHost = *mut cef_sys::cef_browser_host_t);
 owned_casts!(impl for Callback = *mut cef_sys::cef_callback_t);
 owned_casts!(impl for CommandLine = *mut cef_sys::cef_command_line_t);
+owned_casts!(impl for Client = *mut cef_sys::cef_client_t);
 owned_casts!(impl for DOMNode = *mut cef_sys::cef_domnode_t);
 owned_casts!(impl for DOMDocument = *mut cef_sys::cef_domdocument_t);
 owned_casts!(impl for DragData = *mut cef_sys::cef_drag_data_t);
@@ -166,6 +174,7 @@ owned_casts_from_unchecked!(impl for URLRequestStatus: cef_sys::cef_urlrequest_s
 owned_casts_from_unchecked!(impl for ProcessId: cef_sys::cef_process_id_t::Type);
 owned_casts_from_unchecked!(impl for crate::load_handler::ErrorCode: cef_sys::cef_errorcode_t::Type);
 owned_casts_from_unchecked!(impl for crate::request_context::PluginPolicy: cef_sys::cef_plugin_policy_t::Type);
+owned_casts_from_unchecked!(impl for crate::request_handler::WindowOpenDisposition: cef_sys::cef_window_open_disposition_t::Type);
 impl CToRustType for bool {
     type CType = c_int;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
@@ -218,6 +227,18 @@ impl CToRustType for crate::cookie::Cookie {
     type CType = *const cef_sys::cef_cookie_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
         Self::new(c_type)
+    }
+}
+impl CToRustType for crate::client::life_span_handler::PopupFeatures {
+    type CType = *const cef_sys::_cef_popup_features_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::new(&*c_type)
+    }
+}
+impl CToRustType for crate::window::WindowInfo {
+    type CType = *const cef_sys::cef_window_info_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::from(&*c_type)
     }
 }
 

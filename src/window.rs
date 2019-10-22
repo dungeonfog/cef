@@ -1,98 +1,90 @@
-use cef_sys::{cef_string_utf8_to_utf16, cef_window_info_t};
+use crate::string::CefString;
+use cef_sys::{cef_window_info_t};
+use std::ptr;
+use winapi::shared::{
+    windef::{HWND, HMENU},
+    minwindef::DWORD,
+};
 
 /// Structure representing window information.
-pub struct WindowInfo(cef_window_info_t);
+pub struct WindowInfo {
+    pub window_name: String,
+    pub style: DWORD,
+    pub ex_style: DWORD,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
+    pub parent_window: HWND,
+    pub window: HWND,
+    pub menu: HMENU,
+    pub windowless_rendering_enabled: bool,
+    pub shared_texture_enabled: bool,
+    pub external_begin_frame_enabled: bool,
+}
 
 impl WindowInfo {
-    pub fn new() -> Self {
-        WindowInfo(unsafe { std::mem::zeroed() })
+    pub fn into_raw(&self) -> cef_window_info_t {
+        self.into()
     }
-    pub(crate) fn get(&self) -> *const cef_window_info_t {
-        &self.0
-    }
+}
 
-    pub fn set_style(&mut self, style: u32) {
-        self.0.style = style;
-    }
-    pub fn set_ex_style(&mut self, style: u32) {
-        self.0.ex_style = style;
-    }
-    /// The initial title of the window, to be set when the window is created.
-    /// On Linux, some layout managers (e.g., Compiz) can look at the window title
-    /// in order to decide where to place the window when it is
-    /// created. When this attribute is not empty, the window title will
-    /// be set before the window is mapped to the dispay. Otherwise the
-    /// title will be initially empty.
-    pub fn set_window_name(&mut self, name: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                name.as_ptr() as *const std::os::raw::c_char,
-                name.len(),
-                &mut self.0.window_name,
-            );
+impl<'a> From<&'a cef_window_info_t> for WindowInfo {
+    fn from(info: &'a cef_window_info_t) -> WindowInfo {
+        WindowInfo {
+            window_name: unsafe{ CefString::from_ptr_unchecked(&info.window_name).into() },
+            style: info.style,
+            ex_style: info.ex_style,
+            x: info.x,
+            y: info.y,
+            width: info.width,
+            height: info.height,
+            parent_window: info.parent_window as _,
+            window: info.window as _,
+            menu: info.menu as _,
+            windowless_rendering_enabled: info.windowless_rendering_enabled != 0,
+            shared_texture_enabled: info.shared_texture_enabled != 0,
+            external_begin_frame_enabled: info.external_begin_frame_enabled != 0,
         }
     }
-    pub fn set_x(&mut self, x: i32) {
-        self.0.x = x;
-    }
-    pub fn set_y(&mut self, y: i32) {
-        self.0.y = y;
-    }
-    pub fn set_width(&mut self, width: i32) {
-        self.0.width = width;
-    }
-    pub fn set_height(&mut self, height: i32) {
-        self.0.height = height;
-    }
-    /// Set pointer for the parent window.
-    pub fn set_parent_window(&mut self, parent: std::os::windows::raw::HANDLE) {
-        self.0.parent_window = parent as cef_sys::HWND;
-    }
-    pub fn set_menu(&mut self, menu: std::os::windows::raw::HANDLE) {
-        self.0.menu = menu as cef_sys::HMENU;
-    }
-    /// Call to create the browser using windowless (off-screen)
-    /// rendering. No window will be created for the browser and all rendering will
-    /// occur via the CefRenderHandler interface. The [WindowInfo::set_parent_window] parameter will be
-    /// used to identify monitor info and to act as the parent window for dialogs,
-    /// context menus, etc. If [WindowInfo::set_parent_window] is not called then the main screen
-    /// monitor will be used and some functionality that requires a parent window
-    /// may not function correctly. In order to create windowless browsers call the
-    /// [Settings::enable_windowless_rendering] function.
-    /// Transparent painting is enabled by default but can be disabled by calling
-    /// [BrowserSettings::set_background_color] with an opaque value.
-    pub fn enable_windowless_rendering(&mut self) {
-        self.0.windowless_rendering_enabled = 1;
-    }
-    /// Call to enable shared textures for windowless rendering. Only
-    /// valid if [WindowInfo::enable_windowless_rendering} above is also called. Currently
-    /// only supported on Windows (D3D11).
-    pub fn enable_shared_texture(&mut self) {
-        self.0.shared_texture_enabled = 1;
-    }
-    /// Call to enable the ability to issue begin_frame requests from the
-    /// client application by calling [BrowserHost::send_external_begin_frame].
-    pub fn enable_external_begin_frame(&mut self) {
-        self.0.external_begin_frame_enabled = 1;
-    }
-    /// Set the handle for the new browser window. Only used with windowed rendering.
-    pub fn set_window(&mut self, window: std::os::windows::raw::HANDLE) {
-        self.0.window = window as cef_sys::HWND;
+}
+
+impl<'a> From<&'a WindowInfo> for cef_window_info_t {
+    fn from(info: &'a WindowInfo) -> cef_window_info_t {
+        cef_window_info_t {
+            ex_style: info.ex_style,
+            window_name: CefString::new(&info.window_name).into_raw(),
+            style: info.style,
+            x: info.x,
+            y: info.y,
+            width: info.width,
+            height: info.height,
+            parent_window: info.parent_window as _,
+            menu: info.menu as _,
+            window: info.window as _,
+            windowless_rendering_enabled: info.windowless_rendering_enabled as _,
+            shared_texture_enabled: info.shared_texture_enabled as _,
+            external_begin_frame_enabled: info.external_begin_frame_enabled as _,
+        }
     }
 }
 
 impl Default for WindowInfo {
     fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl Drop for WindowInfo {
-    fn drop(&mut self) {
-        if let Some(dtor) = self.0.window_name.dtor {
-            unsafe {
-                dtor(self.0.window_name.str);
-            }
+        WindowInfo {
+            window_name: String::new(),
+            style: 0,
+            ex_style: 0,
+            x: 0,
+            y: 0,
+            width: 0,
+            height: 0,
+            parent_window: ptr::null_mut(),
+            window: ptr::null_mut(),
+            menu: ptr::null_mut(),
+            windowless_rendering_enabled: false,
+            shared_texture_enabled: false,
+            external_begin_frame_enabled: false,
         }
     }
 }

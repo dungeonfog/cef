@@ -1,9 +1,13 @@
 use cef_sys::{
     cef_browser_t, cef_client_t, cef_frame_t, cef_load_handler_t, cef_process_id_t,
-    cef_process_message_t, cef_request_handler_t,
+    cef_process_message_t, cef_request_handler_t, cef_life_span_handler_t,
 };
 use downcast_rs::{impl_downcast, Downcast};
 use std::{ptr::null_mut};
+
+pub mod life_span_handler;
+
+use self::life_span_handler::LifeSpanHandler;
 
 use crate::{
     browser::Browser,
@@ -50,8 +54,8 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // fn get_jsdialog_handler(&self) -> Option<Box<dyn JsDialogHandler>> { None }
     // /// Return the handler for keyboard events.
     // fn get_keyboard_handler(&self) -> Option<Box<dyn KeyboardHandler>> { None }
-    // /// Return the handler for browser life span events.
-    // fn get_life_span_handler(&self) -> Option<Box<dyn LifeSpanHandler>> { None }
+    /// Return the handler for browser life span events.
+    fn get_life_span_handler(&self) -> Option<LifeSpanHandler> { None }
     /// Return the handler for browser load status events.
     fn get_load_handler(&self) -> Option<LoadHandler> {
         None
@@ -88,6 +92,7 @@ impl Wrapper for ClientWrapper {
                 base: unsafe { std::mem::zeroed() },
                 get_load_handler: Some(Self::get_load_handler),
                 get_request_handler: Some(Self::get_request_handler),
+                get_life_span_handler: Some(Self::get_life_span_handler),
                 on_process_message_received: Some(Self::process_message_received),
                 ..unsafe { std::mem::zeroed() }
             },
@@ -109,6 +114,9 @@ cef_callback_impl! {
     impl for ClientWrapper: cef_client_t {
         fn get_load_handler(&self) -> *mut cef_load_handler_t {
             self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_life_span_handler(&self) -> *mut cef_life_span_handler_t {
+            self.0.get_life_span_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn get_request_handler(&self) -> *mut cef_request_handler_t {
             self.0.get_request_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
