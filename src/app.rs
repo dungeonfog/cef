@@ -88,8 +88,8 @@ impl Wrapper for AppWrapper {
 }
 
 impl App {
-    pub fn new(delegate: Box<dyn AppCallbacks>) -> Self {
-        App(AppWrapper::new(delegate).wrap())
+    pub fn new<C: AppCallbacks>(delegate: C) -> Self {
+        App(AppWrapper::new(Box::new(delegate)).wrap())
     }
     /// Call during process startup to enable High-DPI support on Windows 7 or newer.
     /// Older versions of Windows should be left DPI-unaware because they do not

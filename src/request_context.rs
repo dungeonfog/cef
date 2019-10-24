@@ -31,10 +31,20 @@ pub enum PluginPolicy {
     Disable = cef_plugin_policy_t::PLUGIN_POLICY_DISABLE as i32,
 }
 
+ref_counted_ptr!{
+    pub struct RequestContextHandler(*mut cef_request_context_handler_t);
+}
+
+impl RequestContextHandler {
+    pub fn new<C: RequestContextHandlerCallbacks>(callbacks: C) -> RequestContextHandler {
+        unsafe{ RequestContextHandler::from_ptr_unchecked(RequestContextHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Implement this structure to provide handler implementations. The handler
 /// instance will not be released until all objects related to the context have
 /// been destroyed.
-pub trait RequestContextHandler: Send + Sync {
+pub trait RequestContextHandlerCallbacks: 'static + Send + Sync {
     /// Called on the browser process UI thread immediately after the request
     /// context has been initialized.
     fn on_request_context_initialized(&self, request_context: RequestContext) {}
@@ -96,7 +106,7 @@ pub trait RequestContextHandler: Send + Sync {
     }
 }
 
-pub(crate) struct RequestContextHandlerWrapper(Box<dyn RequestContextHandler>);
+pub(crate) struct RequestContextHandlerWrapper(Box<dyn RequestContextHandlerCallbacks>);
 
 impl Wrapper for RequestContextHandlerWrapper {
     type Cef = cef_request_context_handler_t;
@@ -114,7 +124,7 @@ impl Wrapper for RequestContextHandlerWrapper {
 }
 
 impl RequestContextHandlerWrapper {
-    pub(crate) fn new(delegate: Box<dyn RequestContextHandler>) -> RequestContextHandlerWrapper {
+    pub(crate) fn new(delegate: Box<dyn RequestContextHandlerCallbacks>) -> RequestContextHandlerWrapper {
         Self(delegate)
     }
 }
@@ -209,7 +219,7 @@ impl RequestContext {
     /// optional `handler`.
     pub fn new_shared(
         other: RequestContext,
-        handler: Option<Box<dyn RequestContextHandler>>,
+        handler: Option<Box<dyn RequestContextHandlerCallbacks>>,
     ) -> Self {
         let handler_ptr = if let Some(handler) = handler {
             RequestContextHandlerWrapper::new(handler).wrap().into_raw()
@@ -225,7 +235,7 @@ impl RequestContext {
 /// Request context initialization settings.
 pub struct RequestContextBuilder(
     Option<cef_request_context_settings_t>,
-    Option<Box<dyn RequestContextHandler>>,
+    Option<RequestContextHandler>,
 );
 
 impl RequestContextBuilder {
@@ -240,7 +250,7 @@ impl RequestContextBuilder {
             .map(|settings| &settings as *const _)
             .unwrap_or_else(null);
         let handler_ptr = if let Some(handler) = self.1 {
-            RequestContextHandlerWrapper::new(handler).wrap().into_raw()
+            handler.into_raw()
         } else {
             null()
         };
@@ -265,8 +275,8 @@ impl RequestContextBuilder {
             })
     }
 
-    /// Optionally supply a handler to the request context. See [RequestContextHandler].
-    pub fn with_handler(mut self, handler: Box<dyn RequestContextHandler>) -> Self {
+    /// Optionally supply a handler to the request context. See [RequestContextHandlerCallbacks].
+    pub fn with_handler(mut self, handler: RequestContextHandler) -> Self {
         self.1.replace(handler);
         self
     }

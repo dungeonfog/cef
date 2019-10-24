@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_variables)]
-#![feature(fn_traits, unboxed_closures)]
+#![feature(fn_traits, unboxed_closures, trait_alias)]
 #[macro_use]
 mod refcounted;
 #[macro_use]
@@ -7,7 +7,7 @@ mod extern_callback_helpers;
 mod cef_helper_traits;
 mod ptr_hash;
 pub mod string;
-pub use string::StringVisitor;
+pub use string::StringVisitorCallback;
 pub mod multimap;
 pub mod values;
 pub use values::StoredValue;
@@ -29,15 +29,15 @@ pub mod render_process_handler;
 pub use render_process_handler::RenderProcessHandlerCallbacks;
 pub mod dom;
 pub mod v8context;
-pub use dom::{DOMDocument, DOMVisitor};
+pub use dom::{DOMDocument, DOMVisitorCallback};
 pub mod process;
 pub use process::{ProcessId, ProcessMessage};
 pub mod request;
 pub use request::{PostData, PostDataElement, Request};
 pub mod url_request;
-pub use url_request::{AuthCallback, URLRequest, URLRequestClient};
+pub use url_request::{AuthCallback, URLRequest, URLRequestClientCallbacks};
 pub mod request_context;
-pub use request_context::{RequestContext, RequestContextBuilder, RequestContextHandler};
+pub use request_context::{RequestContext, RequestContextBuilder, RequestContextHandlerCallbacks};
 pub mod web_plugin;
 pub use web_plugin::WebPluginInfo;
 pub mod cookie;

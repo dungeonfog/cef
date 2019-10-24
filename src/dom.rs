@@ -1,6 +1,7 @@
 use cef_sys::{cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t};
 use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap};
+use parking_lot::Mutex;
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
@@ -148,17 +149,22 @@ ref_counted_ptr! {
     pub struct DOMDocument(*mut cef_domdocument_t);
 }
 
-/// Structure to implement for visiting the DOM. The functions of this structure
-/// will be called on the render process main thread.
-pub trait DOMVisitor: Send + Sync {
-    /// Method executed for visiting the DOM. The document object passed to this
-    /// function represents a snapshot of the DOM at the time this function is
-    /// executed.
-    fn visit(&self, document: DOMDocument);
+ref_counted_ptr!{
+    pub struct DOMVisitor(*mut cef_domvisitor_t);
 }
 
+impl DOMVisitor {
+    pub fn new<C: DOMVisitorCallback>(callback: C) -> DOMVisitor {
+        unsafe{ DOMVisitor::from_ptr_unchecked(DOMVisitorWrapper::new(Box::new(callback)).wrap().into_raw()) }
+    }
+}
+
+/// Structure to implement for visiting the DOM. The functions of this structure
+/// will be called on the render process main thread.
+pub trait DOMVisitorCallback = 'static + Send + FnMut(DOMDocument);
+
 pub(crate) struct DOMVisitorWrapper {
-    delegate: Box<dyn DOMVisitor>,
+    delegate: Mutex<Box<dyn DOMVisitorCallback>>,
 }
 
 impl Wrapper for DOMVisitorWrapper {
@@ -175,8 +181,8 @@ impl Wrapper for DOMVisitorWrapper {
 }
 
 impl DOMVisitorWrapper {
-    pub(crate) fn new(delegate: Box<dyn DOMVisitor>) -> DOMVisitorWrapper {
-        DOMVisitorWrapper { delegate }
+    pub(crate) fn new(delegate: Box<dyn DOMVisitorCallback>) -> DOMVisitorWrapper {
+        DOMVisitorWrapper { delegate: Mutex::new(delegate) }
     }
 }
 
@@ -186,7 +192,7 @@ cef_callback_impl! {
             &self,
             document: DOMDocument: *mut cef_domdocument_t,
         ) {
-            self.delegate.visit(document);
+            (&mut *self.delegate.lock())(document);
         }
     }
 }

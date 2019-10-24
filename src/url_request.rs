@@ -68,13 +68,13 @@ impl URLRequest {
     /// The `request` object will be marked as read-only after calling this function.
     pub fn new(
         request: &mut Request,
-        client: Box<dyn URLRequestClient>,
+        client: URLRequestClient,
         request_context: Option<&RequestContext>,
     ) -> Self {
         unsafe {
             Self::from_ptr_unchecked(cef_urlrequest_create(
                 request.as_ptr(),
-                URLRequestClientWrapper::new(client).wrap().into_raw(),
+                client.into_raw(),
                 request_context
                     .map(|ctx| ctx.as_ptr())
                     .unwrap_or_else(null_mut),
@@ -151,10 +151,20 @@ impl AuthCallback {
     }
 }
 
+ref_counted_ptr!{
+    pub struct URLRequestClient(*mut cef_urlrequest_client_t);
+}
+
+impl URLRequestClient {
+    pub fn new<C: URLRequestClientCallbacks>(callbacks: C) -> URLRequestClient {
+        unsafe{ URLRequestClient::from_ptr_unchecked(URLRequestClientWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Trait that should be implemented by the [URLRequest] client. The
 /// functions of this trait will be called on the same thread that created
 /// the request unless otherwise documented.
-pub trait URLRequestClient: Send + Sync {
+pub trait URLRequestClientCallbacks: 'static + Send + Sync {
     /// Notifies the client that the request has completed. Use the
     /// [URLRequest::get_request_status] function to determine if the request was
     /// successful or not.
@@ -195,7 +205,7 @@ pub trait URLRequestClient: Send + Sync {
 }
 
 pub(crate) struct URLRequestClientWrapper {
-    delegate: Box<dyn URLRequestClient>,
+    delegate: Box<dyn URLRequestClientCallbacks>,
 }
 
 impl Wrapper for URLRequestClientWrapper {
@@ -216,7 +226,7 @@ impl Wrapper for URLRequestClientWrapper {
 }
 
 impl URLRequestClientWrapper {
-    pub(crate) fn new(delegate: Box<dyn URLRequestClient>) -> URLRequestClientWrapper {
+    pub(crate) fn new(delegate: Box<dyn URLRequestClientCallbacks>) -> URLRequestClientWrapper {
         URLRequestClientWrapper { delegate }
     }
 }

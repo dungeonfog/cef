@@ -66,7 +66,7 @@ pub enum URLRequestFlags {
     AllowStoredCredentials = 3,
     /// if set upload progress events will be generated when a request has a body.
     ReportUploadProgress = 4,
-    /// if set the [URLRequestClient::on_download_data] method will not be called.
+    /// if set the [URLRequestClientCallbacks::on_download_data] method will not be called.
     NoDownloadData = 5,
     /// if set 5XX redirect errors will be propagated to the observer instead of
     /// automatically re-tried. This currently only applies for requests

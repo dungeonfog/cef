@@ -109,7 +109,7 @@ pub trait RequestHandlerCallbacks: Sync + Send + 'static {
     /// be canceled. To allow the resource load to proceed with default handling
     /// return None. To specify a handler for the resource return a
     /// [ResourceRequestHandlerCallbacks] object. If this callback returns None the
-    /// same function will be called on the associated [RequestContextHandler],
+    /// same function will be called on the associated [RequestContextHandlerCallbacks],
     /// if any.
     fn get_resource_request_handler(
         &self,

@@ -1,6 +1,6 @@
 use crate::{
     browser::{Browser, BrowserSettings, State},
-    client::{ClientCallbacks, ClientWrapper},
+    client::{Client},
     drag::{DragData, DragOperation},
     events::{KeyEvent, MouseButtonType, MouseEvent, TouchEvent},
     extension::Extension,
@@ -9,7 +9,7 @@ use crate::{
     ime::CompositionUnderline,
     navigation::NavigationEntry,
     printing::PDFPrintSettings,
-    refcounted::{RefCounted, RefCountedPtr, Wrapper},
+    refcounted::{RefCountedPtr, Wrapper},
     request_context::RequestContext,
     string::{CefString, CefStringList},
     values::{DictionaryValue, Point, Range, Size, StoredValue},
@@ -64,14 +64,13 @@ impl BrowserHost {
     /// render process.
     pub fn create_browser(
         window_info: &WindowInfo,
-        client: Box<dyn ClientCallbacks>,
+        client: Client,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
     ) -> bool {
         let extra_info = extra_info.map(DictionaryValue::from);
-        let client = ClientWrapper::new(client).wrap();
 
         unsafe {
             cef_browser_host_create_browser(
@@ -94,14 +93,13 @@ impl BrowserHost {
     /// [RenderProcessHandlerCallbacks::on_browser_created] in the render process.
     pub fn create_browser_sync(
         window_info: &WindowInfo,
-        client: Box<dyn ClientCallbacks>,
+        client: Client,
         url: &str,
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
     ) -> Browser {
         let extra_info = extra_info.map(DictionaryValue::from);
-        let client = ClientWrapper::new(client).wrap();
 
         unsafe {
             Browser::from_ptr_unchecked(cef_browser_host_create_browser_sync(
@@ -188,9 +186,9 @@ impl BrowserHost {
             .unwrap_or(false)
     }
     /// Returns the client for this browser, None if the type is not correct.
-    pub fn get_client<C: ClientCallbacks>(&self) -> Option<&C> {
+    pub fn get_client(&self) -> Option<Client> {
         let get_client = self.0.get_client.unwrap();
-        unsafe { RefCounted::<ClientWrapper>::wrapper(get_client(self.0.as_ptr())) }.get_client()
+        unsafe{ Client::from_ptr(get_client(self.0.as_ptr())) }
     }
     /// Returns the request context for this browser.
     pub fn get_request_context(&self) -> RequestContext {
@@ -392,13 +390,13 @@ impl BrowserHost {
     pub fn show_dev_tools(
         &self,
         window_info: &WindowInfo,
-        client: Option<Box<dyn ClientCallbacks>>,
+        client: Option<Client>,
         settings: Option<BrowserSettings>,
         inspect_element_at: Point,
     ) {
         if let Some(show_dev_tools) = self.0.show_dev_tools {
             let client = client
-                .map(|client| ClientWrapper::new(client).wrap().into_raw())
+                .map(Client::into_raw)
                 .unwrap_or_else(null_mut);
             let settings = settings.map(|s| s.into_raw());
             unsafe {
@@ -434,22 +432,16 @@ impl BrowserHost {
     /// sent.
     ///
     /// The visitor will be called on the browser process UI thread.
-    /// The first parameter is the navigation entry at the position given in the
-    /// third parameter. The second parameter indicates whether it's the currently
-    /// loaded navigation entry and the fourth parameter is the total number of
-    /// entries. Return true to continue visiting entries or false to stop.
     pub fn get_navigation_entries(
         &self,
-        visitor: impl Send + FnMut(NavigationEntry, bool, usize, usize) -> bool + 'static,
+        visitor: NavigationEntryVisitor,
         current_only: bool,
     ) {
         if let Some(get_navigation_entries) = self.0.get_navigation_entries {
             unsafe {
                 get_navigation_entries(
                     self.0.as_ptr(),
-                    NavigationEntryVisitorWrapper::new(visitor)
-                        .wrap()
-                        .into_raw(),
+                    visitor.into_raw(),
                     current_only as i32,
                 );
             }
@@ -1003,8 +995,35 @@ cef_callback_impl! {
     }
 }
 
+pub struct NavigationEntryVisit {
+    /// Current navigation entry. Do not keep a reference to this field outside of the
+    /// visitor callback.
+    pub entry: NavigationEntry,
+    /// Whether or not this is the currently loaded navigation entry.
+    pub current: bool,
+    /// The 0-based index of this entry.
+    pub index: usize,
+    /// The total number of navigation entries.
+    pub total: usize,
+}
+
+/// Callback type for `NavigationEntryVisitor`.
+///
+/// Returns whether or not to continue visiting more navigation entries.
+pub trait NavigationEntryVisitorCallback = 'static + Send + FnMut(NavigationEntryVisit) -> bool;
+
+ref_counted_ptr!{
+    pub struct NavigationEntryVisitor(*mut cef_navigation_entry_visitor_t);
+}
+
+impl NavigationEntryVisitor {
+    pub fn new<C: NavigationEntryVisitorCallback>(callback: C) -> NavigationEntryVisitor {
+        unsafe{ NavigationEntryVisitor::from_ptr_unchecked(NavigationEntryVisitorWrapper::new(Box::new(callback)).wrap().into_raw()) }
+    }
+}
+
 pub(crate) struct NavigationEntryVisitorWrapper {
-    callback: Mutex<Box<dyn Send + FnMut(NavigationEntry, bool, usize, usize) -> bool>>,
+    callback: Mutex<Box<dyn NavigationEntryVisitorCallback>>,
 }
 
 impl Wrapper for NavigationEntryVisitorWrapper {
@@ -1022,7 +1041,7 @@ impl Wrapper for NavigationEntryVisitorWrapper {
 
 impl NavigationEntryVisitorWrapper {
     pub(crate) fn new(
-        callback: impl Send + FnMut(NavigationEntry, bool, usize, usize) -> bool + 'static,
+        callback: impl NavigationEntryVisitorCallback,
     ) -> NavigationEntryVisitorWrapper {
         NavigationEntryVisitorWrapper {
             callback: Mutex::new(Box::new(callback)),
@@ -1039,7 +1058,12 @@ cef_callback_impl! {
             index: std::os::raw::c_int: std::os::raw::c_int,
             total: std::os::raw::c_int: std::os::raw::c_int
         ) -> std::os::raw::c_int {
-            (&mut *self.callback.lock())(entry, current, index as usize, total as usize) as _
+            (&mut *self.callback.lock())(NavigationEntryVisit {
+                entry,
+                current,
+                index: index as usize,
+                total: total as usize,
+            } ) as _
         }
     }
 }

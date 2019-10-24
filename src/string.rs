@@ -6,6 +6,7 @@ use cef_sys::{
 use std::ptr::null_mut;
 
 use std::{iter::FromIterator, mem, ops::Range};
+use parking_lot::Mutex;
 
 use crate::refcounted::{RefCountedPtr, Wrapper};
 
@@ -294,14 +295,20 @@ impl From<&'_ CefStringList> for Vec<String> {
     }
 }
 
-/// Implement this trait to receive string values asynchronously.
-pub trait StringVisitor: Send + Sync {
-    /// Method that will be executed.
-    fn visit(&self, string: &str);
+ref_counted_ptr!{
+    pub struct StringVisitor(*mut cef_string_visitor_t);
 }
 
+impl StringVisitor {
+    pub fn new<C: StringVisitorCallback>(callback: C) -> StringVisitor {
+        unsafe{ StringVisitor::from_ptr_unchecked(StringVisitorWrapper::new(Box::new(callback)).wrap().into_raw()) }
+    }
+}
+
+pub trait StringVisitorCallback = 'static + Send + FnMut(&str);
+
 pub(crate) struct StringVisitorWrapper {
-    delegate: Box<dyn StringVisitor>,
+    delegate: Mutex<Box<dyn StringVisitorCallback>>,
 }
 
 impl Wrapper for StringVisitorWrapper {
@@ -318,8 +325,8 @@ impl Wrapper for StringVisitorWrapper {
 }
 
 impl StringVisitorWrapper {
-    pub(crate) fn new(delegate: Box<dyn StringVisitor>) -> StringVisitorWrapper {
-        StringVisitorWrapper { delegate }
+    pub(crate) fn new(delegate: Box<dyn StringVisitorCallback>) -> StringVisitorWrapper {
+        StringVisitorWrapper { delegate: Mutex::new(delegate) }
     }
 }
 
@@ -329,7 +336,7 @@ cef_callback_impl! {
             &self,
             string: &CefString: *const cef_string_t
         ) {
-            self.delegate.visit(&String::from(string))
+            (&mut *self.delegate.lock())(&String::from(string))
         }
     }
 }

@@ -498,20 +498,20 @@ impl V8Value {
     }
     /// Create a new V8Value object of type object with optional accessor
     /// and/or interceptor. This function should only be called from within the scope
-    /// of a [RenderProcessHandlerCallbacks], [V8Handler] or [V8Accessor]
+    /// of a [RenderProcessHandlerCallbacks], [V8Handler] or [V8AccessorCallbacks]
     /// callback, or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored
     /// [V8Context] reference.
     pub fn new_object(
-        accessor: Option<impl V8Accessor>,
-        interceptor: Option<impl V8Interceptor>,
+        accessor: Option<V8Accessor>,
+        interceptor: Option<V8Interceptor>,
     ) -> Self {
         unsafe {
             V8Value::from_ptr_unchecked(cef_v8value_create_object(
                 accessor
-                    .map(|a| V8AccessorWrapper::new(a).wrap().into_raw())
+                    .map(V8Accessor::into_raw)
                     .unwrap_or_else(null_mut),
                 interceptor
-                    .map(|i| V8InterceptorWrapper::new(i).wrap().into_raw())
+                    .map(V8Interceptor::into_raw)
                     .unwrap_or_else(null_mut),
             ))
         }
@@ -519,7 +519,7 @@ impl V8Value {
     /// Create a new V8Value object of type array with the specified `length`.
     /// If `length` is negative the returned array will have length 0. This function
     /// should only be called from within the scope of a
-    /// [RenderProcessHandlerCallbacks], [V8Handler] or [V8Accessor] callback,
+    /// [RenderProcessHandlerCallbacks], [V8Handler] or [V8AccessorCallbacks] callback,
     /// or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored V8Context
     /// reference.
     pub fn new_array(length: i32) -> Self {
@@ -528,7 +528,7 @@ impl V8Value {
     /// Create a new V8Value object of type ArrayBuffer which wraps the
     /// provided `buffer` (without copying it). This function should only
     /// be called from within the scope of a [RenderProcessHandlerCallbacks], [V8Handler]
-    /// or [V8Accessor] callback, or in combination with calling
+    /// or [V8AccessorCallbacks] callback, or in combination with calling
     /// [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
     pub fn new_array_buffer(mut buffer: Vec<u8>) -> Self {
@@ -550,7 +550,7 @@ impl V8Value {
     }
     /// Create a new V8Value object of type function. This function
     /// should only be called from within the scope of a
-    /// [RenderProcessHandlerCallbacks], [V8Handler] or [V8Accessor] callback,
+    /// [RenderProcessHandlerCallbacks], [V8Handler] or [V8AccessorCallbacks] callback,
     /// or in combination with calling [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
     pub fn new_function(
@@ -923,7 +923,7 @@ impl V8Value {
             .unwrap_or(false)
     }
     /// Registers an identifier and returns true on success. Access to the
-    /// identifier will be forwarded to the [V8Accessor] instance passed to
+    /// identifier will be forwarded to the [V8AccessorCallbacks] instance passed to
     /// [V8Value::new_object]. Returns false if this
     /// function is called incorrectly or an exception is thrown. For read-only
     /// values this function will return true even though assignment failed.
@@ -1058,7 +1058,7 @@ impl V8Value {
     }
     /// Execute the function using the current V8 context. This function should
     /// only be called from within the scope of a [V8Handler] or
-    /// [V8Accessor] callback, or in combination with calling [V8Context::enter] and
+    /// [V8AccessorCallbacks] callback, or in combination with calling [V8Context::enter] and
     /// [V8Context::exit] on a stored [V8Context] reference. `object` is the receiver
     /// ('this' object) of the function. If `object` is None the current context's
     /// global object will be used. `arguments` is the list of arguments that will
@@ -1179,11 +1179,21 @@ impl From<&str> for V8Value {
     }
 }
 
+ref_counted_ptr!{
+    pub struct V8Accessor(*mut cef_v8accessor_t);
+}
+
+impl V8Accessor {
+    pub fn new<C: V8AccessorCallbacks>(callbacks: C) -> V8Accessor {
+        unsafe{ V8Accessor::from_ptr_unchecked(V8AccessorWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Trait that should be implemented to handle V8 accessor calls. Accessor
 /// identifiers are registered by calling [V8Value::set_value]. The
 /// functions of this trait will be called on the thread associated with the
 /// V8 accessor.
-pub trait V8Accessor: 'static + Send {
+pub trait V8AccessorCallbacks: 'static + Send + Sync {
     /// Handle retrieval the accessor value identified by `name`. `object` is the
     /// receiver ('this' object) of the accessor. If retrieval succeeds return
     /// `Ok(retval)`. If retrieval fails return `Err(exception)` to be thrown
@@ -1196,11 +1206,11 @@ pub trait V8Accessor: 'static + Send {
     fn set(&mut self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
-pub(crate) struct V8AccessorWrapper(Mutex<Box<dyn V8Accessor>>);
+pub(crate) struct V8AccessorWrapper(Mutex<Box<dyn V8AccessorCallbacks>>);
 
 impl V8AccessorWrapper {
-    pub(crate) fn new(delegate: impl V8Accessor) -> Self {
-        Self(Mutex::new(Box::new(delegate)))
+    pub(crate) fn new(delegate: Box<dyn V8AccessorCallbacks>) -> Self {
+        Self(Mutex::new(delegate))
     }
 }
 
@@ -1256,13 +1266,23 @@ cef_callback_impl! {
     }
 }
 
+ref_counted_ptr!{
+    pub struct V8Interceptor(*mut cef_v8interceptor_t);
+}
+
+impl V8Interceptor {
+    pub fn new<C: V8InterceptorCallbacks>(callbacks: C) -> V8Interceptor {
+        unsafe{ V8Interceptor::from_ptr_unchecked(V8InterceptorWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
+    }
+}
+
 /// Trait that should be implemented to handle V8 interceptor calls. The
 /// functions of this trait will be called on the thread associated with the
 /// V8 interceptor. Interceptor's named property handlers (with first argument of
 /// type `&str`) are called when object is indexed by string. Indexed property
 /// handlers (with first argument of type `i32`) are called when object is indexed
 /// by integer.
-pub trait V8Interceptor: Sync + Send + 'static {
+pub trait V8InterceptorCallbacks: Sync + Send + 'static {
     /// Handle retrieval of the interceptor value identified by `name`. `object` is
     /// the receiver ('this' object) of the interceptor. If retrieval succeeds, return
     /// `Some(Ok(_))` containing the return value. If the requested value does not exist, return
@@ -1290,11 +1310,11 @@ pub trait V8Interceptor: Sync + Send + 'static {
     fn set_byindex(&mut self, index: i32, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
-pub(crate) struct V8InterceptorWrapper(Mutex<RefCell<Box<dyn V8Interceptor>>>);
+pub(crate) struct V8InterceptorWrapper(Mutex<RefCell<Box<dyn V8InterceptorCallbacks>>>);
 
 impl V8InterceptorWrapper {
-    pub(crate) fn new(delegate: impl V8Interceptor) -> Self {
-        Self(Mutex::new(RefCell::new(Box::new(delegate))))
+    pub(crate) fn new(delegate: Box<dyn V8InterceptorCallbacks>) -> Self {
+        Self(Mutex::new(RefCell::new(delegate)))
     }
 }
 
