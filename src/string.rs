@@ -1,7 +1,7 @@
 use cef_sys::{
     cef_string_list_alloc, cef_string_list_append, cef_string_list_free, cef_string_list_size,
     cef_string_list_t, cef_string_list_value, cef_string_t, cef_string_utf8_to_utf16,
-    cef_string_visitor_t,
+    cef_string_visitor_t, cef_string_userfree_t
 };
 use std::ptr::null_mut;
 
@@ -85,6 +85,18 @@ impl CefString {
 
     pub unsafe fn from_raw(raw: cef_string_t) -> CefString {
         CefString(raw)
+    }
+
+    pub unsafe fn from_userfree(raw: cef_string_userfree_t) -> Option<CefString> {
+        if raw == null_mut() {
+            None
+        } else {
+            Some(CefString(cef_string_t{..*raw}))
+        }
+    }
+
+    pub unsafe fn from_userfree_unchecked(raw: cef_string_userfree_t) -> CefString {
+        CefString(cef_string_t{..*raw})
     }
 }
 

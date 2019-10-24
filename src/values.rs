@@ -1143,12 +1143,12 @@ impl Into<cef_point_t> for Point {
 }
 
 /// Structure representing a rectangle.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Rect {
-    x: i32,
-    y: i32,
-    width: i32,
-    height: i32,
+    pub x: i32,
+    pub y: i32,
+    pub width: i32,
+    pub height: i32,
 }
 
 /// Structure representing a size.
