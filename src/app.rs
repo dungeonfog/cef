@@ -112,13 +112,13 @@ impl App {
     #[cfg(target_os = "windows")]
     pub fn execute_process(
         args: &MainArgs,
-        application: Option<&App>,
+        application: Option<App>,
         windows_sandbox_info: Option<&SandboxInfo>,
     ) -> i32 {
         unsafe {
             cef_execute_process(
                 args.get(),
-                application.map(|app| app.as_ptr()).unwrap_or_else(null_mut),
+                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
                 windows_sandbox_info
                     .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
@@ -134,12 +134,12 @@ impl App {
     /// secondary process it will block until the process should exit and then return
     /// the process exit code. The `application` parameter may be None.
     #[cfg(not(target_os = "windows"))]
-    pub fn execute_process(args: &[&str], application: Option<&App>) -> i32 {
+    pub fn execute_process(args: &[&str], application: Option<App>) -> i32 {
         unsafe {
             cef_execute_process(
                 args.get(),
                 application
-                    .and_then(|app| Some(app.0))
+                    .and_then(|app| Some(app.into_raw()))
                     .unwrap_or_else(null_mut),
                 null_mut(),
             )
@@ -154,14 +154,14 @@ impl App {
     pub fn initialize(
         args: &MainArgs,
         settings: &Settings,
-        application: Option<&App>,
+        application: Option<App>,
         windows_sandbox_info: Option<&SandboxInfo>,
     ) -> bool {
         unsafe {
             cef_initialize(
                 args.get(),
                 settings.get(),
-                application.map(|app| app.as_ptr()).unwrap_or_else(null_mut),
+                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
                 windows_sandbox_info
                     .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
@@ -173,12 +173,12 @@ impl App {
     /// value of true indicates that it succeeded and false indicates that it
     /// failed.
     #[cfg(not(target_os = "windows"))]
-    pub fn initialize(args: &[&str], settings: &Settings, application: Option<&App>) -> bool {
+    pub fn initialize(args: &[&str], settings: &Settings, application: Option<App>) -> bool {
         unsafe {
             cef_initialize(
                 args.get(),
                 settings.get(),
-                application.map(|app| app.0).unwrap_or_else(null_mut),
+                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
                 null_mut(),
             ) != 0
         }

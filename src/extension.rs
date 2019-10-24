@@ -1,5 +1,8 @@
 use cef_sys::{cef_extension_t, cef_string_userfree_utf16_free};
-use std::collections::HashMap;
+use std::{
+    collections::HashMap,
+    path::PathBuf,
+};
 
 use crate::{
     request_context::RequestContext,
@@ -32,12 +35,12 @@ impl Extension {
     /// Returns the absolute path to the extension directory on disk. This value
     /// will be prefixed with PK_DIR_RESOURCES if a relative path was passed to
     /// [RequestContext::load_extension].
-    pub fn get_path(&self) -> String {
+    pub fn get_path(&self) -> PathBuf {
         self.0
             .get_path
             .and_then(|get_path| unsafe { get_path(self.as_ptr()).as_mut() })
             .map(|cef_string| unsafe {
-                let s = String::from(CefString::from_ptr_unchecked(cef_string));
+                let s = PathBuf::from(String::from(CefString::from_ptr_unchecked(cef_string)));
                 cef_string_userfree_utf16_free(cef_string);
                 s
             })

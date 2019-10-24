@@ -203,6 +203,10 @@ pub struct BrowserSettings {
 }
 
 impl BrowserSettings {
+    pub fn new() -> BrowserSettings {
+        BrowserSettings::default()
+    }
+
     pub unsafe fn from_raw(raw: &cef_browser_settings_t) -> BrowserSettings {
         BrowserSettings {
             windowless_frame_rate: raw.windowless_frame_rate,

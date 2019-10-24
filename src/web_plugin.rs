@@ -1,32 +1,17 @@
 use cef_sys::{cef_string_userfree_utf16_free, cef_web_plugin_info_t};
-
+use std::path::PathBuf;
 use crate::string::CefString;
 
 /// Information about a specific web plugin.
 pub struct WebPluginInfo {
-    name: String,
-    path: String,
-    version: String,
-    description: String,
-}
-
-impl WebPluginInfo {
     /// Returns the plugin name (i.e. Flash).
-    pub fn get_name(&self) -> &str {
-        &self.name
-    }
+    pub name: String,
     /// Returns the plugin file path (DLL/bundle/library).
-    pub fn get_path(&self) -> &str {
-        &self.path
-    }
+    pub path: PathBuf,
     /// Returns the version of the plugin (may be OS-specific).
-    pub fn get_version(&self) -> &str {
-        &self.version
-    }
+    pub version: String,
     /// Returns a description of the plugin from the version information.
-    pub fn get_description(&self) -> &str {
-        &self.description
-    }
+    pub description: String,
 }
 
 impl WebPluginInfo {
@@ -38,7 +23,7 @@ impl WebPluginInfo {
 
         let result = Self {
             name: CefString::from_ptr_unchecked(name).into(),
-            path: CefString::from_ptr_unchecked(path).into(),
+            path: PathBuf::from(String::from(CefString::from_ptr_unchecked(path))),
             version: CefString::from_ptr_unchecked(version).into(),
             description: CefString::from_ptr_unchecked(description).into(),
         };

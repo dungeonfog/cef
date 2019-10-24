@@ -1,6 +1,7 @@
 use crate::color::Color;
 use cef_sys::{cef_log_severity_t, cef_settings_t, cef_string_utf8_to_utf16};
 use num_enum::UnsafeFromPrimitive;
+use std::path::Path;
 
 /// Log severity levels.
 #[repr(i32)]
@@ -80,8 +81,9 @@ impl Settings {
     /// in the top-level app bundle. See the comments on [App::execute_process] for
     /// details. Also configurable using the "browser-subprocess-path" command-line
     /// switch.
-    pub fn set_browser_subprocess_path(&mut self, path: &str) {
+    pub fn set_browser_subprocess_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -94,8 +96,9 @@ impl Settings {
     /// Framework.framework" in the top-level app bundle. Also configurable using
     /// the "framework-dir-path" command-line switch.
     #[cfg(target_os = "macos")]
-    pub fn set_framework_dir_path(&mut self, path: &str) {
+    pub fn set_framework_dir_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -107,8 +110,9 @@ impl Settings {
     /// defaults to the top-level app bundle. Also configurable using
     /// the "main-bundle-path" command-line switch.
     #[cfg(target_os = "macos")]
-    pub fn set_main_bundle_path(&mut self, path: &str) {
+    pub fn set_main_bundle_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -155,8 +159,9 @@ impl Settings {
     /// across sessions if a cache path is specified. Can be overridden for
     /// individual [RequestContext] instances via the
     /// [RequestContextSettings::cache_path] value.
-    pub fn set_cache_path(&mut self, path: &str) {
+    pub fn set_cache_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -170,8 +175,9 @@ impl Settings {
     /// default to the [Settings::set_cache_path] value. Failure to set this value
     /// correctly may result in the sandbox blocking read/write access to the
     /// cache_path directory.
-    pub fn set_root_cache_path(&mut self, path: &str) {
+    pub fn set_root_cache_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -185,8 +191,9 @@ impl Settings {
     /// "~/Library/Application Support/CEF/User Data" directory on Mac OS X,
     /// "Local Settings\Application Data\CEF\User Data" directory under the user
     /// profile directory on Windows).
-    pub fn set_user_data_path(&mut self, path: &str) {
+    pub fn set_user_data_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -293,8 +300,9 @@ impl Settings {
     /// the module directory on Windows/Linux or the app bundle Resources directory
     /// on Mac OS X. Also configurable using the "resources-dir-path" command-line
     /// switch.
-    pub fn set_resources_dir_path(&mut self, path: &str) {
+    pub fn set_resources_dir_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),
@@ -307,8 +315,9 @@ impl Settings {
     /// is ignored on Mac OS X where pack files are always loaded from the app
     /// bundle Resources directory. Also configurable using the "locales-dir-path"
     /// command-line switch.
-    pub fn set_locales_dir_path(&mut self, path: &str) {
+    pub fn set_locales_dir_path<P: AsRef<Path>>(&mut self, path: P) {
         unsafe {
+            let path = path.as_ref().to_str().expect("Invalid UTF8");
             cef_string_utf8_to_utf16(
                 path.as_ptr() as *const std::os::raw::c_char,
                 path.len(),

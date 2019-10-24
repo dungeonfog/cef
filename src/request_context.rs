@@ -8,6 +8,7 @@ use cef_sys::{
 
 use num_enum::UnsafeFromPrimitive;
 use std::{
+    path::Path,
     ptr::{null, null_mut},
 };
 
@@ -278,7 +279,8 @@ impl RequestContextBuilder {
     /// across sessions if a cache path is specified. To share the global browser
     /// cache and related configuration set this value to match the
     /// [CefSettings::cache_path] value.
-    pub fn with_cache_path(mut self, path: &str) -> Self {
+    pub fn with_cache_path<P: AsRef<Path>>(mut self, path: P) -> Self {
+        let path = path.as_ref().to_str().expect("Invalid UTF8");
         let settings = self.get_settings();
         let len = path.len();
         unsafe {

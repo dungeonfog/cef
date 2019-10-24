@@ -24,6 +24,9 @@ pub struct WindowInfo {
 }
 
 impl WindowInfo {
+    pub fn new() -> Self {
+        Self::default()
+    }
     pub fn into_raw(&self) -> cef_window_info_t {
         self.into()
     }

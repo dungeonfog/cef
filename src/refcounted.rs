@@ -170,7 +170,7 @@ impl<W: Wrapper> RefCounted<W> {
         &(*(ptr as *const W::Cef as *const Self)).object
     }
 
-    pub(crate) unsafe fn to_arc(ptr: *mut W::Cef) -> ManuallyDrop<Arc<Self>> {
+    pub unsafe fn to_arc(ptr: *mut W::Cef) -> ManuallyDrop<Arc<Self>> {
         ManuallyDrop::new(Arc::from_raw(ptr as *mut Self))
     }
 
@@ -190,12 +190,16 @@ impl<W: Wrapper> RefCounted<W> {
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
         let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
+        std::mem::forget(Arc::clone(&*this));
         let _: ManuallyDrop<Arc<Self>> = this;
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this: Arc<Self> =
-            ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut W::Cef) });
-        (Arc::strong_count(&this) > 1) as c_int
+        let strong_count = {
+            let this: Arc<Self> =
+                ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut W::Cef) });
+            Arc::strong_count(&this) - 1
+        };
+        (strong_count == 0) as c_int
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
         let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
