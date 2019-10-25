@@ -28,7 +28,7 @@ impl LifeSpanHandlerCallbacks for SimpleLifeSpanHandler {
 }
 
 fn main() {
-    let app = cef::App::new(Box::new(AppCallbacks {}));
+    let app = cef::App::new(AppCallbacks {});
     #[cfg(windows)]
     cef::App::enable_highdpi_support();
     let args = cef::MainArgs::new(unsafe { GetModuleHandleA(std::ptr::null()) });
@@ -53,7 +53,7 @@ fn main() {
     window_info.height = 500;
     let browser_settings = cef::BrowserSettings::new();
 
-    let client = Box::new(ClientCallbacks {
+    let client = cef::client::Client::new(ClientCallbacks {
         life_span_handler: LifeSpanHandler::new(SimpleLifeSpanHandler {})
     });
 
