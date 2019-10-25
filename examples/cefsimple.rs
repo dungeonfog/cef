@@ -1,63 +1,71 @@
 #[cfg(windows)]
-use winapi::um::{
-    libloaderapi::GetModuleHandleA,
-    winuser::{WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_OVERLAPPEDWINDOW, WS_VISIBLE},
+use winapi::um::winuser::{WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_OVERLAPPEDWINDOW, WS_VISIBLE};
+use cef::{
+    app::{App, AppCallbacks},
+    browser::{Browser, BrowserSettings},
+    browser_host::BrowserHost,
+    client::{
+        Client, ClientCallbacks,
+        life_span_handler::{LifeSpanHandler, LifeSpanHandlerCallbacks}
+    },
+    main_args::MainArgs,
+    settings::{Settings, LogSeverity},
+    window::WindowInfo,
 };
-use cef::client::life_span_handler::{LifeSpanHandler, LifeSpanHandlerCallbacks};
 
-pub struct AppCallbacks {}
+pub struct AppCallbacksImpl {}
 
-impl cef::AppCallbacks for AppCallbacks {}
+impl AppCallbacks for AppCallbacksImpl {}
 
-pub struct ClientCallbacks {
+pub struct ClientCallbacksImpl {
     life_span_handler: LifeSpanHandler,
 }
 
-impl cef::ClientCallbacks for ClientCallbacks {
+impl ClientCallbacks for ClientCallbacksImpl {
     fn get_life_span_handler(&self) -> Option<LifeSpanHandler> {
         Some(self.life_span_handler.clone())
     }
 }
 
-pub struct SimpleLifeSpanHandler {}
+pub struct LifeSpanHandlerImpl {}
 
-impl LifeSpanHandlerCallbacks for SimpleLifeSpanHandler {
-    fn on_before_close(&self, _browser: cef::Browser) {
-        cef::App::quit_message_loop()
+impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
+    fn on_before_close(&self, _browser: Browser) {
+        cef::quit_message_loop()
     }
 }
 
 fn main() {
-    let app = cef::App::new(AppCallbacks {});
+    let app = App::new(AppCallbacksImpl {});
     #[cfg(windows)]
-    cef::App::enable_highdpi_support();
-    let args = cef::MainArgs::new(unsafe { GetModuleHandleA(std::ptr::null()) });
-    let result = cef::App::execute_process(&args, Some(app.clone()), None);
+    cef::enable_highdpi_support();
+    let args = MainArgs::new();
+    let result = cef::execute_process(&args, Some(app.clone()), None);
     if result >= 0 {
         std::process::exit(result);
     }
-    let mut settings = cef::Settings::new();
-    settings.set_log_severity(cef::LogSeverity::Verbose);
+    let mut settings = Settings::new();
+    settings.set_log_severity(LogSeverity::Disable);
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
 
-    cef::App::initialize(&args, &settings, Some(app), None);
+    cef::initialize(&args, &settings, Some(app), None);
 
-    let mut window_info = cef::WindowInfo::new();
+    let mut window_info = WindowInfo::new();
     #[cfg(windows)] {
         window_info.style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE;
     }
     window_info.window_name = "cefsimple Rust example".into();
     window_info.width = 500;
     window_info.height = 500;
-    let browser_settings = cef::BrowserSettings::new();
+    let browser_settings = BrowserSettings::new();
 
-    let client = cef::client::Client::new(ClientCallbacks {
-        life_span_handler: LifeSpanHandler::new(SimpleLifeSpanHandler {})
+    let client = Client::new(ClientCallbacksImpl {
+        life_span_handler: LifeSpanHandler::new(LifeSpanHandlerImpl {})
     });
 
-    cef::BrowserHost::create_browser(
+    BrowserHost::create_browser(
         &window_info,
         client,
         "https://www.youtube.com",
@@ -66,7 +74,7 @@ fn main() {
         None,
     );
 
-    cef::App::run_message_loop();
+    cef::run_message_loop();
 
-    cef::App::shutdown();
+    cef::shutdown();
 }
