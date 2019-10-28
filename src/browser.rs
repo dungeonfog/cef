@@ -121,9 +121,9 @@ impl Browser {
     }
     /// Returns the names of all existing frames.
     pub fn get_frame_names(&self) -> Vec<String> {
-        let list = CefStringList::default();
+        let mut list = CefStringList::default();
         unsafe {
-            (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.as_ptr());
+            (self.0.get_frame_names.unwrap())(self.0.as_ptr(), list.as_mut_ptr());
         }
         Vec::from(list)
     }

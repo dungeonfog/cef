@@ -4,6 +4,7 @@ use cef_sys::{
     cef_binary_value_create, cef_binary_value_t, cef_dictionary_value_create,
     cef_dictionary_value_t, cef_list_value_create, cef_list_value_t, cef_point_t, cef_range_t,
     cef_size_t, cef_string_userfree_utf16_free, cef_value_create, cef_value_t, cef_value_type_t,
+    cef_rect_t,
 };
 use std::{
     collections::HashMap,
@@ -546,8 +547,8 @@ impl DictionaryValue {
             .0
             .get_keys
             .and_then(|get_keys| {
-                let list = CefStringList::new();
-                if unsafe { get_keys(self.as_ptr(), list.as_ptr()) } != 0 {
+                let mut list = CefStringList::new();
+                if unsafe { get_keys(self.as_ptr(), list.as_mut_ptr()) } != 0 {
                     Some(list)
                 } else {
                     None
@@ -1127,23 +1128,41 @@ impl crate::cef_helper_traits::DeepClone for ListValue {
 }
 
 /// Structure representing a point.
-#[derive(Clone, Debug)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
 pub struct Point {
     pub x: i32,
     pub y: i32,
 }
 
-impl Into<cef_point_t> for Point {
-    fn into(self) -> cef_point_t {
+impl From<cef_point_t> for Point {
+    fn from(point: cef_point_t) -> Point {
+        Point {
+            x: point.x,
+            y: point.y,
+        }
+    }
+}
+impl From<&'_ cef_point_t> for Point {
+    fn from(point: &cef_point_t) -> Point {
+        Point {
+            x: point.x,
+            y: point.y,
+        }
+    }
+}
+impl From<Point> for cef_point_t {
+    fn from(point: Point) -> cef_point_t {
         cef_point_t {
-            x: self.x,
-            y: self.y,
+            x: point.x,
+            y: point.y,
         }
     }
 }
 
 /// Structure representing a rectangle.
-#[derive(Clone, Debug, PartialEq, Eq)]
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
 pub struct Rect {
     pub x: i32,
     pub y: i32,
@@ -1151,34 +1170,72 @@ pub struct Rect {
     pub height: i32,
 }
 
+impl From<cef_rect_t> for Rect {
+    fn from(rect: cef_rect_t) -> Rect {
+        Rect {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        }
+    }
+}
+impl From<&'_ cef_rect_t> for Rect {
+    fn from(rect: &cef_rect_t) -> Rect {
+        Rect {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        }
+    }
+}
+impl From<Rect> for cef_rect_t {
+    fn from(rect: Rect) -> cef_rect_t {
+        cef_rect_t {
+            x: rect.x,
+            y: rect.y,
+            width: rect.width,
+            height: rect.height,
+        }
+    }
+}
+
 /// Structure representing a size.
-pub struct Size(cef_size_t);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct Size {
+    pub width: i32,
+    pub height: i32,
+}
 
 impl Size {
     pub fn new() -> Self {
-        Self(cef_size_t {
+        Self {
             width: 0,
             height: 0,
-        })
-    }
-    pub(crate) fn wrap(size: cef_size_t) -> Self {
-        Self(size)
-    }
-    pub fn set_width(&mut self, width: i32) {
-        self.0.width = width;
-    }
-    pub fn width(&self) -> i32 {
-        self.0.width
-    }
-    pub fn set_height(&mut self, height: i32) {
-        self.0.height = height;
-    }
-    pub fn height(&self) -> i32 {
-        self.0.height
+        }
     }
 
     pub(crate) fn as_ptr(&self) -> *const cef_size_t {
-        &self.0
+        self as *const Size as *const cef_size_t
+    }
+}
+
+impl From<cef_size_t> for Size {
+    fn from(size: cef_size_t) -> Size {
+        Self {
+            width: size.width,
+            height: size.height,
+        }
+    }
+}
+impl From<&'_ cef_size_t> for Size {
+    fn from(size: &cef_size_t) -> Size {
+        Self {
+            width: size.width,
+            height: size.height,
+        }
     }
 }
 
@@ -1188,40 +1245,24 @@ impl Default for Size {
     }
 }
 
-impl Clone for Size {
-    fn clone(&self) -> Self {
-        Self(cef_size_t {
-            width: self.0.width,
-            height: self.0.height,
-        })
-    }
-}
-
 /// Structure representing a range.
-pub struct Range(cef_range_t);
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+#[repr(C)]
+pub struct Range {
+    pub from: i32,
+    pub to: i32,
+}
 
 impl Range {
     pub fn new() -> Self {
-        Self(unsafe { std::mem::zeroed() })
-    }
-    pub(crate) fn wrap(range: cef_range_t) -> Self {
-        Self(range)
-    }
-    pub fn set_from(&mut self, from: i32) {
-        self.0.from = from;
-    }
-    pub fn from(&self) -> i32 {
-        self.0.from
-    }
-    pub fn set_to(&mut self, to: i32) {
-        self.0.to = to;
-    }
-    pub fn to(&self) -> i32 {
-        self.0.to
+        Self {
+            from: 0,
+            to: 0,
+        }
     }
 
     pub(crate) fn as_ptr(&self) -> *const cef_range_t {
-        &self.0
+        self as *const Self as *const cef_range_t
     }
 }
 
@@ -1231,18 +1272,21 @@ impl Default for Range {
     }
 }
 
-impl Clone for Range {
-    fn clone(&self) -> Self {
-        Self(cef_range_t {
-            from: self.0.from,
-            to: self.0.to,
-        })
+impl From<Range> for cef_range_t {
+    fn from(range: Range) -> cef_range_t {
+        cef_range_t {
+            from: range.from,
+            to: range.to,
+        }
     }
 }
 
-impl Into<cef_range_t> for Range {
-    fn into(self) -> cef_range_t {
-        self.0
+impl From<cef_range_t> for Range {
+    fn from(range: cef_range_t) -> Range {
+        Range {
+            from: range.from,
+            to: range.to,
+        }
     }
 }
 

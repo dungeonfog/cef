@@ -87,9 +87,9 @@ impl CommandLine {
     /// Retrieve the original command line string as a vector of strings. The argv
     /// array: `{ program, [(--|-|/)switch[=value]]*, [--], [argument]* }`
     pub fn get_argv(&self) -> Vec<String> {
-        let list = CefStringList::new();
+        let mut list = CefStringList::new();
         unsafe {
-            (self.0.get_argv.unwrap())(self.as_ptr(), list.as_ptr());
+            (self.0.get_argv.unwrap())(self.as_ptr(), list.as_mut_ptr());
         }
         list.into()
     }
@@ -201,9 +201,9 @@ impl CommandLine {
     }
     /// Get the remaining command line arguments.
     pub fn get_arguments(&self) -> Vec<String> {
-        let list = CefStringList::new();
+        let mut list = CefStringList::new();
         unsafe {
-            (self.0.get_arguments.unwrap())(self.as_ptr(), list.as_ptr());
+            (self.0.get_arguments.unwrap())(self.as_ptr(), list.as_mut_ptr());
         }
         list.into()
     }

@@ -1,6 +1,10 @@
 use cef_sys::{cef_file_dialog_mode_t, cef_run_file_dialog_callback_t, cef_string_list_t};
 use parking_lot::Mutex;
-use std::{collections::HashSet, convert::TryFrom};
+use std::{
+    collections::HashSet,
+    convert::TryFrom,
+    mem::ManuallyDrop,
+};
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
@@ -123,14 +127,14 @@ cef_callback_impl! {
         fn file_dialog_dismissed(
             &self,
             selected_accept_filter: std::os::raw::c_int: std::os::raw::c_int,
-            file_paths: Option<CefStringList>: cef_string_list_t,
+            file_paths: Option<ManuallyDrop<CefStringList>>: cef_string_list_t,
         ) {
             // file_dialog_dismissed consumes self
             if let Some(callback) = self.callback.lock().take() {
                 // we can only call FnOnce once, so it has to be consumed here
                 callback(
                     selected_accept_filter as usize,
-                    file_paths.map(Vec::from),
+                    file_paths.map(|p| (&*p).into_iter().map(String::from).collect()),
                 );
             }
         }

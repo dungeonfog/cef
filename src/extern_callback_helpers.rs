@@ -20,7 +20,7 @@ use crate::{
     v8context::{V8Context, V8Exception, V8StackTrace},
     values::{DictionaryValue, ListValue, Value},
 };
-use std::{convert::TryFrom, os::raw::c_int};
+use std::{convert::TryFrom, mem::ManuallyDrop, os::raw::c_int};
 
 pub trait Pointer: Copy {
     fn is_null(self) -> bool;
@@ -99,12 +99,74 @@ macro_rules! owned_casts_no_transform {
     };
 }
 
+macro_rules! owned_casts_from {
+    (impl for $Self:ty: $CType:ty) => {
+        impl CToRustType for $Self {
+            type CType = $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                Self::from(c_type)
+            }
+        }
+        impl<'a> CToRustType for &'a $Self {
+            type CType = *const $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                assert_eq!(
+                    std::mem::size_of::<Self::CType>(),
+                    std::mem::size_of::<Self>()
+                );
+                &*(c_type as *const Self)
+            }
+        }
+        impl<'a> CToRustType for &'a mut $Self {
+            type CType = *mut $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                assert_eq!(
+                    std::mem::size_of::<Self::CType>(),
+                    std::mem::size_of::<Self>()
+                );
+                &mut *(c_type as *mut Self)
+            }
+        }
+    };
+}
+
 macro_rules! owned_casts_from_unchecked {
     (impl for $Self:ty: $CType:ty) => {
         impl CToRustType for $Self {
             type CType = $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 Self::from_unchecked(c_type)
+            }
+        }
+        impl<'a> CToRustType for &'a $Self {
+            type CType = *const $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                assert_eq!(
+                    std::mem::size_of::<Self::CType>(),
+                    std::mem::size_of::<Self>()
+                );
+                &*(c_type as *const Self)
+            }
+        }
+        impl<'a> CToRustType for &'a mut $Self {
+            type CType = *mut $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                assert_eq!(
+                    std::mem::size_of::<Self::CType>(),
+                    std::mem::size_of::<Self>()
+                );
+                &mut *(c_type as *mut Self)
+            }
+        }
+    };
+}
+
+macro_rules! owned_casts_from_flags_unchecked {
+    (impl for $Self:ty: $CType:ty) => {
+        impl CToRustType for $Self {
+            type CType = $CType;
+            unsafe fn from_c_type(c_type: Self::CType) -> Self {
+                Self::from_unchecked(c_type.0)
             }
         }
         impl<'a> CToRustType for &'a $Self {
@@ -170,11 +232,19 @@ owned_casts_no_transform!(impl for u16);
 owned_casts_no_transform!(impl for u32);
 owned_casts_no_transform!(impl for u64);
 owned_casts_no_transform!(impl for usize);
+owned_casts_no_transform!(impl for f32);
+owned_casts_no_transform!(impl for f64);
 owned_casts_from_unchecked!(impl for URLRequestStatus: cef_sys::cef_urlrequest_status_t::Type);
 owned_casts_from_unchecked!(impl for ProcessId: cef_sys::cef_process_id_t::Type);
 owned_casts_from_unchecked!(impl for crate::load_handler::ErrorCode: cef_sys::cef_errorcode_t::Type);
 owned_casts_from_unchecked!(impl for crate::request_context::PluginPolicy: cef_sys::cef_plugin_policy_t::Type);
 owned_casts_from_unchecked!(impl for crate::request_handler::WindowOpenDisposition: cef_sys::cef_window_open_disposition_t::Type);
+owned_casts_from_unchecked!(impl for crate::browser_host::PaintElementType: cef_sys::cef_paint_element_type_t::Type);
+owned_casts_from_unchecked!(impl for crate::client::render_handler::TextInputMode: cef_sys::cef_text_input_mode_t::Type);
+owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
+owned_casts_from!(impl for crate::values::Rect: cef_sys::cef_rect_t);
+owned_casts_from!(impl for crate::values::Size: cef_sys::cef_size_t);
+owned_casts_from!(impl for crate::values::Range: cef_sys::cef_range_t);
 impl CToRustType for bool {
     type CType = c_int;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
@@ -182,10 +252,10 @@ impl CToRustType for bool {
     }
 }
 
-impl CToRustType for CefStringList {
+impl CToRustType for ManuallyDrop<CefStringList> {
     type CType = cef_sys::cef_string_list_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        Self::from_raw(c_type)
+        CefStringList::from_raw(c_type)
     }
 }
 
@@ -266,7 +336,7 @@ macro_rules! cef_callback_impl {
         $(
             $(#[$meta:meta])*
             fn $fn_name:ident$(<$($igeneric:ident $(: $ibound:path)?),+>)?(&$self:ident $(, $field_name:ident: $field_ty:ty: $c_ty:ty)* $(,)?) $(-> $ret:ty)? $body:block
-        )+
+        )*
     }) => {
         impl$(<$($generic $(: $bound)?),+>)? $RefCounted {
             $(
@@ -285,7 +355,7 @@ macro_rules! cef_callback_impl {
                     )*
                     this.inner($($field_name),*)
                 }
-            )+
+            )*
         }
     };
 }

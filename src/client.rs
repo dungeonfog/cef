@@ -5,9 +5,15 @@ use cef_sys::{
 use downcast_rs::{impl_downcast, Downcast};
 use std::{ptr::null_mut};
 
+pub mod drag_handler;
 pub mod life_span_handler;
+pub mod render_handler;
 
-use self::life_span_handler::LifeSpanHandler;
+use self::{
+    drag_handler::DragHandler,
+    life_span_handler::LifeSpanHandler,
+    render_handler::RenderHandler,
+};
 
 use crate::{
     browser::Browser,
@@ -43,8 +49,8 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // /// Return the handler for download events. If no handler is returned downloads
     // /// will not be allowed.
     // fn get_download_handler(&self) -> Option<Box<dyn DownloadHandler>> { None }
-    // /// Return the handler for drag events.
-    // fn get_drag_handler(&self) -> Option<Box<dyn DragHandler>> { None }
+    /// Return the handler for drag events.
+    fn get_drag_handler(&self) -> Option<DragHandler> { None }
     // /// Return the handler for find result events.
     // fn get_find_handler(&self) -> Option<Box<dyn FindHandler>> { None }
     // /// Return the handler for focus events.
@@ -60,8 +66,8 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     fn get_load_handler(&self) -> Option<LoadHandler> {
         None
     }
-    // /// Return the handler for off-screen rendering events.
-    // fn get_render_handler(&self) -> Option<Box<dyn RenderHandler>> { None }
+    /// Return the handler for off-screen rendering events.
+    fn get_render_handler(&self) -> Option<RenderHandler> { None }
     /// Return the handler for browser request events.
     fn get_request_handler(&self) -> Option<RequestHandler> {
         None

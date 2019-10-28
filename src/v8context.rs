@@ -959,8 +959,8 @@ impl V8Value {
     /// Only available on objects. Arrays and functions are also objects.
     pub fn get_keys(&self) -> Option<Vec<String>> {
         self.0.get_keys.and_then(|get_keys| {
-            let list = CefStringList::new();
-            if unsafe { get_keys(self.as_ptr(), list.as_ptr()) } == 0 {
+            let mut list = CefStringList::new();
+            if unsafe { get_keys(self.as_ptr(), list.as_mut_ptr()) } == 0 {
                 None
             } else {
                 Some(

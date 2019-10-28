@@ -9,6 +9,7 @@ mod ptr_hash;
 mod misc_fns;
 pub use misc_fns::*;
 
+pub mod accessibility_handler;
 pub mod string;
 pub mod multimap;
 pub mod values;
@@ -52,6 +53,7 @@ pub mod ime;
 pub mod navigation;
 pub mod extension;
 pub mod request_handler;
+pub mod stream;
 pub mod ssl;
 pub mod task;
 

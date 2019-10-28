@@ -172,7 +172,7 @@ impl CefStringList {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn as_ptr(&self) -> cef_string_list_t {
+    pub fn as_mut_ptr(&mut self) -> cef_string_list_t {
         self.0
     }
     pub fn len(&self) -> usize {
@@ -192,8 +192,8 @@ impl CefStringList {
             cef_string_list_append(self.0, s.as_ptr());
         }
     }
-    pub unsafe fn from_raw(raw: cef_string_list_t) -> CefStringList {
-        CefStringList(raw)
+    pub unsafe fn from_raw(raw: cef_string_list_t) -> mem::ManuallyDrop<CefStringList> {
+        mem::ManuallyDrop::new(CefStringList(raw))
     }
     pub fn into_raw(self) -> cef_string_list_t {
         let list = self.0;
