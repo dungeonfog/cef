@@ -79,7 +79,7 @@ impl CommandLine {
     }
     /// Reset the command-line switches and arguments but leave the program
     /// component unchanged.
-    pub fn reset(&mut self) {
+    pub fn reset(&self) {
         unsafe {
             (self.0.reset.unwrap())(self.as_ptr());
         }
@@ -120,7 +120,7 @@ impl CommandLine {
         program_str
     }
     /// Set the program part of the command line string (the first item).
-    pub fn set_program(&mut self, program: &str) {
+    pub fn set_program(&self, program: &str) {
         let program = CefString::new(program);
         unsafe {
             (self.0.set_program.unwrap())(self.as_ptr(), program.as_ptr());
@@ -180,13 +180,13 @@ impl CommandLine {
         result
     }
     /// Add a switch to the end of the command line.
-    pub fn append_switch(&mut self, name: &str) {
+    pub fn append_switch(&self, name: &str) {
         unsafe {
             (self.0.append_switch.unwrap())(self.as_ptr(), CefString::new(name).as_ptr());
         }
     }
     /// Add a switch with the specified value to the end of the command line.
-    pub fn append_switch_with_value(&mut self, name: &str, value: &str) {
+    pub fn append_switch_with_value(&self, name: &str, value: &str) {
         unsafe {
             (self.0.append_switch_with_value.unwrap())(
                 self.as_ptr(),
@@ -208,14 +208,14 @@ impl CommandLine {
         list.into()
     }
     /// Add an argument to the end of the command line.
-    pub fn append_argument(&mut self, argument: &str) {
+    pub fn append_argument(&self, argument: &str) {
         unsafe {
             (self.0.append_argument.unwrap())(self.as_ptr(), CefString::new(argument).as_ptr());
         }
     }
     /// Insert a command before the current command. Common for debuggers, like
     /// "valgrind" or "`gdb --args`".
-    pub fn prepend_wrapper(&mut self, wrapper: &str) {
+    pub fn prepend_wrapper(&self, wrapper: &str) {
         unsafe {
             (self.0.prepend_wrapper.unwrap())(self.as_ptr(), CefString::new(wrapper).as_ptr());
         }

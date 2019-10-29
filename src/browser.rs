@@ -26,7 +26,7 @@ impl Browser {
         unsafe { (self.0.can_go_back.unwrap())(self.0.as_ptr()) != 0 }
     }
     /// Navigate backwards.
-    pub fn go_back(&mut self) {
+    pub fn go_back(&self) {
         unsafe {
             (self.0.go_back.unwrap())(self.0.as_ptr());
         }
@@ -36,7 +36,7 @@ impl Browser {
         unsafe { (self.0.can_go_forward.unwrap())(self.0.as_ptr()) != 0 }
     }
     /// Navigate forwards.
-    pub fn go_forward(&mut self) {
+    pub fn go_forward(&self) {
         unsafe {
             (self.0.go_forward.unwrap())(self.0.as_ptr());
         }
@@ -46,7 +46,7 @@ impl Browser {
         unsafe { (self.0.is_loading.unwrap())(self.0.as_ptr()) != 0 }
     }
     /// Reload the current page, optionally ignoring any cached data.
-    pub fn reload(&mut self, ignore_cache: bool) {
+    pub fn reload(&self, ignore_cache: bool) {
         if ignore_cache {
             unsafe {
                 (self.0.reload.unwrap())(self.0.as_ptr());
@@ -58,7 +58,7 @@ impl Browser {
         }
     }
     /// Stop loading the page.
-    pub fn stop_load(&mut self) {
+    pub fn stop_load(&self) {
         unsafe {
             (self.0.stop_load.unwrap())(self.0.as_ptr());
         }

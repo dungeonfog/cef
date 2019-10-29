@@ -25,7 +25,7 @@ impl Frame {
             .unwrap_or(false)
     }
     /// Execute undo in this frame.
-    pub fn undo(&mut self) {
+    pub fn undo(&self) {
         if let Some(undo) = self.0.undo {
             unsafe {
                 undo(self.0.as_ptr());
@@ -33,7 +33,7 @@ impl Frame {
         }
     }
     /// Execute redo in this frame.
-    pub fn redo(&mut self) {
+    pub fn redo(&self) {
         if let Some(redo) = self.0.redo {
             unsafe {
                 redo(self.0.as_ptr());
@@ -41,7 +41,7 @@ impl Frame {
         }
     }
     /// Execute cut in this frame.
-    pub fn cut(&mut self) {
+    pub fn cut(&self) {
         if let Some(cut) = self.0.cut {
             unsafe {
                 cut(self.0.as_ptr());
@@ -49,7 +49,7 @@ impl Frame {
         }
     }
     /// Execute copy in this frame.
-    pub fn copy(&mut self) {
+    pub fn copy(&self) {
         if let Some(copy) = self.0.copy {
             unsafe {
                 copy(self.0.as_ptr());
@@ -57,7 +57,7 @@ impl Frame {
         }
     }
     /// Execute paste in this frame.
-    pub fn paste(&mut self) {
+    pub fn paste(&self) {
         if let Some(paste) = self.0.paste {
             unsafe {
                 paste(self.0.as_ptr());
@@ -65,7 +65,7 @@ impl Frame {
         }
     }
     /// Execute delete in this frame.
-    pub fn del(&mut self) {
+    pub fn del(&self) {
         if let Some(del) = self.0.del {
             unsafe {
                 del(self.0.as_ptr());
@@ -73,7 +73,7 @@ impl Frame {
         }
     }
     /// Execute select all in this frame.
-    pub fn select_all(&mut self) {
+    pub fn select_all(&self) {
         if let Some(select_all) = self.0.select_all {
             unsafe {
                 select_all(self.0.as_ptr());
@@ -109,7 +109,7 @@ impl Frame {
         }
     }
     /// Load the request represented by the |request| object.
-    pub fn load_request(&mut self, request: &Request) {
+    pub fn load_request(&self, request: &Request) {
         if let Some(load_request) = self.0.load_request {
             unsafe {
                 load_request(self.0.as_ptr(), request.as_ptr());
@@ -117,7 +117,7 @@ impl Frame {
         }
     }
     /// Load the specified `url`.
-    pub fn load_url(&mut self, url: &str) {
+    pub fn load_url(&self, url: &str) {
         if let Some(load_url) = self.0.load_url {
             unsafe {
                 load_url(self.0.as_ptr(), CefString::new(url).as_ptr());
@@ -127,7 +127,7 @@ impl Frame {
     /// Load the contents of `string_val` with the specified dummy `url`. `url`
     /// should have a standard scheme (for example, http scheme) or behaviors like
     /// link clicks and web security restrictions may not behave as expected.
-    pub fn load_string(&mut self, string_val: &str, url: &str) {
+    pub fn load_string(&self, string_val: &str, url: &str) {
         if let Some(load_string) = self.0.load_string {
             unsafe {
                 load_string(
@@ -143,7 +143,7 @@ impl Frame {
     /// renderer may request this URL to show the developer the source of the
     /// error.  The `start_line` parameter is the base line number to use for error
     /// reporting.
-    pub fn execute_java_script(&mut self, code: &str, script_url: &str, start_line: i32) {
+    pub fn execute_java_script(&self, code: &str, script_url: &str, start_line: i32) {
         if let Some(execute_java_script) = self.0.execute_java_script {
             unsafe {
                 execute_java_script(

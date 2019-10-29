@@ -164,7 +164,7 @@ impl V8Context {
     /// the same number of times as [enter] before releasing this context. V8
     /// objects belong to the context in which they are created. Returns true
     /// if the scope was entered successfully.
-    pub fn enter(&mut self) -> bool {
+    pub fn enter(&self) -> bool {
         self.0
             .enter
             .map(|enter| unsafe { enter(self.as_ptr()) != 0 })
@@ -172,7 +172,7 @@ impl V8Context {
     }
     /// Exit this context. Call this function only after calling [enter]. Returns
     /// true if the scope was exited successfully.
-    pub fn exit(&mut self) -> bool {
+    pub fn exit(&self) -> bool {
         self.0
             .exit
             .map(|exit| unsafe { exit(self.as_ptr()) != 0 })
@@ -180,7 +180,7 @@ impl V8Context {
     }
     /// Convenience function to wrap a closure in an [enter] and [exit] call.
     /// If enter fails, the closure is not executed and None is returned. If exit fails, None is returned.
-    pub fn execute_in_context<T>(&mut self, fun: impl FnOnce() -> T) -> Option<T> {
+    pub fn execute_in_context<T>(&self, fun: impl FnOnce() -> T) -> Option<T> {
         if self.enter() {
             let result = fun();
             if self.exit() {
@@ -201,7 +201,7 @@ impl V8Context {
     /// parameter is the URL where the script in question can be found, if any. The
     /// `start_line` parameter is the base line number to use for error reporting.
     pub fn eval(
-        &mut self,
+        &self,
         code: &str,
         script_url: &str,
         start_line: i32,
@@ -768,7 +768,7 @@ impl V8Value {
     ///
     /// Only available on objects. Arrays and
     /// functions are also objects.
-    pub fn clear_exception(&mut self) -> bool {
+    pub fn clear_exception(&self) -> bool {
         self.0
             .clear_exception
             .map(|clear_exception| unsafe { clear_exception(self.as_ptr()) != 0 })
@@ -793,7 +793,7 @@ impl V8Value {
     ///
     /// Only available on objects. Arrays and
     /// functions are also objects.
-    pub fn set_rethrow_exceptions(&mut self, rethrow: bool) -> bool {
+    pub fn set_rethrow_exceptions(&self, rethrow: bool) -> bool {
         self.0
             .set_rethrow_exceptions
             .map(|set_rethrow_exceptions| unsafe {
@@ -833,7 +833,7 @@ impl V8Value {
     /// Only available on objects. Arrays and functions are also objects.
     /// String- and integer-based keys can be used interchangably with the
     /// framework converting between them as necessary.
-    pub fn delete_value_bykey(&mut self, key: &str) -> bool {
+    pub fn delete_value_bykey(&self, key: &str) -> bool {
         self.0
             .delete_value_bykey
             .map(|delete_value_bykey| unsafe {
@@ -849,7 +849,7 @@ impl V8Value {
     /// Only available on objects. Arrays and functions are also objects.
     /// String- and integer-based keys can be used interchangably with the
     /// framework converting between them as necessary.
-    pub fn delete_value_byindex(&mut self, index: i32) -> bool {
+    pub fn delete_value_byindex(&self, index: i32) -> bool {
         self.0
             .delete_value_byindex
             .map(|delete_value_byindex| unsafe { delete_value_byindex(self.as_ptr(), index) != 0 })
@@ -888,7 +888,7 @@ impl V8Value {
     /// String- and integer-based keys can be used interchangably with the
     /// framework converting between them as necessary.
     pub fn set_value_bykey(
-        &mut self,
+        &self,
         key: &str,
         value: &V8Value,
         attributes: &[V8PropertyAttribute],
@@ -914,7 +914,7 @@ impl V8Value {
     /// Only available on objects. Arrays and functions are also objects.
     /// String- and integer-based keys can be used interchangably with the
     /// framework converting between them as necessary.
-    pub fn set_value_byindex(&mut self, index: i32, value: V8Value) -> bool {
+    pub fn set_value_byindex(&self, index: i32, value: V8Value) -> bool {
         self.0
             .set_value_byindex
             .map(|set_value_byindex| unsafe {
@@ -932,7 +932,7 @@ impl V8Value {
     /// String- and integer-based keys can be used interchangably with the
     /// framework converting between them as necessary.
     pub fn set_value_byaccessor(
-        &mut self,
+        &self,
         key: &str,
         settings: &[V8AccessControl],
         attributes: &[V8PropertyAttribute],
@@ -974,7 +974,7 @@ impl V8Value {
     /// Sets the user data for this object and returns true on success. Returns
     /// false if this function is called incorrectly. This function can only be
     /// called on user created objects.
-    pub fn set_user_data(&mut self, user_data: impl Any + Sync + Send) -> bool {
+    pub fn set_user_data(&self, user_data: impl Any + Sync + Send) -> bool {
         self.0
             .set_user_data
             .map(|set_user_data| unsafe {
@@ -1008,7 +1008,7 @@ impl V8Value {
     /// `change_in_bytes` specifies the number of bytes to adjust by. This function
     /// returns the number of bytes associated with the object after the
     /// adjustment. This function can only be called on user created objects.
-    pub fn adjust_externally_allocated_memory(&mut self, change_in_bytes: i32) -> i32 {
+    pub fn adjust_externally_allocated_memory(&self, change_in_bytes: i32) -> i32 {
         self.0
             .adjust_externally_allocated_memory
             .map(|adjust_externally_allocated_memory| unsafe {
@@ -1030,7 +1030,7 @@ impl V8Value {
     /// to zero. This operation cannot be undone.
     ///
     /// This function is only available on ArrayBuffers.
-    pub fn neuter_array_buffer(&mut self) -> bool {
+    pub fn neuter_array_buffer(&self) -> bool {
         self.0
             .neuter_array_buffer
             .map(|neuter_array_buffer| unsafe { neuter_array_buffer(self.as_ptr()) != 0 })
@@ -1068,7 +1068,7 @@ impl V8Value {
     ///
     /// This function is only available on functions.
     pub fn execute_function(
-        &mut self,
+        &self,
         object: Option<&mut V8Value>,
         arguments: &[V8Value],
     ) -> Option<V8Value> {
@@ -1098,7 +1098,7 @@ impl V8Value {
     ///
     /// This function is only available on functions.
     pub fn execute_function_with_context(
-        &mut self,
+        &self,
         context: &mut V8Context,
         object: Option<&mut V8Value>,
         arguments: &[V8Value],
@@ -1203,7 +1203,7 @@ pub trait V8AccessorCallbacks: 'static + Send + Sync {
     /// the receiver ('this' object) of the accessor. `value` is the new value
     /// being assigned to the accessor. If assignment fails return `Err(exception)`
     /// to be thrown as an exception.
-    fn set(&mut self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
+    fn set(&self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
 pub(crate) struct V8AccessorWrapper(Mutex<Box<dyn V8AccessorCallbacks>>);
@@ -1302,12 +1302,12 @@ pub trait V8InterceptorCallbacks: Sync + Send + 'static {
     /// value being assigned to the interceptor. If assignment fails, return
     /// `Err(_)` with the exception that will be thrown. This setter will always
     /// be called, even when the property has an associated accessor.
-    fn set_byname(&mut self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
+    fn set_byname(&self, name: &str, object: &V8Value, value: &V8Value) -> Result<(), String>;
     /// Handle assignment of the interceptor value identified by `index`. `object`
     /// is the receiver ('this' object) of the interceptor. `value` is the new
     /// value being assigned to the interceptor. If assignment fails, return
     /// `Err(_)` with the exception that will be thrown.
-    fn set_byindex(&mut self, index: i32, object: &V8Value, value: &V8Value) -> Result<(), String>;
+    fn set_byindex(&self, index: i32, object: &V8Value, value: &V8Value) -> Result<(), String>;
 }
 
 pub(crate) struct V8InterceptorWrapper(Mutex<RefCell<Box<dyn V8InterceptorCallbacks>>>);

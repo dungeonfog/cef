@@ -65,7 +65,7 @@ impl DOMNode {
         unsafe{ CefString::from_userfree_unchecked((self.0.get_value.unwrap())(self.as_ptr())).into() }
     }
     /// Set the value of this node. Returns true on success.
-    pub fn set_value(&mut self, value: &str) -> bool {
+    pub fn set_value(&self, value: &str) -> bool {
         let value = CefString::new(value);
         unsafe{ (self.0.set_value.unwrap())(self.as_ptr(), value.as_ptr()) != 0 }
     }
@@ -128,7 +128,7 @@ impl DOMNode {
     }
     /// Set the value for the element attribute named `attr_name`. Returns true
     /// on success.
-    pub fn set_element_attribute(&mut self, attr_name: &str, value: &str) -> bool {
+    pub fn set_element_attribute(&self, attr_name: &str, value: &str) -> bool {
         let attr_name = CefString::new(attr_name);
         let value = CefString::new(value);
         unsafe{ (self.0.set_element_attribute.unwrap())(self.as_ptr(), attr_name.as_ptr(), value.as_ptr()) != 0 }

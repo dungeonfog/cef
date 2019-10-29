@@ -184,7 +184,7 @@ impl Request {
             .unwrap_or_default()
     }
     /// Set the fully qualified URL.
-    pub fn set_url(&mut self, url: &str) {
+    pub fn set_url(&self, url: &str) {
         if let Some(set_url) = self.0.set_url {
             unsafe {
                 set_url(self.0.as_ptr(), CefString::new(url).as_ptr());
@@ -205,7 +205,7 @@ impl Request {
             .unwrap_or_else(|| "GET".to_owned())
     }
     /// Set the request function type.
-    pub fn set_method(&mut self, method: &str) {
+    pub fn set_method(&self, method: &str) {
         if let Some(set_method) = self.0.set_method {
             unsafe {
                 set_method(self.0.as_ptr(), CefString::new(method).as_ptr());
@@ -215,7 +215,7 @@ impl Request {
     /// Set the referrer URL and policy. if `Some` the referrer URL must be fully
     /// qualified with an HTTP or HTTPS scheme component. Any username, password or
     /// ref component will be removed.
-    pub fn set_referrer(&mut self, referrer_url: Option<&str>, policy: ReferrerPolicy) {
+    pub fn set_referrer(&self, referrer_url: Option<&str>, policy: ReferrerPolicy) {
         if let Some(set_referrer) = self.0.set_referrer {
             if let Some(referrer_url) = referrer_url {
                 unsafe {
@@ -255,7 +255,7 @@ impl Request {
         unsafe { PostData::from_ptr_unchecked(get_post_data(self.0.as_ptr())) }
     }
     /// Set the post data.
-    pub fn set_post_data(&mut self, post_data: PostData) {
+    pub fn set_post_data(&self, post_data: PostData) {
         if let Some(set_post_data) = self.0.set_post_data {
             unsafe {
                 set_post_data(self.0.as_ptr(), post_data.into_raw());
@@ -291,7 +291,7 @@ impl Request {
     /// values will be replaced with the new value. if `overwrite` is false any
     /// existing values will not be overwritten. The Referer value cannot be set
     /// using this function.
-    pub fn set_header_by_name(&mut self, name: &str, value: &str, overwrite: bool) {
+    pub fn set_header_by_name(&self, name: &str, value: &str, overwrite: bool) {
         if let Some(set_header_by_name) = self.0.set_header_by_name {
             unsafe {
                 set_header_by_name(
@@ -305,7 +305,7 @@ impl Request {
     }
     /// Set all values at one time.
     pub fn set(
-        &mut self,
+        &self,
         url: &str,
         method: &str,
         post_data: PostData,
@@ -338,7 +338,7 @@ impl Request {
     }
     /// Set the flags used in combination with [URLRequest]. See
     /// [URLRequestFlags] for supported values.
-    pub fn set_flags(&mut self, flags: &[URLRequestFlags]) {
+    pub fn set_flags(&self, flags: &[URLRequestFlags]) {
         if let Some(set_flags) = self.0.set_flags {
             unsafe {
                 set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags));
@@ -362,7 +362,7 @@ impl Request {
     }
     /// Set the URL to the first party for cookies used in combination with
     /// [URLRequest].
-    pub fn set_first_party_for_cookies(&mut self, url: &str) {
+    pub fn set_first_party_for_cookies(&self, url: &str) {
         if let Some(set_first_party_for_cookies) = self.0.set_first_party_for_cookies {
             unsafe {
                 set_first_party_for_cookies(self.0.as_ptr(), CefString::new(url).as_ptr());
@@ -462,7 +462,7 @@ impl PostData {
     }
     /// Remove the specified post data element. Returns true if the removal
     /// succeeds.
-    pub fn remove_element(&mut self, element: &PostDataElement) -> bool {
+    pub fn remove_element(&self, element: &PostDataElement) -> bool {
         if let Some(remove_element) = self.0.remove_element {
             unsafe { remove_element(self.as_ptr(), element.as_ptr()) != 0 }
         } else {
@@ -470,7 +470,7 @@ impl PostData {
         }
     }
     /// Add the specified post data element. Returns true if the add succeeds.
-    pub fn add_element(&mut self, element: &PostDataElement) -> bool {
+    pub fn add_element(&self, element: &PostDataElement) -> bool {
         if let Some(add_element) = self.0.add_element {
             unsafe { add_element(self.as_ptr(), element.as_ptr()) != 0 }
         } else {
@@ -478,7 +478,7 @@ impl PostData {
         }
     }
     /// Remove all existing post data elements.
-    pub fn remove_elements(&mut self) {
+    pub fn remove_elements(&self) {
         if let Some(remove_elements) = self.0.remove_elements {
             unsafe {
                 remove_elements(self.as_ptr());
@@ -513,7 +513,7 @@ impl PostDataElement {
             .unwrap_or(true)
     }
     /// Remove all contents from the post data element.
-    pub fn set_to_empty(&mut self) {
+    pub fn set_to_empty(&self) {
         if let Some(set_to_empty) = self.0.set_to_empty {
             unsafe {
                 set_to_empty(self.as_ptr());
@@ -521,7 +521,7 @@ impl PostDataElement {
         }
     }
     /// The post data element will represent a file.
-    pub fn set_to_file(&mut self, file_name: &str) {
+    pub fn set_to_file(&self, file_name: &str) {
         if let Some(set_to_file) = self.0.set_to_file {
             unsafe {
                 set_to_file(self.0.as_ptr(), CefString::new(file_name).as_ptr());
@@ -530,7 +530,7 @@ impl PostDataElement {
     }
     /// The post data element will represent bytes.  The bytes passed in will be
     /// copied.
-    pub fn set_to_bytes(&mut self, bytes: &[u8]) {
+    pub fn set_to_bytes(&self, bytes: &[u8]) {
         if let Some(set_to_bytes) = self.0.set_to_bytes {
             unsafe {
                 set_to_bytes(

@@ -126,7 +126,7 @@ impl BrowserHost {
     /// the event handler allows the close or if `force_close` is true. See
     /// [LifeSpanHandler::do_close] documentation for additional usage
     /// information.
-    pub fn close_browser(&mut self, force_close: bool) {
+    pub fn close_browser(&self, force_close: bool) {
         if let Some(close_browser) = self.0.close_browser {
             unsafe {
                 close_browser(self.0.as_ptr(), force_close as i32);
@@ -139,14 +139,14 @@ impl BrowserHost {
     /// is pending and true after the close has completed. See [close_browser]
     /// and [LifeSpanHandler::do_close] documentation for additional usage
     /// information. This function must be called on the browser process UI thread.
-    pub fn try_close_browser(&mut self) -> bool {
+    pub fn try_close_browser(&self) -> bool {
         self.0
             .try_close_browser
             .map(|try_close_browser| unsafe { try_close_browser(self.0.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Set whether the browser is focused.
-    pub fn set_focus(&mut self, focus: bool) {
+    pub fn set_focus(&self, focus: bool) {
         if let Some(set_focus) = self.0.set_focus {
             unsafe {
                 set_focus(self.0.as_ptr(), focus as i32);
@@ -210,7 +210,7 @@ impl BrowserHost {
     /// Change the zoom level to the specified value. Specify 0.0 to reset the zoom
     /// level. If called on the UI thread the change will be applied immediately.
     /// Otherwise, the change will be applied asynchronously on the UI thread.
-    pub fn set_zoom_level(&mut self, zoom_level: f64) {
+    pub fn set_zoom_level(&self, zoom_level: f64) {
         if let Some(set_zoom_level) = self.0.set_zoom_level {
             unsafe {
                 set_zoom_level(self.0.as_ptr(), zoom_level);
@@ -264,7 +264,7 @@ impl BrowserHost {
         }
     }
     /// Download the file at `url` using [DownloadHandler].
-    pub fn start_download(&mut self, url: &str) {
+    pub fn start_download(&self, url: &str) {
         if let Some(start_download) = self.0.start_download {
             unsafe {
                 start_download(self.0.as_ptr(), CefString::new(url).as_ptr());
@@ -448,7 +448,7 @@ impl BrowserHost {
         }
     }
     /// Set whether mouse cursor change is disabled.
-    pub fn set_mouse_cursor_change_disabled(&mut self, disabled: bool) {
+    pub fn set_mouse_cursor_change_disabled(&self, disabled: bool) {
         if let Some(set_mouse_cursor_change_disabled) = self.0.set_mouse_cursor_change_disabled {
             unsafe {
                 set_mouse_cursor_change_disabled(self.0.as_ptr(), disabled as i32);
@@ -466,7 +466,7 @@ impl BrowserHost {
     }
     /// If a misspelled word is currently selected in an editable node calling this
     /// function will replace it with the specified `word`.
-    pub fn replace_misspelling(&mut self, word: &str) {
+    pub fn replace_misspelling(&self, word: &str) {
         if let Some(replace_misspelling) = self.0.replace_misspelling {
             unsafe {
                 replace_misspelling(self.0.as_ptr(), CefString::new(word).as_ptr());
@@ -474,7 +474,7 @@ impl BrowserHost {
         }
     }
     /// Add the specified `word` to the spelling dictionary.
-    pub fn add_word_to_dictionary(&mut self, word: &str) {
+    pub fn add_word_to_dictionary(&self, word: &str) {
         if let Some(add_word_to_dictionary) = self.0.add_word_to_dictionary {
             unsafe {
                 add_word_to_dictionary(self.0.as_ptr(), CefString::new(word).as_ptr());
@@ -527,7 +527,7 @@ impl BrowserHost {
     /// Invalidate the view. The browser will call [RenderHandler::on_paint]
     /// asynchronously. This function is only used when window rendering is
     /// disabled.
-    pub fn invalidate(&mut self, element_type: PaintElementType) {
+    pub fn invalidate(&self, element_type: PaintElementType) {
         if let Some(invalidate) = self.0.invalidate {
             unsafe {
                 invalidate(self.0.as_ptr(), element_type as i32);
@@ -544,7 +544,7 @@ impl BrowserHost {
         }
     }
     /// Send a key event to the browser.
-    pub fn send_key_event(&mut self, event: &KeyEvent) {
+    pub fn send_key_event(&self, event: &KeyEvent) {
         if let Some(send_key_event) = self.0.send_key_event {
             unsafe {
                 send_key_event(self.0.as_ptr(), event.as_ptr());
@@ -554,7 +554,7 @@ impl BrowserHost {
     /// Send a mouse click event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view.
     pub fn send_mouse_click_event(
-        &mut self,
+        &self,
         event: &MouseEvent,
         button_type: MouseButtonType,
         mouse_up: bool,
@@ -574,7 +574,7 @@ impl BrowserHost {
     }
     /// Send a mouse move event to the browser. The `x` and `y` coordinates are
     /// relative to the upper-left corner of the view.
-    pub fn send_mouse_move_event(&mut self, event: &MouseEvent, mouse_leave: bool) {
+    pub fn send_mouse_move_event(&self, event: &MouseEvent, mouse_leave: bool) {
         if let Some(send_mouse_move_event) = self.0.send_mouse_move_event {
             unsafe {
                 send_mouse_move_event(self.0.as_ptr(), event.as_ptr(), mouse_leave as i32);
@@ -586,7 +586,7 @@ impl BrowserHost {
     /// values represent the movement delta in the X and Y directions respectively.
     /// In order to scroll inside select popups with window rendering disabled
     /// [RenderHandler::get_screen_point] should be implemented properly.
-    pub fn send_mouse_wheel_event(&mut self, event: &MouseEvent, delta_x: i32, delta_y: i32) {
+    pub fn send_mouse_wheel_event(&self, event: &MouseEvent, delta_x: i32, delta_y: i32) {
         if let Some(send_mouse_wheel_event) = self.0.send_mouse_wheel_event {
             unsafe {
                 send_mouse_wheel_event(self.0.as_ptr(), event.as_ptr(), delta_x, delta_y);
@@ -594,7 +594,7 @@ impl BrowserHost {
         }
     }
     /// Send a touch event to the browser for a windowless browser.
-    pub fn send_touch_event(&mut self, event: &TouchEvent) {
+    pub fn send_touch_event(&self, event: &TouchEvent) {
         if let Some(send_touch_event) = self.0.send_touch_event {
             unsafe {
                 send_touch_event(self.0.as_ptr(), event.as_ptr());
@@ -602,7 +602,7 @@ impl BrowserHost {
         }
     }
     /// Send a focus event to the browser.
-    pub fn send_focus_event(&mut self, set_focus: bool) {
+    pub fn send_focus_event(&self, set_focus: bool) {
         if let Some(send_focus_event) = self.0.send_focus_event {
             unsafe {
                 send_focus_event(self.0.as_ptr(), set_focus as i32);
@@ -610,7 +610,7 @@ impl BrowserHost {
         }
     }
     /// Send a capture lost event to the browser.
-    pub fn send_capture_lost_event(&mut self) {
+    pub fn send_capture_lost_event(&self) {
         if let Some(send_capture_lost_event) = self.0.send_capture_lost_event {
             unsafe {
                 send_capture_lost_event(self.0.as_ptr());
@@ -642,7 +642,7 @@ impl BrowserHost {
     /// lower if the browser cannot generate frames at the requested rate. The
     /// minimum value is 1 and the maximum value is 60 (default 30). Can also be
     /// set at browser creation via [BrowserSettings::windowless_frame_rate].
-    pub fn set_windowless_frame_rate(&mut self, frame_rate: i32) {
+    pub fn set_windowless_frame_rate(&self, frame_rate: i32) {
         if let Some(set_windowless_frame_rate) = self.0.set_windowless_frame_rate {
             unsafe {
                 set_windowless_frame_rate(self.0.as_ptr(), frame_rate);
@@ -671,7 +671,7 @@ impl BrowserHost {
     ///
     /// This function is only used when window rendering is disabled.
     pub fn ime_set_composition(
-        &mut self,
+        &self,
         text: &str,
         underlines_count: usize,
         underlines: &CompositionUnderline,
@@ -700,7 +700,7 @@ impl BrowserHost {
     /// `relative_cursor_pos` values are only used on OS X. This function is only
     /// used when window rendering is disabled.
     pub fn ime_commit_text(
-        &mut self,
+        &self,
         text: Option<&str>,
         replacement_range: Option<&Range>,
         relative_cursor_pos: i32,
@@ -721,7 +721,7 @@ impl BrowserHost {
     /// contents. If `keep_selection` is false the current selection, if any,
     /// will be discarded. See comments on [BrowserHost::ime_set_composition] for usage. This
     /// function is only used when window rendering is disabled.
-    pub fn ime_finish_composing_text(&mut self, keep_selection: bool) {
+    pub fn ime_finish_composing_text(&self, keep_selection: bool) {
         if let Some(ime_finish_composing_text) = self.0.ime_finish_composing_text {
             unsafe {
                 ime_finish_composing_text(self.0.as_ptr(), keep_selection as i32);
@@ -731,7 +731,7 @@ impl BrowserHost {
     /// Cancels the existing composition and discards the composition node contents
     /// without applying them. See comments on ImeSetComposition for usage. This
     /// function is only used when window rendering is disabled.
-    pub fn ime_cancel_composition(&mut self) {
+    pub fn ime_cancel_composition(&self) {
         if let Some(ime_cancel_composition) = self.0.ime_cancel_composition {
             unsafe {
                 ime_cancel_composition(self.0.as_ptr());
@@ -746,7 +746,7 @@ impl BrowserHost {
     /// [RenderHandler::start_dragging]). This function is only used when
     /// window rendering is disabled.
     pub fn drag_target_drag_enter(
-        &mut self,
+        &self,
         drag_data: &DragData,
         event: &MouseEvent,
         allowed_ops: &[DragOperation],
@@ -766,7 +766,7 @@ impl BrowserHost {
     /// a drag operation (after calling [BrowserHost::drag_target_drag_enter] and before calling
     /// [BrowserHost::drag_target_drag_leave]/[BrowserHost::drag_target_drop]). This function is only used when window
     /// rendering is disabled.
-    pub fn drag_target_drag_over(&mut self, event: &MouseEvent, allowed_ops: &[DragOperation]) {
+    pub fn drag_target_drag_over(&self, event: &MouseEvent, allowed_ops: &[DragOperation]) {
         if let Some(drag_target_drag_over) = self.0.drag_target_drag_over {
             unsafe {
                 drag_target_drag_over(
@@ -780,7 +780,7 @@ impl BrowserHost {
     /// Call this function when the user drags the mouse out of the web view (after
     /// calling [BrowserHost::drag_target_drag_enter]). This function is only used when window
     /// rendering is disabled.
-    pub fn drag_target_drag_leave(&mut self) {
+    pub fn drag_target_drag_leave(&self) {
         if let Some(drag_target_drag_leave) = self.0.drag_target_drag_leave {
             unsafe {
                 drag_target_drag_leave(self.0.as_ptr());
@@ -792,7 +792,7 @@ impl BrowserHost {
     /// object being dropped is `drag_data`, given as an argument to the previous
     /// [BrowserHost::drag_target_drag_enter] call. This function is only used when window rendering
     /// is disabled.
-    pub fn drag_target_drop(&mut self, event: &MouseEvent) {
+    pub fn drag_target_drop(&self, event: &MouseEvent) {
         if let Some(drag_target_drop) = self.0.drag_target_drop {
             unsafe {
                 drag_target_drop(self.0.as_ptr(), event.as_ptr());
@@ -806,7 +806,7 @@ impl BrowserHost {
     /// drag target then all drag_target_* functions should be called before
     /// drag_source_* methods. This function is only used when window rendering is
     /// disabled.
-    pub fn drag_source_ended_at(&mut self, x: i32, y: i32, op: &[DragOperation]) {
+    pub fn drag_source_ended_at(&self, x: i32, y: i32, op: &[DragOperation]) {
         if let Some(drag_source_ended_at) = self.0.drag_source_ended_at {
             unsafe {
                 drag_source_ended_at(self.0.as_ptr(), x, y, DragOperation::as_mask(op.iter()));
@@ -819,7 +819,7 @@ impl BrowserHost {
     /// drag operation. If the web view is both the drag source and the drag target
     /// then all drag_target_* functions should be called before drag_source_* methods.
     /// This function is only used when window rendering is disabled.
-    pub fn drag_source_system_drag_ended(&mut self) {
+    pub fn drag_source_system_drag_ended(&self) {
         if let Some(drag_source_system_drag_ended) = self.0.drag_source_system_drag_ended {
             unsafe {
                 drag_source_system_drag_ended(self.0.as_ptr());
@@ -856,7 +856,7 @@ impl BrowserHost {
     /// events are passed to [AccessibiltyHandler], but platform accessibility
     /// objects are not created. The client may implement platform accessibility
     /// objects using [AccessibiltyHandler] callbacks if desired.
-    pub fn set_accessibility_state(&mut self, accessibility_state: State) {
+    pub fn set_accessibility_state(&self, accessibility_state: State) {
         if let Some(set_accessibility_state) = self.0.set_accessibility_state {
             unsafe {
                 set_accessibility_state(self.0.as_ptr(), accessibility_state as i32);
@@ -866,7 +866,7 @@ impl BrowserHost {
     /// Enable notifications of auto resize via
     /// [DisplayHandler::on_auto_resize]. Notifications are disabled by default.
     /// `min_size` and `max_size` define the range of allowed sizes.
-    pub fn set_auto_resize_enabled(&mut self, enabled: bool, min_size: &Size, max_size: &Size) {
+    pub fn set_auto_resize_enabled(&self, enabled: bool, min_size: &Size, max_size: &Size) {
         if let Some(set_auto_resize_enabled) = self.0.set_auto_resize_enabled {
             unsafe {
                 set_auto_resize_enabled(
@@ -895,7 +895,7 @@ impl BrowserHost {
             .unwrap_or(false)
     }
     ///  Set whether the browser's audio is muted.
-    pub fn set_audio_muted(&mut self, mute: bool) {
+    pub fn set_audio_muted(&self, mute: bool) {
         if let Some(set_audio_muted) = self.0.set_audio_muted {
             unsafe {
                 set_audio_muted(self.0.as_ptr(), mute as i32);

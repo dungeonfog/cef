@@ -84,7 +84,7 @@ impl Extension {
     /// Unload this extension if it is not an internal extension and is currently
     /// loaded. Will result in a call to
     /// [ExtensionHandler::on_extension_unloaded] on success.
-    pub fn unload(&mut self) {
+    pub fn unload(&self) {
         if let Some(unload) = self.0.unload {
             unsafe {
                 unload(self.0.as_ptr());

@@ -63,7 +63,7 @@ impl MultiMap {
         }
     }
     /// Append a new key/value pair at the end of the string multimap.
-    pub(crate) fn append(&mut self, key: &str, value: &str) -> Result<(), ()> {
+    pub(crate) fn append(&self, key: &str, value: &str) -> Result<(), ()> {
         if unsafe {
             cef_string_multimap_append(
                 self.0,
@@ -77,7 +77,7 @@ impl MultiMap {
         }
     }
     /// Clear the string multimap.
-    pub(crate) fn clear(&mut self) {
+    pub(crate) fn clear(&self) {
         unsafe {
             cef_string_multimap_clear(self.0);
         }
@@ -103,7 +103,7 @@ impl From<cef_string_multimap_t> for MultiMap {
 #[doc(hidden)]
 impl From<&HashMap<String, Vec<String>>> for MultiMap {
     fn from(map: &HashMap<String, Vec<String>>) -> Self {
-        let mut result = MultiMap::new();
+        let result = MultiMap::new();
 
         for (key, list) in map.iter() {
             for value in list.iter() {

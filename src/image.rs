@@ -82,7 +82,7 @@ impl Image {
     /// pixel data and should be `pixel_width` x `pixel_height` x 4 bytes in size.
     /// `color_type` and `alpha_type` values specify the pixel format.
     pub fn add_bitmap(
-        &mut self,
+        &self,
         scale_factor: f32,
         pixel_width: i32,
         pixel_height: i32,
@@ -109,7 +109,7 @@ impl Image {
     /// Add a PNG image representation for `scale_factor`. `png_data` is the image
     /// data. Any alpha transparency in the PNG data will
     /// be maintained.
-    pub fn add_png(&mut self, scale_factor: f32, png_data: &[u8]) -> bool {
+    pub fn add_png(&self, scale_factor: f32, png_data: &[u8]) -> bool {
         self.0
             .add_png
             .map(|add_png| unsafe {
@@ -125,7 +125,7 @@ impl Image {
     /// Create a JPEG image representation for `scale_factor`. `jpeg_data` is the
     /// image data. The JPEG format does not support
     /// transparency so the alpha byte will be set to `0xFF` for all pixels.
-    pub fn add_jpeg(&mut self, scale_factor: f32, jpeg_data: &[u8]) -> bool {
+    pub fn add_jpeg(&self, scale_factor: f32, jpeg_data: &[u8]) -> bool {
         self.0
             .add_jpeg
             .map(|add_jpeg| unsafe {
@@ -163,7 +163,7 @@ impl Image {
             .unwrap_or(false)
     }
     /// Removes the representation for `scale_factor`. Returns true on success.
-    pub fn remove_representation(&mut self, scale_factor: f32) -> bool {
+    pub fn remove_representation(&self, scale_factor: f32) -> bool {
         self.0
             .remove_representation
             .map(|remove_representation| unsafe {

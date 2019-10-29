@@ -98,7 +98,7 @@ impl TaskRunner {
     }
     /// Post a task for execution on the thread associated with this task runner.
     /// Execution will occur asynchronously.
-    pub fn post_task(&mut self, task: impl FnOnce() + Send + 'static) -> bool {
+    pub fn post_task(&self, task: impl FnOnce() + Send + 'static) -> bool {
         self.0
             .post_task
             .map(|post_task| unsafe {
@@ -111,7 +111,7 @@ impl TaskRunner {
     /// supported on V8 WebWorker threads and will be executed without the
     /// specified delay.
     pub fn post_delayed_task(
-        &mut self,
+        &self,
         task: impl FnOnce() + Send + 'static,
         delay_ms: i64,
     ) -> bool {

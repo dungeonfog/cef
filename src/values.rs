@@ -173,7 +173,7 @@ impl Value {
     }
     /// Sets the underlying value as type null. Returns true if the value was
     /// set successfully.
-    pub(crate) fn set_null(&mut self) -> bool {
+    pub(crate) fn set_null(&self) -> bool {
         self.0
             .set_null
             .map(|set_null| unsafe { set_null(self.as_ptr()) != 0 })
@@ -181,7 +181,7 @@ impl Value {
     }
     /// Sets the underlying value as type bool. Returns true if the value was
     /// set successfully.
-    pub(crate) fn set_bool(&mut self, value: bool) -> bool {
+    pub(crate) fn set_bool(&self, value: bool) -> bool {
         self.0
             .set_bool
             .map(|set_bool| unsafe { set_bool(self.as_ptr(), if value { 1 } else { 0 }) != 0 })
@@ -189,7 +189,7 @@ impl Value {
     }
     /// Sets the underlying value as type int. Returns true if the value was
     /// set successfully.
-    pub(crate) fn set_int(&mut self, value: i32) -> bool {
+    pub(crate) fn set_int(&self, value: i32) -> bool {
         self.0
             .set_int
             .map(|set_int| unsafe { set_int(self.as_ptr(), value as std::os::raw::c_int) != 0 })
@@ -197,7 +197,7 @@ impl Value {
     }
     /// Sets the underlying value as type double. Returns true if the value was
     /// set successfully.
-    pub(crate) fn set_double(&mut self, value: f64) -> bool {
+    pub(crate) fn set_double(&self, value: f64) -> bool {
         self.0
             .set_double
             .map(|set_double| unsafe { set_double(self.as_ptr(), value) != 0 })
@@ -205,7 +205,7 @@ impl Value {
     }
     /// Sets the underlying value as type string. Returns true if the value was
     /// set successfully.
-    pub(crate) fn set_string(&mut self, value: &str) -> bool {
+    pub(crate) fn set_string(&self, value: &str) -> bool {
         self.0
             .set_string
             .map(|set_string| unsafe {
@@ -216,7 +216,7 @@ impl Value {
     /// Sets the underlying value as type binary. Returns true if the value was
     /// set successfully. This object keeps a reference to |value| and ownership of
     /// the underlying data remains unchanged.
-    pub(crate) fn set_binary(&mut self, value: BinaryValue) -> bool {
+    pub(crate) fn set_binary(&self, value: BinaryValue) -> bool {
         self.0
             .set_binary
             .map(|set_binary| unsafe { set_binary(self.as_ptr(), value.into_raw()) != 0 })
@@ -225,7 +225,7 @@ impl Value {
     /// Sets the underlying value as type dict. Returns true if the value was
     /// set successfully. This object keeps a reference to `value` and ownership of
     /// the underlying data remains unchanged.
-    pub(crate) fn set_dictionary(&mut self, value: DictionaryValue) -> bool {
+    pub(crate) fn set_dictionary(&self, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
             .map(|set_dictionary| unsafe { set_dictionary(self.as_ptr(), value.into_raw()) != 0 })
@@ -234,7 +234,7 @@ impl Value {
     /// Sets the underlying value as type list. Returns true if the value was
     /// set successfully. This object keeps a reference to `value` and ownership of
     /// the underlying data remains unchanged.
-    pub(crate) fn set_list(&mut self, value: ListValue) -> bool {
+    pub(crate) fn set_list(&self, value: ListValue) -> bool {
         self.0
             .set_list
             .map(|set_list| unsafe { set_list(self.as_ptr(), value.into_raw()) != 0 })
@@ -289,7 +289,7 @@ impl TryFrom<StoredValue> for Value {
     type Error = &'static str;
 
     fn try_from(sv: StoredValue) -> Result<Self, Self::Error> {
-        let mut value = Value::new();
+        let value = Value::new();
         if match sv {
             StoredValue::Invalid | StoredValue::Null => true,
             StoredValue::Bool(b) => value.set_bool(b),
@@ -415,7 +415,7 @@ impl fmt::Debug for BinaryValue {
 
 // TODO: CREATE `BinaryValueCursor`
 // impl Read for BinaryValue {
-//     fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+//     fn read(&self, buf: &mut [u8]) -> std::io::Result<usize> {
 //         self.as_ref()
 //             .get_data
 //             .and_then(|get_data| {
@@ -442,7 +442,7 @@ impl fmt::Debug for BinaryValue {
 // }
 
 // impl std::io::Seek for BinaryValue {
-//     fn seek(&mut self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
+//     fn seek(&self, pos: std::io::SeekFrom) -> std::io::Result<u64> {
 //         self.1 = match pos {
 //             std::io::SeekFrom::Start(offset) => usize::try_from(offset),
 //             std::io::SeekFrom::Current(offset) => usize::try_from(self.1 as i64 + offset),
@@ -528,7 +528,7 @@ impl DictionaryValue {
             .unwrap_or(0)
     }
     /// Removes all values. Returns true on success.
-    pub fn clear(&mut self) -> bool {
+    pub fn clear(&self) -> bool {
         self.0
             .clear
             .map(|clear| unsafe { clear(self.as_ptr()) != 0 })
@@ -562,7 +562,7 @@ impl DictionaryValue {
     }
     /// Removes the value at the specified key. Returns true if the value
     /// is removed successfully.
-    pub fn remove(&mut self, key: &str) -> bool {
+    pub fn remove(&self, key: &str) -> bool {
         self.0
             .remove
             .map(|remove| unsafe { remove(self.as_ptr(), CefString::new(key).as_ptr()) != 0 })
@@ -668,7 +668,7 @@ impl DictionaryValue {
     /// `value` represents complex data (binary, dictionary or list) then the
     /// underlying data will be referenced and modifications to `value` will modify
     /// this object.
-    pub(crate) fn insert_inner(&mut self, key: &str, value: Value) -> bool {
+    pub(crate) fn insert_inner(&self, key: &str, value: Value) -> bool {
         self.0
             .set_value
             .map(|set_value| unsafe {
@@ -681,12 +681,12 @@ impl DictionaryValue {
             .unwrap_or(false)
     }
     /// Sets the value at the specified key.
-    pub(crate) fn insert(&mut self, key: &str, value: StoredValue) -> bool {
+    pub(crate) fn insert(&self, key: &str, value: StoredValue) -> bool {
         self.insert_inner(key, value.try_into().unwrap())
     }
     /// Sets the value at the specified key as type null. Returns true if the
     /// value was set successfully.
-    pub fn insert_null(&mut self, key: &str) -> bool {
+    pub fn insert_null(&self, key: &str) -> bool {
         self.0
             .set_null
             .map(|set_null| unsafe { set_null(self.as_ptr(), CefString::new(key).as_ptr()) != 0 })
@@ -694,7 +694,7 @@ impl DictionaryValue {
     }
     /// Sets the value at the specified key as type bool. Returns true if the
     /// value was set successfully.
-    pub fn insert_bool(&mut self, key: &str, value: bool) -> bool {
+    pub fn insert_bool(&self, key: &str, value: bool) -> bool {
         self.0
             .set_bool
             .map(|set_bool| unsafe {
@@ -708,7 +708,7 @@ impl DictionaryValue {
     }
     /// Sets the value at the specified key as type int. Returns true if the
     /// value was set successfully.
-    pub fn insert_int(&mut self, key: &str, value: i32) -> bool {
+    pub fn insert_int(&self, key: &str, value: i32) -> bool {
         self.0
             .set_int
             .map(|set_int| unsafe {
@@ -718,7 +718,7 @@ impl DictionaryValue {
     }
     /// Sets the value at the specified key as type double. Returns true if the
     /// value was set successfully.
-    pub fn insert_double(&mut self, key: &str, value: f64) -> bool {
+    pub fn insert_double(&self, key: &str, value: f64) -> bool {
         self.0
             .set_double
             .map(|set_double| unsafe {
@@ -728,7 +728,7 @@ impl DictionaryValue {
     }
     /// Sets the value at the specified key as type string. Returns true if the
     /// value was set successfully.
-    pub fn insert_string(&mut self, key: &str, value: &str) -> bool {
+    pub fn insert_string(&self, key: &str, value: &str) -> bool {
         self.0
             .set_string
             .map(|set_string| unsafe {
@@ -745,7 +745,7 @@ impl DictionaryValue {
     /// then the value will be copied and the `value` reference will not change.
     /// Otherwise, ownership will be transferred to this object and the `value`
     /// reference will be invalidated.
-    pub fn insert_binary(&mut self, key: &str, value: BinaryValue) -> bool {
+    pub fn insert_binary(&self, key: &str, value: BinaryValue) -> bool {
         self.0
             .set_binary
             .map(|set_binary| unsafe {
@@ -762,7 +762,7 @@ impl DictionaryValue {
     /// then the value will be copied and the `value` reference will not change.
     /// Otherwise, ownership will be transferred to this object and the `value`
     /// reference will be invalidated.
-    pub fn insert_dictionary(&mut self, key: &str, value: DictionaryValue) -> bool {
+    pub fn insert_dictionary(&self, key: &str, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
             .map(|set_dictionary| unsafe {
@@ -779,7 +779,7 @@ impl DictionaryValue {
     /// then the value will be copied and the `value` reference will not change.
     /// Otherwise, ownership will be transferred to this object and the `value`
     /// reference will be invalidated.
-    pub fn insert_list(&mut self, key: &str, value: ListValue) -> bool {
+    pub fn insert_list(&self, key: &str, value: ListValue) -> bool {
         self.0
             .set_list
             .map(|set_list| unsafe {
@@ -812,7 +812,7 @@ impl Into<HashMap<String, StoredValue>> for &'_ DictionaryValue {
 
 impl From<&HashMap<String, StoredValue>> for DictionaryValue {
     fn from(map: &HashMap<String, StoredValue>) -> Self {
-        let mut result = Self::new();
+        let result = Self::new();
         for (key, value) in map {
             if let Ok(value) = Value::try_from(value.clone()) {
                 result.insert_inner(key, value);
@@ -889,7 +889,7 @@ impl ListValue {
     }
     /// Sets the number of values. If the number of values is expanded all new
     /// value slots will default to type None. Returns true on success.
-    pub fn set_len(&mut self, size: usize) -> bool {
+    pub fn set_len(&self, size: usize) -> bool {
         self.0
             .set_size
             .map(|set_size| unsafe { set_size(self.as_ptr(), size) != 0 })
@@ -903,14 +903,14 @@ impl ListValue {
             .unwrap_or(0)
     }
     /// Removes all values. Returns true on success.
-    pub fn clear(&mut self) -> bool {
+    pub fn clear(&self) -> bool {
         self.0
             .clear
             .map(|clear| unsafe { clear(self.as_ptr()) != 0 })
             .unwrap_or(false)
     }
     /// Removes the value at the specified index.
-    pub fn remove(&mut self, index: usize) -> bool {
+    pub fn remove(&self, index: usize) -> bool {
         self.0
             .remove
             .map(|remove| unsafe { remove(self.as_ptr(), index) != 0 })
@@ -1004,7 +1004,7 @@ impl ListValue {
     /// object. If `value` represents complex data (binary, dictionary or list)
     /// then the underlying data will be referenced and modifications to `value`
     /// will modify this object.
-    pub(crate) fn set_value_inner(&mut self, index: usize, value: Value) -> bool {
+    pub(crate) fn set_value_inner(&self, index: usize, value: Value) -> bool {
         self.0
             .set_value
             .map(|set_value| unsafe { set_value(self.as_ptr(), index, value.into_raw()) != 0 })
@@ -1012,7 +1012,7 @@ impl ListValue {
     }
     /// Sets the value at the specified index as type null. Returns true if the
     /// value was set successfully.
-    pub fn set_null(&mut self, index: usize) -> bool {
+    pub fn set_null(&self, index: usize) -> bool {
         self.0
             .set_null
             .map(|set_null| unsafe { set_null(self.as_ptr(), index) != 0 })
@@ -1020,7 +1020,7 @@ impl ListValue {
     }
     /// Sets the value at the specified index as type bool. Returns true if the
     /// value was set successfully.
-    pub fn set_bool(&mut self, index: usize, value: bool) -> bool {
+    pub fn set_bool(&self, index: usize, value: bool) -> bool {
         self.0
             .set_bool
             .map(|set_bool| unsafe {
@@ -1030,7 +1030,7 @@ impl ListValue {
     }
     /// Sets the value at the specified index as type int. Returns true if the
     /// value was set successfully.
-    pub fn set_int(&mut self, index: usize, value: i32) -> bool {
+    pub fn set_int(&self, index: usize, value: i32) -> bool {
         self.0
             .set_int
             .map(|set_int| unsafe { set_int(self.as_ptr(), index, value) != 0 })
@@ -1038,7 +1038,7 @@ impl ListValue {
     }
     /// Sets the value at the specified index as type double. Returns true if the
     /// value was set successfully.
-    pub fn set_double(&mut self, index: usize, value: f64) -> bool {
+    pub fn set_double(&self, index: usize, value: f64) -> bool {
         self.0
             .set_double
             .map(|set_double| unsafe { set_double(self.as_ptr(), index, value) != 0 })
@@ -1046,7 +1046,7 @@ impl ListValue {
     }
     /// Sets the value at the specified index as type string. Returns true if the
     /// value was set successfully.
-    pub fn set_string(&mut self, index: usize, value: &str) -> bool {
+    pub fn set_string(&self, index: usize, value: &str) -> bool {
         self.0
             .set_string
             .map(|set_string| unsafe {
@@ -1059,7 +1059,7 @@ impl ListValue {
     /// then the value will be copied and the `value` reference will not change.
     /// Otherwise, ownership will be transferred to this object and the `value`
     /// reference will be invalidated.
-    pub fn set_binary(&mut self, index: usize, value: BinaryValue) -> bool {
+    pub fn set_binary(&self, index: usize, value: BinaryValue) -> bool {
         self.0
             .set_binary
             .map(|set_binary| unsafe { set_binary(self.as_ptr(), index, value.as_ptr()) != 0 })
@@ -1070,7 +1070,7 @@ impl ListValue {
     /// then the value will be copied and the `value` reference will not change.
     /// Otherwise, ownership will be transferred to this object and the `value`
     /// reference will be invalidated.
-    pub fn set_dictionary(&mut self, index: usize, value: DictionaryValue) -> bool {
+    pub fn set_dictionary(&self, index: usize, value: DictionaryValue) -> bool {
         self.0
             .set_dictionary
             .map(|set_dictionary| unsafe {
@@ -1083,7 +1083,7 @@ impl ListValue {
     /// then the value will be copied and the `value` reference will not change.
     /// Otherwise, ownership will be transferred to this object and the `value`
     /// reference will be invalidated.
-    pub fn set_list(&mut self, index: usize, value: ListValue) -> bool {
+    pub fn set_list(&self, index: usize, value: ListValue) -> bool {
         self.0
             .set_list
             .map(|set_list| unsafe { set_list(self.as_ptr(), index, value.into_raw()) != 0 })
