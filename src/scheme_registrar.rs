@@ -82,6 +82,7 @@ impl Into<cef_scheme_options_t::Type> for SchemeOptions {
 
 /// Structure that manages custom scheme registrations.
 pub struct SchemeRegistrar(*mut cef_scheme_registrar_t);
+owned_casts!(impl for SchemeRegistrar = *mut cef_scheme_registrar_t);
 
 impl SchemeRegistrar {
     pub unsafe fn from_ptr_unchecked(ptr: *mut cef_scheme_registrar_t) -> SchemeRegistrar {

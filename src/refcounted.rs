@@ -114,6 +114,8 @@ macro_rules! ref_counted_ptr {
                 self.0.into_raw()
             }
         }
+
+        owned_casts!(impl for $Struct = *mut $cef);
     };
 }
 

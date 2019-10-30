@@ -32,7 +32,7 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
     /// Called after the render process main thread has been created. `extra_info`
     /// is originating from
     /// [BrowserProcessHandlerCallbacks::on_render_process_thread_created].
-    fn on_render_thread_created(&self, extra_info: &ListValue) {}
+    fn on_render_thread_created(&self, extra_info: ListValue) {}
     /// Called after WebKit has been initialized.
     fn on_web_kit_initialized(&self) {}
     /// Called after a browser has been created. When browsing cross-origin a new
@@ -41,7 +41,7 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
     /// [BrowserHost::create_browser()],
     /// [BrowserHost::create_browser_sync()],
     /// [LifeSpanHandler::on_before_popup()] or [BrowserView::create()].
-    fn on_browser_created(&self, browser: Browser, extra_info: &DictionaryValue) {}
+    fn on_browser_created(&self, browser: Browser, extra_info: DictionaryValue) {}
     /// Called before a browser is destroyed.
     fn on_browser_destroyed(&self, browser: Browser) {}
     /// Return the handler for browser load status events.
@@ -73,7 +73,7 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
     /// be None if no specific node has gained focus. The node object passed to
     /// this function represents a snapshot of the DOM at the time this function is
     /// executed.
-    fn on_focused_node_changed(&self, browser: Browser, frame: Frame, node: Option<&DOMNode>) {}
+    fn on_focused_node_changed(&self, browser: Browser, frame: Frame, node: Option<DOMNode>) {}
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
     fn on_process_message_received(
@@ -127,7 +127,7 @@ cef_callback_impl! {
             &self,
             extra_info: ListValue: *mut cef_list_value_t,
         ) {
-            self.0.on_render_thread_created(&extra_info);
+            self.0.on_render_thread_created(extra_info);
         }
 
         fn web_kit_initialized(&self) {
@@ -139,7 +139,7 @@ cef_callback_impl! {
             browser: Browser: *mut cef_browser_t,
             extra_info: DictionaryValue: *mut cef_dictionary_value_t,
         ) {
-            self.0.on_browser_created(browser, &extra_info);
+            self.0.on_browser_created(browser, extra_info);
         }
 
         fn browser_destroyed(
@@ -207,7 +207,7 @@ cef_callback_impl! {
             self.0.on_focused_node_changed(
                 browser,
                 frame,
-                node.as_ref()
+                node
             )
         }
 

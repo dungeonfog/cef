@@ -1,24 +1,7 @@
 use crate::{
-    app::App,
-    browser::Browser,
-    browser_host::BrowserHost,
-    callback::Callback,
-    command_line::CommandLine,
-    client::Client,
-    dom::{DOMDocument, DOMNode},
-    drag::DragData,
-    frame::Frame,
-    image::Image,
-    navigation::NavigationEntry,
-    process::{ProcessId, ProcessMessage},
-    request::{PostData, PostDataElement, Request},
-    request_context::RequestContext,
-    scheme_registrar::SchemeRegistrar,
+    process::{ProcessId},
     string::{CefString, CefStringList},
     url_request::URLRequestStatus,
-    url_request::{AuthCallback, RequestCallback, Response, URLRequest},
-    v8context::{V8Context, V8Exception, V8StackTrace},
-    values::{DictionaryValue, ListValue, Value},
 };
 use std::{convert::TryFrom, mem::ManuallyDrop, os::raw::c_int};
 
@@ -61,13 +44,13 @@ where
 
 macro_rules! owned_casts {
     (impl$(<$($generic:ident $(: $bound:path)?),+>)? for $Self:ty = $CType:ty) => {
-        impl$(<$($generic $(: $bound)?),+>)? CToRustType for $Self {
+        impl$(<$($generic $(: $bound)?),+>)? crate::extern_callback_helpers::CToRustType for $Self {
             type CType = $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 <$Self>::from_ptr_unchecked(c_type)
             }
         }
-        impl$(<$($generic $(: $bound)?),+>)? CToRustType for &mut $Self {
+        impl$(<$($generic $(: $bound)?),+>)? crate::extern_callback_helpers::CToRustType for &mut $Self {
             type CType = *mut $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 <$Self>::from_ptr_ptr(c_type)
@@ -111,20 +94,21 @@ macro_rules! owned_casts_from {
             type CType = *const $CType;
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 assert_eq!(
-                    std::mem::size_of::<Self::CType>(),
-                    std::mem::size_of::<Self>()
+                    std::mem::size_of::<$CType>(),
+                    std::mem::size_of::<$Self>()
                 );
-                &*(c_type as *const Self)
+                &*(c_type as *const $Self)
             }
         }
         impl<'a> CToRustType for &'a mut $Self {
             type CType = *mut $CType;
+            #[inline(always)]
             unsafe fn from_c_type(c_type: Self::CType) -> Self {
                 assert_eq!(
-                    std::mem::size_of::<Self::CType>(),
-                    std::mem::size_of::<Self>()
+                    std::mem::size_of::<$CType>(),
+                    std::mem::size_of::<$Self>()
                 );
-                &mut *(c_type as *mut Self)
+                &mut *(c_type as *mut $Self)
             }
         }
     };
@@ -192,36 +176,6 @@ macro_rules! owned_casts_from_flags_unchecked {
     };
 }
 
-owned_casts!(impl for App = *mut cef_sys::cef_app_t);
-owned_casts!(impl for Browser = *mut cef_sys::cef_browser_t);
-owned_casts!(impl for BrowserHost = *mut cef_sys::cef_browser_host_t);
-owned_casts!(impl for Callback = *mut cef_sys::cef_callback_t);
-owned_casts!(impl for CommandLine = *mut cef_sys::cef_command_line_t);
-owned_casts!(impl for Client = *mut cef_sys::cef_client_t);
-owned_casts!(impl for DOMNode = *mut cef_sys::cef_domnode_t);
-owned_casts!(impl for DOMDocument = *mut cef_sys::cef_domdocument_t);
-owned_casts!(impl for DragData = *mut cef_sys::cef_drag_data_t);
-owned_casts!(impl for Frame = *mut cef_sys::cef_frame_t);
-owned_casts!(impl for Image = *mut cef_sys::cef_image_t);
-owned_casts!(impl for NavigationEntry = *mut cef_sys::cef_navigation_entry_t);
-owned_casts!(impl for ProcessMessage = *mut cef_sys::cef_process_message_t);
-owned_casts!(impl for Request = *mut cef_sys::cef_request_t);
-owned_casts!(impl for PostData = *mut cef_sys::cef_post_data_t);
-owned_casts!(impl for PostDataElement = *mut cef_sys::cef_post_data_element_t);
-owned_casts!(impl for URLRequest = *mut cef_sys::cef_urlrequest_t);
-owned_casts!(impl for AuthCallback = *mut cef_sys::cef_auth_callback_t);
-owned_casts!(impl for Response = *mut cef_sys::cef_response_t);
-owned_casts!(impl for RequestCallback = *mut cef_sys::cef_request_callback_t);
-owned_casts!(impl for V8Context = *mut cef_sys::cef_v8context_t);
-owned_casts!(impl for V8Exception = *mut cef_sys::cef_v8exception_t);
-owned_casts!(impl for V8StackTrace = *mut cef_sys::cef_v8stack_trace_t);
-owned_casts!(impl for Value = *mut cef_sys::cef_value_t);
-owned_casts!(impl for DictionaryValue = *mut cef_sys::cef_dictionary_value_t);
-owned_casts!(impl for ListValue = *mut cef_sys::cef_list_value_t);
-owned_casts!(impl for SchemeRegistrar = *mut cef_sys::cef_scheme_registrar_t);
-owned_casts!(impl for RequestContext = *mut cef_sys::cef_request_context_t);
-owned_casts!(impl for crate::v8context::V8Handler = *mut cef_sys::cef_v8handler_t);
-owned_casts!(impl for crate::v8context::V8Value = *mut cef_sys::cef_v8value_t);
 owned_casts_no_transform!(impl for i8);
 owned_casts_no_transform!(impl for i16);
 owned_casts_no_transform!(impl for i32);
@@ -242,6 +196,7 @@ owned_casts_from_unchecked!(impl for crate::request_handler::WindowOpenDispositi
 owned_casts_from_unchecked!(impl for crate::browser_host::PaintElementType: cef_sys::cef_paint_element_type_t::Type);
 owned_casts_from_unchecked!(impl for crate::client::render_handler::TextInputMode: cef_sys::cef_text_input_mode_t::Type);
 owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
+owned_casts_from_flags_unchecked!(impl for crate::events::EventFlags: cef_sys::cef_event_flags_t);
 owned_casts_from!(impl for crate::values::Rect: cef_sys::cef_rect_t);
 owned_casts_from!(impl for crate::values::Size: cef_sys::cef_size_t);
 owned_casts_from!(impl for crate::values::Range: cef_sys::cef_range_t);
@@ -312,6 +267,13 @@ impl CToRustType for crate::window::WindowInfo {
     }
 }
 
+impl<'a> CToRustType for &mut cef_sys::cef_screen_info_t {
+    type CType = *mut cef_sys::cef_screen_info_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        &mut *c_type
+    }
+}
+
 impl<'a, T> CToRustType for &mut *mut T {
     type CType = *mut *mut T;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
@@ -353,7 +315,8 @@ macro_rules! cef_callback_impl {
                     $(
                         let $field_name: $field_ty = unsafe{ <$field_ty as crate::extern_callback_helpers::CToRustType>::from_c_type($field_name) };
                     )*
-                    this.inner($($field_name),*)
+                    let ret = this.inner($($field_name),*);
+                    ret
                 }
             )*
         }

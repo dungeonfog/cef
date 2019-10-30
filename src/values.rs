@@ -1135,6 +1135,12 @@ pub struct Point {
     pub y: i32,
 }
 
+impl Point {
+    pub fn new(x: i32, y: i32) -> Point {
+        Point{ x, y }
+    }
+}
+
 impl From<cef_point_t> for Point {
     fn from(point: cef_point_t) -> Point {
         Point {
