@@ -195,8 +195,10 @@ owned_casts_from_unchecked!(impl for crate::request_context::PluginPolicy: cef_s
 owned_casts_from_unchecked!(impl for crate::request_handler::WindowOpenDisposition: cef_sys::cef_window_open_disposition_t::Type);
 owned_casts_from_unchecked!(impl for crate::browser_host::PaintElementType: cef_sys::cef_paint_element_type_t::Type);
 owned_casts_from_unchecked!(impl for crate::client::render_handler::TextInputMode: cef_sys::cef_text_input_mode_t::Type);
+owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::MenuColorType: cef_sys::cef_menu_color_type_t::Type);
 owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
 owned_casts_from_flags_unchecked!(impl for crate::events::EventFlags: cef_sys::cef_event_flags_t);
+owned_casts_from_unchecked!(impl for crate::color::Color: cef_sys::cef_color_t);
 owned_casts_from!(impl for crate::values::Rect: cef_sys::cef_rect_t);
 owned_casts_from!(impl for crate::values::Size: cef_sys::cef_size_t);
 owned_casts_from!(impl for crate::values::Range: cef_sys::cef_range_t);

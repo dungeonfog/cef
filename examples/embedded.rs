@@ -334,6 +334,7 @@ fn main() {
     );
 
     println!("initialize done");
+    cef::do_message_loop_work();
 
     event_loop.run(move |event, _, control_flow| {
         match event {

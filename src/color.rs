@@ -9,6 +9,9 @@ impl Color {
     pub(crate) fn wrap(value: u32) -> Self {
         Self(value)
     }
+    pub(crate) fn from_unchecked(value: u32) -> Self {
+        Self(value)
+    }
     /// Return a [Color] value with the specified component values in range 0.0 to 1.0.
     pub fn rgba(red: f32, green: f32, blue: f32, alpha: f32) -> Self {
         Self(

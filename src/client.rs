@@ -5,7 +5,7 @@ use cef_sys::{
 use downcast_rs::{impl_downcast, Downcast};
 use std::{ptr::null_mut};
 
-// pub mod context_menu_handler;
+pub mod context_menu_handler;
 pub mod drag_handler;
 pub mod life_span_handler;
 pub mod render_handler;
