@@ -6,6 +6,7 @@ use cef::client::render_handler::ScreenInfo;
 use cef::browser_host::PaintElementType;
 use std::{
     time::{Duration, Instant},
+    sync::atomic::{AtomicU32, Ordering},
     ffi::c_void,
 };
 use cef::{
@@ -20,12 +21,14 @@ use cef::{
     },
     command_line::CommandLine,
     events::{EventFlags, MouseEvent, MouseButtonType},
+    frame::Frame,
+    process::{ProcessId, ProcessMessage},
     main_args::MainArgs,
     settings::{Settings, LogSeverity},
     window::WindowInfo,
 };
 use winit::{
-    event::{Event, WindowEvent, StartCause, MouseButton, ElementState, MouseScrollDelta, KeyboardInput},
+    event::{Event, WindowEvent, StartCause, MouseButton, ElementState, MouseScrollDelta, KeyboardInput, VirtualKeyCode},
     dpi::LogicalPosition,
     platform::windows::WindowExtWindows,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
@@ -46,6 +49,7 @@ pub struct LifeSpanHandlerImpl {
 }
 pub struct BrowserProcessHandlerCallbacksImpl {
     proxy: Mutex<EventLoopProxy<CefEvent>>,
+    depth: AtomicU32,
 }
 pub struct RenderHandlerCallbacksImpl {
     window: Window,
@@ -91,13 +95,7 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
 
 impl BrowserProcessHandlerCallbacks for BrowserProcessHandlerCallbacksImpl {
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
-        println!("schedule work {}", delay_ms);
-        if delay_ms <= 0 {
-            println!("do work", );
-            cef::do_message_loop_work();
-        } else {
-            self.proxy.lock().send_event(CefEvent::ScheduleWork(Instant::now() + Duration::from_millis(delay_ms as u64))).ok();
-        }
+        self.proxy.lock().send_event(CefEvent::ScheduleWork(Instant::now() + Duration::from_millis(delay_ms as u64))).ok();
     }
 }
 
@@ -287,6 +285,7 @@ fn main() {
     let app = App::new(AppCallbacksImpl {
         browser_process_handler: BrowserProcessHandler::new(BrowserProcessHandlerCallbacksImpl {
             proxy: Mutex::new(event_loop.create_proxy()),
+            depth: AtomicU32::new(0),
         })
     });
     #[cfg(windows)]
@@ -299,8 +298,8 @@ fn main() {
     let mut settings = Settings::new();
     settings.enable_windowless_rendering();
     settings.set_log_severity(LogSeverity::Disable);
-    // settings.enable_external_message_pump();
-    settings.enable_multi_threaded_message_loop();
+    settings.enable_external_message_pump();
+    // settings.enable_multi_threaded_message_loop();
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
@@ -359,6 +358,13 @@ fn main() {
             Event::NewEvents(StartCause::ResumeTimeReached{..}) => {
                 println!("do work");
                 *control_flow = ControlFlow::Wait;
+                cef::do_message_loop_work();
+            }
+            Event::WindowEvent {
+                event: WindowEvent::KeyboardInput{input: KeyboardInput { state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::Space), .. }, ..},
+                ..
+            } => {
+                println!("force do work");
                 cef::do_message_loop_work();
             }
             Event::WindowEvent {
@@ -436,8 +442,13 @@ fn main() {
             Event::UserEvent(event) => match event {
                 CefEvent::SetBrowser(browser_) => browser = Some(browser_),
                 CefEvent::ScheduleWork(instant) => {
-                    println!("work scheduled {:?}", instant - Instant::now());
-                    *control_flow = ControlFlow::WaitUntil(instant);
+                    if instant <= Instant::now() {
+                        println!("do work immediate");
+                        cef::do_message_loop_work();
+                    } else {
+                        println!("work scheduled {:?}", instant - Instant::now());
+                        *control_flow = ControlFlow::WaitUntil(instant);
+                    }
                 }
             }
             Event::LoopDestroyed => {
