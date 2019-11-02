@@ -19,12 +19,13 @@ use cef::{
         render_handler::{RenderHandler, RenderHandlerCallbacks},
     },
     command_line::CommandLine,
+    events::{EventFlags, MouseEvent, MouseButtonType},
     main_args::MainArgs,
     settings::{Settings, LogSeverity},
     window::WindowInfo,
 };
 use winit::{
-    event::{Event, WindowEvent, StartCause},
+    event::{Event, WindowEvent, StartCause, MouseButton, ElementState, MouseScrollDelta, KeyboardInput},
     dpi::LogicalPosition,
     platform::windows::WindowExtWindows,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
@@ -55,6 +56,7 @@ pub struct RenderHandlerCallbacksImpl {
 #[derive(Clone)]
 enum CefEvent {
     ScheduleWork(Instant),
+    SetBrowser(Browser),
 }
 
 impl AppCallbacks for AppCallbacksImpl {
@@ -82,12 +84,16 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     fn on_before_close(&self, _browser: Browser) {
         cef::quit_message_loop()
     }
+    fn on_after_created(&self, browser: Browser) {
+        self.proxy.lock().send_event(CefEvent::SetBrowser(browser)).unwrap();
+    }
 }
 
 impl BrowserProcessHandlerCallbacks for BrowserProcessHandlerCallbacksImpl {
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
         println!("schedule work {}", delay_ms);
         if delay_ms <= 0 {
+            println!("do work", );
             cef::do_message_loop_work();
         } else {
             self.proxy.lock().send_event(CefEvent::ScheduleWork(Instant::now() + Duration::from_millis(delay_ms as u64))).ok();
@@ -105,14 +111,14 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             height: inner_size.height.round() as i32,
         }
     }
-    fn on_popup_show(&self, browser: Browser, show: bool) {
+    fn on_popup_show(&self, _browser: Browser, show: bool) {
         if !show {
             *self.popup_rect.lock() = None;
         }
     }
     fn get_screen_point(
         &self,
-        browser: Browser,
+        _browser: Browser,
         point: Point,
     ) -> Option<Point> {
         let physical_pos = LogicalPosition::new(point.x as _, point.y as _).to_physical(self.window.hidpi_factor());
@@ -155,7 +161,11 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         height: i32
     ) {
         let buffer = BGRA::from_raw_slice(buffer);
-        let buffer_row = |row: u32| &buffer[row as usize * width as usize..(1 + row) as usize * width as usize];
+        assert_eq!(buffer.len(), (width * height) as usize);
+        let buffer_row = |row: u32| {
+            let row = height as u32 - 1 - row;
+            &buffer[row as usize * width as usize..(1 + row) as usize * width as usize]
+        };
         let mut pixel_buffer = self.pixel_buffer.lock();
         if pixel_buffer.width() != width as u32 || pixel_buffer.height() != height as u32 {
             *pixel_buffer = PixelBufferTyped::new_supported(width as u32, height as u32, &self.window);
@@ -207,8 +217,8 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
     }
     fn on_cursor_change(
         &self,
-        browser: Browser,
-        cursor: HCURSOR,
+        _browser: Browser,
+        _cursor: HCURSOR,
         type_: CursorType
     ) {
         let winit_cursor = match type_ {
@@ -265,7 +275,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             None => self.window.set_cursor_visible(false),
         }
     }
-    fn update_drag_cursor(&self, browser: Browser, operation: DragOperation) {
+    fn update_drag_cursor(&self, _browser: Browser, _operation: DragOperation) {
 
     }
 }
@@ -287,7 +297,9 @@ fn main() {
     }
     let mut settings = Settings::new();
     settings.enable_windowless_rendering();
-    settings.set_log_severity(LogSeverity::Verbose);
+    settings.set_log_severity(LogSeverity::Disable);
+    // settings.enable_external_message_pump();
+    settings.enable_multi_threaded_message_loop();
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
@@ -324,7 +336,7 @@ fn main() {
     });
 
 
-    let browser = BrowserHost::create_browser_sync(
+    BrowserHost::create_browser(
         &window_info,
         client,
         "https://www.github.com/anlumo/cef",
@@ -334,33 +346,103 @@ fn main() {
     );
 
     println!("initialize done");
-    cef::do_message_loop_work();
 
+    let mut browser: Option<Browser> = None;
+    let mut mouse_event = MouseEvent {
+        x: 0,
+        y: 0,
+        modifiers: EventFlags::empty(),
+    };
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::NewEvents(StartCause::ResumeTimeReached{..}) => {
+                println!("do work");
                 *control_flow = ControlFlow::Wait;
                 cef::do_message_loop_work();
             }
             Event::WindowEvent {
                 event,
                 window_id: _,
-            } => match event {
-                WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                WindowEvent::RedrawRequested =>  {
-                    browser.get_host().invalidate(PaintElementType::View);
-                },
-                _ => (),
+            } => if let Some(browser) = browser.as_ref() {
+                match event {
+                    WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                    WindowEvent::RedrawRequested => {
+                        browser.get_host().invalidate(PaintElementType::View);
+                    },
+                    WindowEvent::Resized(_) => {
+                        browser.get_host().was_resized();
+                    },
+                    WindowEvent::CursorMoved{position, modifiers, ..} => {
+                        mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                        mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                        mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
+                        mouse_event.x = position.x.round() as _;
+                        mouse_event.y = position.y.round() as _;
+                        browser.get_host().send_mouse_move_event(
+                            &mouse_event,
+                            false,
+                        );
+                    },
+                    WindowEvent::MouseWheel{delta, ..} => {
+                        let (delta_x, delta_y) = match delta {
+                            MouseScrollDelta::LineDelta(x, y) => (20 * x as i32, 20 * y as i32),
+                            MouseScrollDelta::PixelDelta(delta) => (delta.x as _, delta.y as _),
+                        };
+                        browser.get_host().send_mouse_wheel_event(
+                            &mouse_event,
+                            delta_x,
+                            delta_y,
+                        );
+                    },
+                    WindowEvent::MouseInput{state, button, modifiers, ..} => {
+                        mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                        mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                        mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
+                        let button = match button {
+                            MouseButton::Left => Some(MouseButtonType::Left),
+                            MouseButton::Middle => Some(MouseButtonType::Middle),
+                            MouseButton::Right => Some(MouseButtonType::Right),
+                            _ => None,
+                        };
+                        if let Some(button) = button {
+                            browser.get_host().send_mouse_click_event(
+                                &mouse_event,
+                                button,
+                                match state {
+                                    ElementState::Pressed => false,
+                                    ElementState::Released => true,
+                                },
+                                1
+                            );
+                        }
+                    },
+                    // WindowEvent::KeyboardInput{input: KeyboardInput {scancode, state, virtual_keycode, modifiers}, ..} => {
+                    //     mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                    //     mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                    //     mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
+                    //     browser.get_host().send_key_event(
+                    //         &KeyEvent {
+                    //             event_type: KeyEventType::KeyDown,
+                    //             modifiers: mouse_event.modifiers,
+                    //             windows_key_code: scancode,
+                    //             native_key_code:
+                    //         }
+                    //     );
+                    // },
+                    _ => (),
+                }
             },
             Event::UserEvent(event) => match event {
+                CefEvent::SetBrowser(browser_) => browser = Some(browser_),
                 CefEvent::ScheduleWork(instant) => {
+                    println!("work scheduled {:?}", instant - Instant::now());
                     *control_flow = ControlFlow::WaitUntil(instant);
                 }
             }
             Event::LoopDestroyed => {
                 cef::shutdown();
             },
-            _ => *control_flow = ControlFlow::Wait,
+            _ => (),//*control_flow = ControlFlow::Wait,
         }
     });
 }

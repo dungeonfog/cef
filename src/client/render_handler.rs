@@ -390,7 +390,7 @@ pub trait RenderHandlerCallbacks: 'static + Send + Sync {
     fn on_text_selection_changed(
         &self,
         browser: Browser,
-        selected_text: &str,
+        selected_text: Option<&str>,
         selected_range: Range,
     ) {
     }
@@ -558,7 +558,7 @@ cef_callback_impl!{
             let buffer = unsafe {
                 std::slice::from_raw_parts(
                     buffer as *const u8,
-                    width as usize * height as usize
+                    width as usize * height as usize * 4
                 )
             };
             self.0.on_paint(browser, type_, dirty_rects, buffer, width, height);
@@ -626,12 +626,15 @@ cef_callback_impl!{
         fn on_text_selection_changed(
             &self,
             browser: Browser: *mut cef_browser_t,
-            selected_text: &CefString: *const cef_string_t,
+            selected_text: Option<&CefString>: *const cef_string_t,
             selected_range: &Range: *const cef_range_t,
         ) {
             self.0.on_text_selection_changed(
                 browser,
-                &String::from(selected_text),
+                selected_text
+                    .map(String::from)
+                    .as_ref()
+                    .map(|s| &**s),
                 *selected_range
             );
         }

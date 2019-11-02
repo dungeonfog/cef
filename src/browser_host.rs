@@ -547,7 +547,7 @@ impl BrowserHost {
     pub fn send_key_event(&self, event: &KeyEvent) {
         if let Some(send_key_event) = self.0.send_key_event {
             unsafe {
-                send_key_event(self.0.as_ptr(), event.as_ptr());
+                send_key_event(self.0.as_ptr(), event.as_cef());
             }
         }
     }
@@ -564,7 +564,7 @@ impl BrowserHost {
             unsafe {
                 send_mouse_click_event(
                     self.0.as_ptr(),
-                    event.as_ptr(),
+                    event.as_cef(),
                     button_type as i32,
                     mouse_up as i32,
                     click_count,
@@ -577,7 +577,7 @@ impl BrowserHost {
     pub fn send_mouse_move_event(&self, event: &MouseEvent, mouse_leave: bool) {
         if let Some(send_mouse_move_event) = self.0.send_mouse_move_event {
             unsafe {
-                send_mouse_move_event(self.0.as_ptr(), event.as_ptr(), mouse_leave as i32);
+                send_mouse_move_event(self.0.as_ptr(), event.as_cef(), mouse_leave as i32);
             }
         }
     }
@@ -589,7 +589,7 @@ impl BrowserHost {
     pub fn send_mouse_wheel_event(&self, event: &MouseEvent, delta_x: i32, delta_y: i32) {
         if let Some(send_mouse_wheel_event) = self.0.send_mouse_wheel_event {
             unsafe {
-                send_mouse_wheel_event(self.0.as_ptr(), event.as_ptr(), delta_x, delta_y);
+                send_mouse_wheel_event(self.0.as_ptr(), event.as_cef(), delta_x, delta_y);
             }
         }
     }
@@ -597,7 +597,7 @@ impl BrowserHost {
     pub fn send_touch_event(&self, event: &TouchEvent) {
         if let Some(send_touch_event) = self.0.send_touch_event {
             unsafe {
-                send_touch_event(self.0.as_ptr(), event.as_ptr());
+                send_touch_event(self.0.as_ptr(), event.as_cef());
             }
         }
     }
@@ -756,7 +756,7 @@ impl BrowserHost {
                 drag_target_drag_enter(
                     self.0.as_ptr(),
                     drag_data.as_ptr(),
-                    event.as_ptr(),
+                    event.as_cef(),
                     DragOperation::as_mask(allowed_ops.iter()),
                 );
             }
@@ -771,7 +771,7 @@ impl BrowserHost {
             unsafe {
                 drag_target_drag_over(
                     self.0.as_ptr(),
-                    event.as_ptr(),
+                    event.as_cef(),
                     DragOperation::as_mask(allowed_ops.iter()),
                 );
             }
@@ -795,7 +795,7 @@ impl BrowserHost {
     pub fn drag_target_drop(&self, event: &MouseEvent) {
         if let Some(drag_target_drop) = self.0.drag_target_drop {
             unsafe {
-                drag_target_drop(self.0.as_ptr(), event.as_ptr());
+                drag_target_drop(self.0.as_ptr(), event.as_cef());
             }
         }
     }

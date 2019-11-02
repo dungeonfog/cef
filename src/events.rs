@@ -3,6 +3,8 @@ use cef_sys::{
     cef_mouse_event_t, cef_pointer_type_t, cef_touch_event_t, cef_touch_event_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
+use bitflags::bitflags;
+use std::mem;
 
 /// Key event types.
 #[repr(i32)]
@@ -22,149 +24,57 @@ pub enum KeyEventType {
     Char = cef_key_event_type_t::KEYEVENT_CHAR,
 }
 
-/// Supported event bit flags.
-#[repr(i32)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
-pub enum EventFlags {
-    CapsLockOn = cef_event_flags_t::EVENTFLAG_CAPS_LOCK_ON.0,
-    ShiftDown = cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0,
-    ControlDown = cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0,
-    AltDown = cef_event_flags_t::EVENTFLAG_ALT_DOWN.0,
-    LeftMouseButton = cef_event_flags_t::EVENTFLAG_LEFT_MOUSE_BUTTON.0,
-    MiddleMouseButton = cef_event_flags_t::EVENTFLAG_MIDDLE_MOUSE_BUTTON.0,
-    RightMouseButton = cef_event_flags_t::EVENTFLAG_RIGHT_MOUSE_BUTTON.0,
-    CommandDown = cef_event_flags_t::EVENTFLAG_COMMAND_DOWN.0,
-    NumLockOn = cef_event_flags_t::EVENTFLAG_NUM_LOCK_ON.0,
-    IsKeyPad = cef_event_flags_t::EVENTFLAG_IS_KEY_PAD.0,
-    IsLeft = cef_event_flags_t::EVENTFLAG_IS_LEFT.0,
-    IsRight = cef_event_flags_t::EVENTFLAG_IS_RIGHT.0,
+bitflags!{
+    #[derive(Default)]
+    pub struct EventFlags: i32 {
+        const CAPS_LOCK_ON = cef_event_flags_t::EVENTFLAG_CAPS_LOCK_ON.0 as _;
+        const SHIFT_DOWN = cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0 as _;
+        const CONTROL_DOWN = cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0 as _;
+        const ALT_DOWN = cef_event_flags_t::EVENTFLAG_ALT_DOWN.0 as _;
+        const LEFT_MOUSE_BUTTON = cef_event_flags_t::EVENTFLAG_LEFT_MOUSE_BUTTON.0 as _;
+        const MIDDLE_MOUSE_BUTTON = cef_event_flags_t::EVENTFLAG_MIDDLE_MOUSE_BUTTON.0 as _;
+        const RIGHT_MOUSE_BUTTON = cef_event_flags_t::EVENTFLAG_RIGHT_MOUSE_BUTTON.0 as _;
+        const COMMAND_DOWN = cef_event_flags_t::EVENTFLAG_COMMAND_DOWN.0 as _;
+        const NUM_LOCK_ON = cef_event_flags_t::EVENTFLAG_NUM_LOCK_ON.0 as _;
+        const IS_KEY_PAD = cef_event_flags_t::EVENTFLAG_IS_KEY_PAD.0 as _;
+        const IS_LEFT = cef_event_flags_t::EVENTFLAG_IS_LEFT.0 as _;
+        const IS_RIGHT = cef_event_flags_t::EVENTFLAG_IS_RIGHT.0 as _;
+    }
 }
 
-pub struct KeyEvent(cef_key_event_t);
+impl EventFlags {
+    pub unsafe fn from_unchecked(i: i32) -> EventFlags {
+        EventFlags::from_bits_unchecked(i)
+    }
+}
+
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct KeyEvent {
+    pub event_type: KeyEventType,
+    pub modifiers: EventFlags,
+    pub windows_key_code: i32,
+    pub native_key_code: i32,
+    pub is_system_key: i32,
+    pub character: u16,
+    pub unmodified_character: u16,
+    pub focus_on_editable_field: i32,
+}
 
 impl KeyEvent {
-    pub fn new() -> Self {
-        Self(unsafe { std::mem::zeroed() })
-    }
-
-    /// Set the type of keyboard event.
-    pub fn set_event_type(&mut self, event_type: KeyEventType) {
-        self.0.type_ = unsafe { std::mem::transmute(event_type) };
-    }
-    /// The type of keyboard event.
-    pub fn event_type(&self) -> KeyEventType {
-        unsafe { KeyEventType::from_unchecked(self.0.type_ as i32) }
-    }
-
-    /// Set bit flags describing any pressed modifier keys.
-    pub fn set_modifiers(&mut self, modifiers: &[EventFlags]) {
-        self.0.modifiers = modifiers
-            .iter()
-            .fold(0, |flags, flag| flags | (*flag as i32 as u32));
-    }
-    /// Bit flags describing any pressed modifier keys.
-    pub fn modifiers(&self) -> Vec<EventFlags> {
-        [
-            EventFlags::CapsLockOn,
-            EventFlags::ShiftDown,
-            EventFlags::ControlDown,
-            EventFlags::AltDown,
-            EventFlags::LeftMouseButton,
-            EventFlags::MiddleMouseButton,
-            EventFlags::RightMouseButton,
-            EventFlags::CommandDown,
-            EventFlags::NumLockOn,
-            EventFlags::IsKeyPad,
-            EventFlags::IsLeft,
-            EventFlags::IsRight,
-        ]
-        .iter()
-        .filter(|flag| ((**flag) as u32 & self.0.modifiers) != 0)
-        .cloned()
-        .collect()
-    }
-
-    /// Set the Windows key code for the key event. This value is used by the DOM
-    /// specification. Sometimes it comes directly from the event (i.e. on
-    /// Windows) and sometimes it's determined using a mapping function. See
-    /// WebCore/platform/chromium/KeyboardCodes.h for the list of values.
-    pub fn set_windows_key_code(&mut self, code: i32) {
-        self.0.windows_key_code = code;
-    }
-    /// The Windows key code for the key event. This value is used by the DOM
-    /// specification. Sometimes it comes directly from the event (i.e. on
-    /// Windows) and sometimes it's determined using a mapping function. See
-    /// WebCore/platform/chromium/KeyboardCodes.h for the list of values.
-    pub fn windows_key_code(&self) -> i32 {
-        self.0.windows_key_code
-    }
-
-    /// Set the actual key code genenerated by the platform.
-    pub fn set_native_key_code(&mut self, code: i32) {
-        self.0.native_key_code = code;
-    }
-    /// The actual key code genenerated by the platform.
-    pub fn native_key_code(&self) -> i32 {
-        self.0.native_key_code
-    }
-
-    /// Set to indicate whether the event is considered a "system key" event (see
-    /// http://msdn.microsoft.com/en-us/library/ms646286(VS.85).aspx for details).
-    /// This value should always be false on non-Windows platforms.
-    pub fn set_system_key(&mut self, flag: bool) {
-        self.0.is_system_key = flag as i32;
-    }
-    /// Indicates whether the event is considered a "system key" event (see
-    /// http://msdn.microsoft.com/en-us/library/ms646286(VS.85).aspx for details).
-    /// This value will always be false on non-Windows platforms.
-    pub fn is_system_key(&self) -> bool {
-        self.0.is_system_key != 0
-    }
-
-    /// Set the character generated by the keystroke.
-    pub fn set_character(&mut self, character: u16) {
-        self.0.character = character;
-    }
-    /// The character generated by the keystroke.
-    pub fn character(&self) -> u16 {
-        self.0.character
-    }
-
-    /// Same as [KeyEvent::set_character] but unmodified by any concurrently-held modifiers
-    /// (except shift). This is useful for working out shortcut keys.
-    pub fn set_unmodified_character(&mut self, character: u16) {
-        self.0.unmodified_character = character;
-    }
-    /// Same as |character| but unmodified by any concurrently-held modifiers
-    /// (except shift). This is useful for working out shortcut keys.
-    pub fn unmodified_character(&self) -> u16 {
-        self.0.unmodified_character
-    }
-    /// Set to true if the focus is currently on an editable field on the page. This is
-    /// useful for determining if standard key events should be intercepted.
-    pub fn set_focus_on_editable_field(&mut self, flag: bool) {
-        self.0.focus_on_editable_field = flag as i32;
-    }
-    /// True if the focus is currently on an editable field on the page. This is
-    /// useful for determining if standard key events should be intercepted.
-    pub fn focus_on_editable_field(&self) -> bool {
-        self.0.focus_on_editable_field != 0
-    }
-
-    pub(crate) fn as_ptr(&self) -> *const cef_key_event_t {
-        &self.0
-    }
-}
-
-impl Default for KeyEvent {
-    fn default() -> Self {
-        Self::new()
+    pub fn as_cef(&self) -> &cef_key_event_t {
+        unsafe { &*(self as *const Self as *const cef_key_event_t) }
     }
 }
 
 impl Into<cef_key_event_t> for KeyEvent {
     fn into(self) -> cef_key_event_t {
-        self.0
+        unsafe {
+            mem::transmute::<
+                KeyEvent,
+                cef_key_event_t,
+            >(self)
+        }
     }
 }
 
@@ -178,220 +88,94 @@ pub enum MouseButtonType {
 }
 
 /// Structure representing mouse event information.
-pub struct MouseEvent(cef_mouse_event_t);
+#[repr(C)]
+#[derive(Default, Debug, Clone, Copy, PartialEq, Eq)]
+pub struct MouseEvent {
+    pub x: i32,
+    pub y: i32,
+    pub modifiers: EventFlags,
+}
 
 impl MouseEvent {
-    pub fn new() -> Self {
-        Self(unsafe { std::mem::zeroed() })
-    }
-    pub(crate) fn wrap(event: cef_mouse_event_t) -> Self {
-        Self(event)
-    }
-    /// Set X coordinate relative to the left side of the view.
-    pub fn set_x(&mut self, x: i32) {
-        self.0.x = x;
-    }
-    /// Set Y coordinate relative to the top side of the view.
-    pub fn set_y(&mut self, y: i32) {
-        self.0.y = y;
-    }
-    /// X coordinate relative to the left side of the view.
-    pub fn x(&self) -> i32 {
-        self.0.x
-    }
-    /// Y coordinate relative to the top side of the view.
-    pub fn y(&self) -> i32 {
-        self.0.y
-    }
-    /// Set list describing any pressed modifier keys.
-    pub fn set_modifiers(&mut self, modifiers: &[EventFlags]) {
-        self.0.modifiers = modifiers
-            .iter()
-            .fold(0, |flags, flag| flags | (*flag as i32 as u32));
-    }
-    /// Vector describing any pressed modifier keys.
-    pub fn modifiers(&self) -> Vec<EventFlags> {
-        [
-            EventFlags::CapsLockOn,
-            EventFlags::ShiftDown,
-            EventFlags::ControlDown,
-            EventFlags::AltDown,
-            EventFlags::LeftMouseButton,
-            EventFlags::MiddleMouseButton,
-            EventFlags::RightMouseButton,
-            EventFlags::CommandDown,
-            EventFlags::NumLockOn,
-            EventFlags::IsKeyPad,
-            EventFlags::IsLeft,
-            EventFlags::IsRight,
-        ]
-        .iter()
-        .filter(|flag| ((**flag) as u32 & self.0.modifiers) != 0)
-        .cloned()
-        .collect()
-    }
-
-    pub(crate) fn as_ptr(&self) -> *const cef_mouse_event_t {
-        &self.0
+    pub fn as_cef(&self) -> &cef_mouse_event_t {
+        unsafe { &*(self as *const Self as *const cef_mouse_event_t) }
     }
 }
 
-impl Default for MouseEvent {
-    fn default() -> Self {
-        Self::new()
+impl Into<cef_mouse_event_t> for MouseEvent {
+    fn into(self) -> cef_mouse_event_t {
+        unsafe {
+            mem::transmute::<
+                MouseEvent,
+                cef_mouse_event_t,
+            >(self)
+        }
     }
 }
 
-/// Touch points states types.
-#[repr(i32)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
-pub enum TouchEventType {
-    Released = cef_touch_event_type_t::CEF_TET_RELEASED,
-    Pressed = cef_touch_event_type_t::CEF_TET_PRESSED,
-    Moved = cef_touch_event_type_t::CEF_TET_MOVED,
-    Cancelled = cef_touch_event_type_t::CEF_TET_CANCELLED,
+bitflags!{
+    #[derive(Default)]
+    pub struct TouchEventType: i32 {
+        const RELEASED = cef_touch_event_type_t::CEF_TET_RELEASED as _;
+        const PRESSED = cef_touch_event_type_t::CEF_TET_PRESSED as _;
+        const MOVED = cef_touch_event_type_t::CEF_TET_MOVED as _;
+        const CANCELLED = cef_touch_event_type_t::CEF_TET_CANCELLED as _;
+    }
 }
 
-/// The device type that caused the event.
-#[repr(i32)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
-pub enum PointerType {
-    Touch = cef_pointer_type_t::CEF_POINTER_TYPE_TOUCH,
-    Mouse = cef_pointer_type_t::CEF_POINTER_TYPE_MOUSE,
-    Pen = cef_pointer_type_t::CEF_POINTER_TYPE_PEN,
-    Eraser = cef_pointer_type_t::CEF_POINTER_TYPE_ERASER,
-    Unknown = cef_pointer_type_t::CEF_POINTER_TYPE_UNKNOWN,
+impl TouchEventType {
+    pub unsafe fn from_unchecked(i: i32) -> TouchEventType {
+        TouchEventType::from_bits_unchecked(i)
+    }
+}
+
+bitflags!{
+    /// The device type that caused the event.
+    #[derive(Default)]
+    pub struct PointerType: i32 {
+        const TOUCH = cef_pointer_type_t::CEF_POINTER_TYPE_TOUCH as _;
+        const MOUSE = cef_pointer_type_t::CEF_POINTER_TYPE_MOUSE as _;
+        const PEN = cef_pointer_type_t::CEF_POINTER_TYPE_PEN as _;
+        const ERASER = cef_pointer_type_t::CEF_POINTER_TYPE_ERASER as _;
+        const UNKNOWN = cef_pointer_type_t::CEF_POINTER_TYPE_UNKNOWN as _;
+    }
+}
+
+impl PointerType {
+    pub unsafe fn from_unchecked(i: i32) -> PointerType {
+        PointerType::from_bits_unchecked(i)
+    }
 }
 
 /// Structure representing touch event information.
-pub struct TouchEvent(cef_touch_event_t);
+#[repr(C)]
+#[derive(Default, Debug, Clone, Copy, PartialEq)]
+pub struct TouchEvent {
+    pub touch_id: i32,
+    pub x: f32,
+    pub y: f32,
+    pub radius_x: f32,
+    pub radius_y: f32,
+    pub rotation_angle: f32,
+    pub pressure: f32,
+    pub event_type: TouchEventType,
+    pub modifiers: EventFlags,
+    pub pointer_type: PointerType,
+}
 
 impl TouchEvent {
-    pub fn new() -> Self {
-        Self(unsafe { std::mem::zeroed() })
-    }
-    pub(crate) fn wrap(event: cef_touch_event_t) -> Self {
-        Self(event)
-    }
-    /// Set id of a touch point. Must be unique per touch, can be any number except -1.
-    /// Note that a maximum of 16 concurrent touches will be tracked; touches
-    /// beyond that will be ignored.
-    pub fn set_id(&mut self, id: i32) {
-        self.0.id = id;
-    }
-    /// Id of a touch point. Is unique per touch, can be any number except -1.
-    /// Note that a maximum of 16 concurrent touches will be tracked; touches
-    /// beyond that will be ignored.
-    pub fn id(&self) -> i32 {
-        self.0.id
-    }
-    /// Set X coordinate relative to the left side of the view.
-    pub fn set_x(&mut self, x: f32) {
-        self.0.x = x;
-    }
-    /// Set Y coordinate relative to the top side of the view.
-    pub fn set_y(&mut self, y: f32) {
-        self.0.y = y;
-    }
-    /// X coordinate relative to the left side of the view.
-    pub fn x(&self) -> f32 {
-        self.0.x
-    }
-    /// Y coordinate relative to the top side of the view.
-    pub fn y(&self) -> f32 {
-        self.0.y
-    }
-    /// X radius in pixels. Set to 0 if not applicable.
-    pub fn set_radius_x(&mut self, radius_x: f32) {
-        self.0.radius_x = radius_x;
-    }
-    /// X radius in pixels. 0 if not applicable.
-    pub fn radius_x(&self) -> f32 {
-        self.0.radius_x
-    }
-    /// Y radius in pixels. Set to 0 if not applicable.
-    pub fn set_radius_y(&mut self, radius_y: f32) {
-        self.0.radius_y = radius_y;
-    }
-    /// Y radius in pixels. 0 if not applicable.
-    pub fn radius_y(&self) -> f32 {
-        self.0.radius_y
-    }
-    /// Rotation angle in radians. Set to 0 if not applicable.
-    pub fn set_rotation_angle(&mut self, rotation_angle: f32) {
-        self.0.rotation_angle = rotation_angle;
-    }
-    /// Rotation angle in radians. 0 if not applicable.
-    pub fn rotation_angle(&self) -> f32 {
-        self.0.rotation_angle
-    }
-    /// The normalized pressure of the pointer input in the range of [0,1].
-    /// Set to 0 if not applicable.
-    pub fn set_pressure(&mut self, pressure: f32) {
-        self.0.pressure = pressure;
-    }
-    /// The normalized pressure of the pointer input in the range of [0,1].
-    /// 0 if not applicable.
-    pub fn pressure(&self) -> f32 {
-        self.0.pressure
-    }
-    /// The state of the touch point. Touches begin with one [TouchEventType::Pressed] event
-    /// followed by zero or more [TouchEventType::Moved] events and finally one
-    /// [TouchEventType::Released] or [TouchEventType::Cancelled] event. Events not respecting this
-    /// order will be ignored.
-    pub fn set_event_type(&mut self, event_type: TouchEventType) {
-        self.0.type_ = event_type as i32;
-    }
-    /// The state of the touch point. Touches begin with one [TouchEventType::Pressed] event
-    /// followed by zero or more [TouchEventType::Moved] events and finally one
-    /// [TouchEventType::Released] or [TouchEventType::Cancelled] event. Events not respecting this
-    /// order will be ignored.
-    pub fn event_type(&self) -> TouchEventType {
-        unsafe { TouchEventType::from_unchecked(self.0.type_) }
-    }
-    /// Set list describing any pressed modifier keys.
-    pub fn set_modifiers(&mut self, modifiers: &[EventFlags]) {
-        self.0.modifiers = modifiers
-            .iter()
-            .fold(0, |flags, flag| flags | (*flag as i32 as u32));
-    }
-    /// Vector describing any pressed modifier keys.
-    pub fn modifiers(&self) -> Vec<EventFlags> {
-        [
-            EventFlags::CapsLockOn,
-            EventFlags::ShiftDown,
-            EventFlags::ControlDown,
-            EventFlags::AltDown,
-            EventFlags::LeftMouseButton,
-            EventFlags::MiddleMouseButton,
-            EventFlags::RightMouseButton,
-            EventFlags::CommandDown,
-            EventFlags::NumLockOn,
-            EventFlags::IsKeyPad,
-            EventFlags::IsLeft,
-            EventFlags::IsRight,
-        ]
-        .iter()
-        .filter(|flag| ((**flag) as u32 & self.0.modifiers) != 0)
-        .cloned()
-        .collect()
-    }
-    /// The device type that caused the event.
-    pub fn set_pointer_type(&mut self, pointer_type: PointerType) {
-        self.0.pointer_type = pointer_type as i32;
-    }
-    /// The device type that caused the event.
-    pub fn pointer_type(&self) -> PointerType {
-        unsafe { PointerType::from_unchecked(self.0.pointer_type) }
-    }
-
-    pub(crate) fn as_ptr(&self) -> *const cef_touch_event_t {
-        &self.0
+    pub fn as_cef(&self) -> &cef_touch_event_t {
+        unsafe { &*(self as *const Self as *const cef_touch_event_t) }
     }
 }
 
-impl Default for TouchEvent {
-    fn default() -> Self {
-        Self::new()
+impl Into<cef_touch_event_t> for TouchEvent {
+    fn into(self) -> cef_touch_event_t {
+        unsafe {
+            mem::transmute::<
+                TouchEvent,
+                cef_touch_event_t,
+            >(self)
+        }
     }
 }
