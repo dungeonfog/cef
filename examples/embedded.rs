@@ -162,8 +162,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
     ) {
         let buffer = BGRA::from_raw_slice(buffer);
         assert_eq!(buffer.len(), (width * height) as usize);
-        let buffer_row = |row: u32| {
-            let row = height as u32 - 1 - row;
+        let buffer_row = |row: usize| {
             &buffer[row as usize * width as usize..(1 + row) as usize * width as usize]
         };
         let mut pixel_buffer = self.pixel_buffer.lock();
@@ -174,10 +173,11 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             (PaintElementType::View, _) => {
                 for rect in dirty_rects {
                     let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
-                    for row in (rect.y..rect.y+rect.height).map(|r| r as u32) {
-                        pixel_buffer.row_mut(row).unwrap()
-                            [row_span.clone()]
-                            .copy_from_slice(&buffer_row(row)[row_span.clone()])
+                    for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
+                        let pixel_buffer_row =
+                            &mut pixel_buffer.row_mut(height as u32 - 1 - row as u32).unwrap()
+                                [row_span.clone()];
+                        pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
                     }
 
                     pixel_buffer.blit_rect(
@@ -190,10 +190,11 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             },
             (PaintElementType::Popup, Some(rect)) => {
                 let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
-                for row in (rect.y..rect.y+rect.height).map(|r| r as u32) {
-                    pixel_buffer.row_mut(row).unwrap()
-                        [row_span.clone()]
-                        .copy_from_slice(&buffer_row(row)[row_span.clone()])
+                for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
+                    let pixel_buffer_row =
+                        &mut pixel_buffer.row_mut(height as u32 - 1 - row as u32).unwrap()
+                            [row_span.clone()];
+                    pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
                 }
 
                 pixel_buffer.blit_rect(
