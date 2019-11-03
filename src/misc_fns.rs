@@ -77,97 +77,115 @@ pub fn execute_process(args: &[&str], application: Option<App>) -> i32 {
         )
     }
 }
-/// This function should be called on the main application thread to initialize
-/// the CEF browser process.
-///
-/// The `application` parameter may be None. A return
-/// value of true indicates that it succeeded and false indicates that it
-/// failed. The `windows_sandbox_info` parameter is only used on Windows and may
-/// be None (see [SandboxInfo] for details).
-#[cfg(target_os = "windows")]
-pub fn initialize(
-    args: &MainArgs,
-    settings: &Settings,
-    application: Option<App>,
-    windows_sandbox_info: Option<&SandboxInfo>,
-) -> bool {
-    unsafe {
-        cef_initialize(
-            args.get(),
-            settings.get(),
-            application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-            windows_sandbox_info
-                .map(|wsi| wsi.get())
-                .unwrap_or_else(null_mut),
-        ) != 0
+
+
+pub struct Context(());
+
+impl Context {
+    /// This function should be called on the main application thread to initialize
+    /// the CEF browser process.
+    ///
+    /// The `application` parameter may be None. A return
+    /// value of true indicates that it succeeded and false indicates that it
+    /// failed. The `windows_sandbox_info` parameter is only used on Windows and may
+    /// be None (see [SandboxInfo] for details).
+    #[cfg(target_os = "windows")]
+    pub fn initialize(
+        args: &MainArgs,
+        settings: &Settings,
+        application: Option<App>,
+        windows_sandbox_info: Option<&SandboxInfo>,
+    ) -> Option<Context> {
+        unsafe {
+            let worked = cef_initialize(
+                args.get(),
+                settings.get(),
+                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
+                windows_sandbox_info
+                    .map(|wsi| wsi.get())
+                    .unwrap_or_else(null_mut),
+            ) != 0;
+            match worked {
+                true => Some(Context(())),
+                false => None,
+            }
+        }
+    }
+    /// This function should be called on the main application thread to initialize
+    /// the CEF browser process.
+    ///
+    /// The `application` parameter may be None. A return
+    /// value of true indicates that it succeeded and false indicates that it
+    /// failed.
+    #[cfg(not(target_os = "windows"))]
+    pub fn initialize(args: &[&str], settings: &Settings, application: Option<App>) -> Option<Context> {
+        unsafe {
+            let worked = cef_initialize(
+                args.get(),
+                settings.get(),
+                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
+                null_mut(),
+            ) != 0;
+            match worked {
+                true => Some(Context(())),
+                false => None,
+            }
+        }
+    }
+
+    /// Perform a single iteration of CEF message loop processing.
+    ///
+    /// This function is
+    /// provided for cases where the CEF message loop must be integrated into an
+    /// existing application message loop. Use of this function is not recommended
+    /// for most users; use either the [App::run_message_loop] function or
+    /// [Settings::multi_threaded_message_loop] if possible. When using this function
+    /// care must be taken to balance performance against excessive CPU usage. It is
+    /// recommended to enable the [Settings::external_message_pump] option when using
+    /// this function so that
+    /// [BrowserProcessHandlerCallbacks::on_schedule_message_pump_work] callbacks can
+    /// facilitate the scheduling process. This function should only be called on the
+    /// main application thread and only if [App::initialize] is called with a
+    /// [Settings::multi_threaded_message_loop] value of false. This function
+    /// will not block.
+    pub fn do_message_loop_work(&self) {
+        unsafe {
+            cef_do_message_loop_work();
+        }
+    }
+    /// Run the CEF message loop.
+    ///
+    /// Use this function instead of an application-
+    /// provided message loop to get the best balance between performance and CPU
+    /// usage. This function should only be called on the main application thread and
+    /// only if [App::initialize] is called with a
+    /// [CefSettings::multi_threaded_message_loop] value of false. This function
+    /// will block until a quit message is received by the system.
+    pub fn run_message_loop(&self) {
+        unsafe {
+            cef_run_message_loop();
+        }
+    }
+    /// Quit the CEF message loop that was started by calling [App::run_message_loop].
+    ///
+    /// This function should only be called on the main application thread and only
+    /// if [App::run_message_loop] was used.
+    pub fn quit_message_loop(&self) {
+        unsafe {
+            cef_quit_message_loop();
+        }
     }
 }
-/// This function should be called on the main application thread to initialize
-/// the CEF browser process.
-///
-/// The `application` parameter may be None. A return
-/// value of true indicates that it succeeded and false indicates that it
-/// failed.
-#[cfg(not(target_os = "windows"))]
-pub fn initialize(args: &[&str], settings: &Settings, application: Option<App>) -> bool {
-    unsafe {
-        cef_initialize(
-            args.get(),
-            settings.get(),
-            application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-            null_mut(),
-        ) != 0
+
+impl Drop for Context {
+    fn drop(&mut self) {
+        unsafe {
+            println!("drop context");
+            cef_shutdown();
+        }
     }
 }
-/// This function should be called on the main application thread to shut down
-/// the CEF browser process before the application exits.
-pub fn shutdown() {
-    unsafe {
-        cef_shutdown();
-    }
-}
-/// Perform a single iteration of CEF message loop processing.
-///
-/// This function is
-/// provided for cases where the CEF message loop must be integrated into an
-/// existing application message loop. Use of this function is not recommended
-/// for most users; use either the [App::run_message_loop] function or
-/// [Settings::multi_threaded_message_loop] if possible. When using this function
-/// care must be taken to balance performance against excessive CPU usage. It is
-/// recommended to enable the [Settings::external_message_pump] option when using
-/// this function so that
-/// [BrowserProcessHandlerCallbacks::on_schedule_message_pump_work] callbacks can
-/// facilitate the scheduling process. This function should only be called on the
-/// main application thread and only if [App::initialize] is called with a
-/// [Settings::multi_threaded_message_loop] value of false. This function
-/// will not block.
-pub fn do_message_loop_work() {
-    unsafe {
-        cef_do_message_loop_work();
-    }
-}
-/// Run the CEF message loop.
-///
-/// Use this function instead of an application-
-/// provided message loop to get the best balance between performance and CPU
-/// usage. This function should only be called on the main application thread and
-/// only if [App::initialize] is called with a
-/// [CefSettings::multi_threaded_message_loop] value of false. This function
-/// will block until a quit message is received by the system.
-pub fn run_message_loop() {
-    unsafe {
-        cef_run_message_loop();
-    }
-}
-/// Quit the CEF message loop that was started by calling [App::run_message_loop].
-///
-/// This function should only be called on the main application thread and only
-/// if [App::run_message_loop] was used.
-pub fn quit_message_loop() {
-    unsafe {
-        cef_quit_message_loop();
-    }
-}
+
 /// Set to true before calling Windows APIs like TrackPopupMenu that enter a
 /// modal message loop.
 ///

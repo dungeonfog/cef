@@ -60,7 +60,7 @@ pub struct RenderHandlerCallbacksImpl {
 #[derive(Clone)]
 enum CefEvent {
     ScheduleWork(Instant),
-    SetBrowser(Browser),
+    Quit,
 }
 
 impl AppCallbacks for AppCallbacksImpl {
@@ -86,10 +86,8 @@ impl ClientCallbacks for ClientCallbacksImpl {
 
 impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     fn on_before_close(&self, _browser: Browser) {
-        cef::quit_message_loop()
-    }
-    fn on_after_created(&self, browser: Browser) {
-        self.proxy.lock().send_event(CefEvent::SetBrowser(browser)).unwrap();
+        println!("close browser");
+        self.proxy.lock().send_event(CefEvent::Quit).unwrap();
     }
 }
 
@@ -119,7 +117,8 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         _browser: Browser,
         point: Point,
     ) -> Option<Point> {
-        let physical_pos = LogicalPosition::new(point.x as _, point.y as _).to_physical(self.window.hidpi_factor());
+        let screen_pos = self.window.inner_position().unwrap_or(LogicalPosition::new(0.0, 0.0));
+        let physical_pos = (LogicalPosition::new(screen_pos.x + point.x as f64, screen_pos.y + point.y as f64)).to_physical(self.window.hidpi_factor());
         Some(Point::new(physical_pos.x as i32, physical_pos.y as i32))
     }
     fn on_popup_size(&self, _: Browser, mut rect: Rect) {
@@ -299,12 +298,11 @@ fn main() {
     settings.enable_windowless_rendering();
     settings.set_log_severity(LogSeverity::Disable);
     settings.enable_external_message_pump();
-    // settings.enable_multi_threaded_message_loop();
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
 
-    cef::initialize(&args, &settings, Some(app), None);
+    let context = cef::Context::initialize(&args, &settings, Some(app), None).unwrap();
 
     let window = WindowBuilder::new()
         .with_title("CEF Example Window")
@@ -336,7 +334,7 @@ fn main() {
     });
 
 
-    BrowserHost::create_browser(
+    let browser = BrowserHost::create_browser_sync(
         &window_info,
         client,
         "https://www.github.com/anlumo/cef",
@@ -347,7 +345,6 @@ fn main() {
 
     println!("initialize done");
 
-    let mut browser: Option<Browser> = None;
     let mut mouse_event = MouseEvent {
         x: 0,
         y: 0,
@@ -356,21 +353,19 @@ fn main() {
     event_loop.run(move |event, _, control_flow| {
         match event {
             Event::NewEvents(StartCause::ResumeTimeReached{..}) => {
-                println!("do work");
                 *control_flow = ControlFlow::Wait;
-                cef::do_message_loop_work();
+                context.do_message_loop_work();
             }
             Event::WindowEvent {
-                event: WindowEvent::KeyboardInput{input: KeyboardInput { state: ElementState::Pressed, virtual_keycode: Some(VirtualKeyCode::Space), .. }, ..},
+                event: WindowEvent::CloseRequested,
                 ..
             } => {
-                println!("force do work");
-                cef::do_message_loop_work();
+                *control_flow = ControlFlow::Exit;
             }
             Event::WindowEvent {
                 event,
                 window_id: _,
-            } => if let Some(browser) = browser.as_ref() {
+            } => {
                 match event {
                     WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                     WindowEvent::RedrawRequested => {
@@ -440,20 +435,17 @@ fn main() {
                 }
             },
             Event::UserEvent(event) => match event {
-                CefEvent::SetBrowser(browser_) => browser = Some(browser_),
                 CefEvent::ScheduleWork(instant) => {
                     if instant <= Instant::now() {
-                        println!("do work immediate");
-                        cef::do_message_loop_work();
+                        context.do_message_loop_work();
                     } else {
-                        println!("work scheduled {:?}", instant - Instant::now());
                         *control_flow = ControlFlow::WaitUntil(instant);
                     }
+                },
+                CefEvent::Quit => {
+                    context.quit_message_loop();
                 }
             }
-            Event::LoopDestroyed => {
-                cef::shutdown();
-            },
             _ => (),//*control_flow = ControlFlow::Wait,
         }
     });

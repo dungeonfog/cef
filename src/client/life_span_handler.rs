@@ -290,7 +290,8 @@ cef_callback_impl!{
             self.0.do_close(browser) as _
         }
         fn on_before_close(&self, browser: Browser: *mut cef_browser_t) {
-            self.0.on_before_close(browser);
+            self.0.on_before_close(browser.clone());
+            unsafe{ browser.poison(); }
         }
     }
 }

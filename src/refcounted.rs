@@ -6,6 +6,8 @@ use std::{
     ptr::NonNull,
     sync::Arc,
 };
+use chashmap::CHashMap;
+use lazy_static::lazy_static;
 
 /// # Safety
 /// This trait requires that a pointer to `Self` must also be a valid pointer to a
@@ -13,6 +15,7 @@ use std::{
 /// field be the first field, and using `#[repr(C)]`. Failure to do will result in undefined
 /// behavior.
 pub(crate) unsafe trait RefCounter: Sized {
+    const POISONABLE: bool;
     fn base(&self) -> &cef_base_ref_counted_t;
     fn base_mut(&mut self) -> &mut cef_base_ref_counted_t;
 }
@@ -24,7 +27,11 @@ pub(crate) trait Wrapper: Sized + Send + Sync {
 
 macro_rules! ref_counter {
     ($cef:ident) => {
+        ref_counter!($cef, false);
+    };
+    ($cef:ident, $poisonable:expr) => {
         unsafe impl RefCounter for cef_sys::$cef {
+            const POISONABLE: bool = $poisonable;
             fn base(&self) -> &cef_base_ref_counted_t {
                 &self.base
             }
@@ -74,6 +81,26 @@ impl<C: RefCounter> RefCountedPtr<C> {
         std::mem::forget(self);
         ptr
     }
+
+    pub(crate) unsafe fn poison(self) {
+        if C::POISONABLE {
+            POISON_TABLE.insert(self.cef.as_ptr() as usize, ());
+        } else {
+            panic!("not poisonable");
+        }
+    }
+
+    fn check_poisoned(&self) -> bool {
+        if C::POISONABLE {
+            POISON_TABLE.contains_key(&(self.cef.as_ptr() as usize))
+        } else {
+            false
+        }
+    }
+}
+
+lazy_static!{
+    static ref POISON_TABLE: CHashMap<usize, ()> = CHashMap::new();
 }
 
 macro_rules! ref_counted_ptr {
@@ -113,6 +140,10 @@ macro_rules! ref_counted_ptr {
             pub(crate) fn into_raw(self) -> *mut $cef {
                 self.0.into_raw()
             }
+
+            pub(crate) unsafe fn poison(self) {
+                self.0.poison()
+            }
         }
 
         owned_casts!(impl for $Struct = *mut $cef);
@@ -123,12 +154,18 @@ impl<C: RefCounter> Deref for RefCountedPtr<C> {
     type Target = C;
 
     fn deref(&self) -> &Self::Target {
+        if self.check_poisoned() {
+            panic!("Attempted to use poisoned struct");
+        }
         unsafe { self.cef.as_ref() }
     }
 }
 
 impl<C: RefCounter> DerefMut for RefCountedPtr<C> {
     fn deref_mut(&mut self) -> &mut Self::Target {
+        if self.check_poisoned() {
+            panic!("Attempted to use poisoned struct");
+        }
         unsafe { self.cef.as_mut() }
     }
 }
@@ -136,9 +173,13 @@ impl<C: RefCounter> DerefMut for RefCountedPtr<C> {
 impl<C: RefCounter> Drop for RefCountedPtr<C> {
     fn drop(&mut self) {
         unsafe {
-            let release = self.cef.as_ref().base().release.unwrap();
-            let base = self.cef.as_mut().base_mut();
-            (release)(base);
+            if !self.check_poisoned() {
+                let release = self.cef.as_ref().base().release.unwrap();
+                let base = self.cef.as_mut().base_mut();
+                (release)(base);
+            } else {
+                println!("drop poisoned")
+            }
         }
     }
 }
@@ -214,6 +255,7 @@ impl<W: Wrapper> RefCounted<W> {
 }
 
 unsafe impl RefCounter for cef_base_ref_counted_t {
+    const POISONABLE: bool = false;
     fn base(&self) -> &cef_base_ref_counted_t {
         self
     }
@@ -276,7 +318,7 @@ ref_counter!(_cef_get_extension_resource_callback_t);
 ref_counter!(_cef_extension_handler_t);
 ref_counter!(_cef_resolve_callback_t);
 ref_counter!(cef_request_context_t);
-ref_counter!(cef_browser_t);
+ref_counter!(cef_browser_t, true);
 ref_counter!(cef_browser_host_t);
 ref_counter!(_cef_print_settings_t);
 ref_counter!(_cef_print_dialog_callback_t);
