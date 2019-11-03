@@ -392,20 +392,21 @@ impl BrowserHost {
         window_info: &WindowInfo,
         client: Option<Client>,
         settings: Option<BrowserSettings>,
-        inspect_element_at: Point,
+        inspect_element_at: Option<Point>,
     ) {
         if let Some(show_dev_tools) = self.0.show_dev_tools {
             let client = client
                 .map(Client::into_raw)
                 .unwrap_or_else(null_mut);
             let settings = settings.map(|s| s.into_raw());
+            let point = inspect_element_at.map(|iea| iea.into());
             unsafe {
                 show_dev_tools(
                     self.0.as_ptr(),
                     &window_info.into_raw(),
                     client,
                     settings.map(|s| &s as *const _).unwrap_or_else(null),
-                    &inspect_element_at.into(),
+                    point.map(|pt| &pt as *const _).unwrap_or_else(null),
                 );
             }
         }
