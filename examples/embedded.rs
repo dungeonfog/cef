@@ -299,6 +299,7 @@ fn main() {
     settings.set_log_severity(LogSeverity::Disable);
     settings.enable_external_message_pump();
     settings.disable_sandbox();
+    settings.set_remote_debugging_port(9222);
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
 
