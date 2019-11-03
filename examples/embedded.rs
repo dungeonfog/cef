@@ -406,14 +406,20 @@ fn main() {
                             MouseButton::Right => Some(MouseButtonType::Right),
                             _ => None,
                         };
+                        let released = match state {
+                            ElementState::Pressed => false,
+                            ElementState::Released => true,
+                        };
                         if let Some(button) = button {
+                            match button {
+                                MouseButtonType::Left => mouse_event.modifiers.set(EventFlags::LEFT_MOUSE_BUTTON, !released),
+                                MouseButtonType::Middle => mouse_event.modifiers.set(EventFlags::MIDDLE_MOUSE_BUTTON, !released),
+                                MouseButtonType::Right => mouse_event.modifiers.set(EventFlags::RIGHT_MOUSE_BUTTON, !released),
+                            }
                             browser.get_host().send_mouse_click_event(
                                 &mouse_event,
                                 button,
-                                match state {
-                                    ElementState::Pressed => false,
-                                    ElementState::Released => true,
-                                },
+                                released,
                                 1
                             );
                         }
