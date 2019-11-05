@@ -29,6 +29,11 @@ use libc::c_int;
 use std::os::raw::c_void;
 use std::ptr;
 
+#[cfg(target_os = "windows")]
+pub type CursorHandle = HCURSOR;
+#[cfg(target_os = "linux")]
+pub type CursorHandle = u64;
+
 #[repr(i32)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum TextInputMode {
@@ -333,7 +338,7 @@ pub trait RenderHandlerCallbacks: 'static + Send + Sync {
     fn on_cursor_change(
         &self,
         browser: Browser,
-        cursor: HCURSOR, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+        cursor: CursorHandle,
         type_: CursorType<'_>,
     );
     /// Called when the user starts dragging content in the web view. Contextual
@@ -582,7 +587,7 @@ cef_callback_impl!{
         fn on_cursor_change(
             &self,
             browser: Browser: *mut cef_browser_t,
-            cursor: HCURSOR: HCURSOR, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+            cursor: CursorHandle: CursorHandle, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
             type_: cef_cursor_type_t::Type: cef_cursor_type_t::Type,
             custom_cursor_info: *const cef_cursor_info_t: *const cef_cursor_info_t,
         ) {

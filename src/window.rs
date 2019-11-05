@@ -1,26 +1,69 @@
 use crate::string::CefString;
 use cef_sys::{cef_window_info_t};
 use std::ptr;
-use winapi::shared::{
-    windef::{HWND, HMENU},
-    minwindef::DWORD,
-};
+use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
+
+pub struct RawWindow(RawWindowHandle);
+
+impl RawWindow {
+    pub unsafe fn from_window<W: HasRawWindowHandle>(window: &W) -> RawWindow {
+        RawWindow(window.raw_window_handle())
+    }
+}
+
+unsafe impl HasRawWindowHandle for RawWindow {
+    fn raw_window_handle(&self) -> RawWindowHandle {
+        self.0
+    }
+}
 
 /// Structure representing window information.
 pub struct WindowInfo {
     pub window_name: String,
-    pub style: DWORD,
-    pub ex_style: DWORD,
     pub x: i32,
     pub y: i32,
     pub width: i32,
     pub height: i32,
-    pub parent_window: HWND,
-    pub window: HWND,
-    pub menu: HMENU,
+    pub parent_window: Option<RawWindow>,
+    pub window: Option<RawWindow>,
     pub windowless_rendering_enabled: bool,
     pub shared_texture_enabled: bool,
     pub external_begin_frame_enabled: bool,
+    pub platform_specific: PlatformSpecificWindowInfo,
+}
+
+#[cfg(target_os = "windows")]
+use windows::PlatformSpecificWindowInfo;
+#[cfg(target_os = "windows")]
+pub mod windows {
+    use std::ptr;
+    use winapi::shared::{
+        windef::HMENU,
+        minwindef::DWORD,
+    };
+    pub struct PlatformSpecificWindowInfo {
+        pub style: DWORD,
+        pub ex_style: DWORD,
+        pub menu: HMENU,
+    }
+
+    impl Default for PlatformSpecificWindowInfo {
+        fn default() -> Self {
+            PlatformSpecificWindowInfo {
+                style: 0,
+                ex_style: 0,
+                menu: ptr::null_mut(),
+            }
+        }
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+use not_windows::PlatformSpecificWindowInfo;
+#[cfg(not(target_os = "windows"))]
+pub mod not_windows {
+    #[derive(Default)]
+    pub struct PlatformSpecificWindowInfo;
 }
 
 impl WindowInfo {
@@ -32,39 +75,98 @@ impl WindowInfo {
     }
 }
 
+#[cfg(target_os = "windows")]
 impl<'a> From<&'a cef_window_info_t> for WindowInfo {
     fn from(info: &'a cef_window_info_t) -> WindowInfo {
+        use raw_window_handle::windows::WindowsHandle;
+        let wrap_hwnd = |r| RawWindow(RawWindowHandle::Windows(WindowsHandle { hwnd: r as *mut _ as _, ..WindowsHandle::empty() }));
         WindowInfo {
+            // TODO: THIS CONVERSION MAKES THE ENTIRE FUNCTION UNSAFE
             window_name: unsafe{ CefString::from_ptr_unchecked(&info.window_name).into() },
-            style: info.style,
-            ex_style: info.ex_style,
             x: info.x,
             y: info.y,
             width: info.width,
             height: info.height,
-            parent_window: info.parent_window as _,
-            window: info.window as _,
-            menu: info.menu as _,
+            parent_window: unsafe{ info.parent_window.as_mut().map(wrap_hwnd) },
+            window: unsafe{ info.window.as_mut().map(wrap_hwnd) },
             windowless_rendering_enabled: info.windowless_rendering_enabled != 0,
             shared_texture_enabled: info.shared_texture_enabled != 0,
             external_begin_frame_enabled: info.external_begin_frame_enabled != 0,
+            platform_specific: PlatformSpecificWindowInfo {
+                menu: info.menu as _,
+                style: info.style,
+                ex_style: info.ex_style,
+            }
         }
     }
 }
 
+#[cfg(target_os = "linux")]
+impl<'a> From<&'a cef_window_info_t> for WindowInfo {
+    fn from(info: &'a cef_window_info_t) -> WindowInfo {
+        use raw_window_handle::unix::XlibHandle;
+        let wrap_window = |r| if r == 0 {
+            None
+        } else {
+            Some(RawWindow(RawWindowHandle::Xlib(XlibHandle { window: r, ..XlibHandle::empty() })))
+        };
+        WindowInfo {
+            // TODO: THIS CONVERSION MAKES THE ENTIRE FUNCTION UNSAFE
+            window_name: unsafe{ CefString::from_ptr_unchecked(&info.window_name).into() },
+            x: info.x as _,
+            y: info.y as _,
+            width: info.width as _,
+            height: info.height as _,
+            parent_window: wrap_window(info.parent_window),
+            window: wrap_window(info.window),
+            windowless_rendering_enabled: info.windowless_rendering_enabled != 0,
+            shared_texture_enabled: info.shared_texture_enabled != 0,
+            external_begin_frame_enabled: info.external_begin_frame_enabled != 0,
+            platform_specific: PlatformSpecificWindowInfo
+        }
+    }
+}
+
+#[cfg(target_os = "windows")]
 impl<'a> From<&'a WindowInfo> for cef_window_info_t {
     fn from(info: &'a WindowInfo) -> cef_window_info_t {
+        let unwrap_hwnd = |r: &RawWindow| match r.0 {
+            RawWindowHandle::Windows(windows_handle) => windows_handle.hwnd,
+            _ => panic!(),
+        };
         cef_window_info_t {
-            ex_style: info.ex_style,
+            ex_style: info.platform_specific.ex_style,
             window_name: CefString::new(&info.window_name).into_raw(),
-            style: info.style,
-            x: info.x,
-            y: info.y,
-            width: info.width,
-            height: info.height,
-            parent_window: info.parent_window as _,
-            menu: info.menu as _,
-            window: info.window as _,
+            style: info.platform_specific.style,
+            x: info.x as _,
+            y: info.y as _,
+            width: info.width as _,
+            height: info.height as _,
+            parent_window: info.parent_window.as_ref().map(unwrap_hwnd).map(|h| h as _).unwrap_or(ptr::null_mut()),
+            window: info.window.as_ref().map(unwrap_hwnd).map(|h| h as _).unwrap_or(ptr::null_mut()),
+            menu: info.platform_specific.menu as _,
+            windowless_rendering_enabled: info.windowless_rendering_enabled as _,
+            shared_texture_enabled: info.shared_texture_enabled as _,
+            external_begin_frame_enabled: info.external_begin_frame_enabled as _,
+        }
+    }
+}
+
+#[cfg(target_os = "linux")]
+impl<'a> From<&'a WindowInfo> for cef_window_info_t {
+    fn from(info: &'a WindowInfo) -> cef_window_info_t {
+        let unwrap_window = |r: &RawWindow| match r {
+            RawWindow(RawWindowHandle::Xlib(xlib_handle)) => xlib_handle.window,
+            _ => panic!(),
+        };
+        cef_window_info_t {
+            window_name: CefString::new(&info.window_name).into_raw(),
+            x: info.x as _,
+            y: info.y as _,
+            width: info.width as _,
+            height: info.height as _,
+            parent_window: info.parent_window.as_ref().map(unwrap_window).unwrap_or(0),
+            window: info.window.as_ref().map(unwrap_window).unwrap_or(0),
             windowless_rendering_enabled: info.windowless_rendering_enabled as _,
             shared_texture_enabled: info.shared_texture_enabled as _,
             external_begin_frame_enabled: info.external_begin_frame_enabled as _,
@@ -76,18 +178,16 @@ impl Default for WindowInfo {
     fn default() -> Self {
         WindowInfo {
             window_name: String::new(),
-            style: 0,
-            ex_style: 0,
             x: 0,
             y: 0,
             width: 0,
             height: 0,
-            parent_window: ptr::null_mut(),
-            window: ptr::null_mut(),
-            menu: ptr::null_mut(),
+            parent_window: None,
+            window: None,
             windowless_rendering_enabled: false,
             shared_texture_enabled: false,
             external_begin_frame_enabled: false,
+            platform_specific: PlatformSpecificWindowInfo::default(),
         }
     }
 }

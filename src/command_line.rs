@@ -49,22 +49,22 @@ impl CommandLine {
             .map(|is_read_only| unsafe { is_read_only(self.as_ptr()) } != 0)
             .unwrap_or(true)
     }
-    /// Initialize the command line with the specified |argv| values.
-    /// The first argument must be the name of the program. This function is only
-    /// supported on non-Windows platforms.
-    #[cfg(not(target_os = "windows"))]
-    pub fn new_from_argv(argv: &[&str]) -> Self {
-        let instance = unsafe { cef_command_line_create() };
-        let argv: Vec<*const c_char> = argv
-            .iter()
-            .map(|arg| CString::new(*arg).unwrap().as_ptr())
-            .collect();
+    // /// Initialize the command line with the specified |argv| values.
+    // /// The first argument must be the name of the program. This function is only
+    // /// supported on non-Windows platforms.
+    // #[cfg(not(target_os = "windows"))]
+    // pub fn new_from_argv(argv: &[&str]) -> Self {
+    //     let instance = unsafe { cef_command_line_create() };
+    //     let argv: Vec<*const c_char> = argv
+    //         .iter()
+    //         .map(|arg| CString::new(*arg).unwrap().as_ptr())
+    //         .collect();
 
-        unsafe {
-            ((*instance).init_from_argv.unwrap())(instance, argv.len() as i32, argv.as_ptr());
-        }
-        Self(instance)
-    }
+    //     unsafe {
+    //         ((*instance).init_from_argv.unwrap())(instance, argv.len() as i32, argv.as_ptr());
+    //     }
+    //     Self(instance)
+    // }
     /// Initialize the command line with the string returned by calling
     /// GetCommandLineW(). This function is only supported on Windows.
     pub fn new_from_string(command_line: &str) -> Self {

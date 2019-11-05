@@ -1,3 +1,4 @@
+mod quick_blit;
 use cef::client::render_handler::CursorType;
 use cef_sys::HCURSOR;
 use cef::drag::DragOperation;
@@ -34,7 +35,8 @@ use winit::{
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
     window::{CursorIcon, Window, WindowBuilder},
 };
-use winit_blit::{PixelBufferTyped, BGRA};
+// use winit_blit::{PixelBufferTyped, BGRA};
+use quick_blit::{QuickBlit, BGRA};
 use parking_lot::Mutex;
 
 pub struct AppCallbacksImpl {
@@ -52,8 +54,7 @@ pub struct BrowserProcessHandlerCallbacksImpl {
     depth: AtomicU32,
 }
 pub struct RenderHandlerCallbacksImpl {
-    window: Window,
-    pixel_buffer: Mutex<PixelBufferTyped<BGRA>>,
+    pixel_buffer: Mutex<QuickBlit>,
     popup_rect: Mutex<Option<Rect>>,
 }
 
@@ -99,7 +100,7 @@ impl BrowserProcessHandlerCallbacks for BrowserProcessHandlerCallbacksImpl {
 
 impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
     fn get_view_rect(&self, _: Browser) -> Rect {
-        let inner_size = self.window.inner_size();
+        let inner_size = self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().inner_size();
         Rect {
             x: 0,
             y: 0,
@@ -117,12 +118,12 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         _browser: Browser,
         point: Point,
     ) -> Option<Point> {
-        let screen_pos = self.window.inner_position().unwrap_or(LogicalPosition::new(0.0, 0.0));
-        let physical_pos = (LogicalPosition::new(screen_pos.x + point.x as f64, screen_pos.y + point.y as f64)).to_physical(self.window.hidpi_factor());
+        let screen_pos = self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().inner_position().unwrap_or(LogicalPosition::new(0.0, 0.0));
+        let physical_pos = (LogicalPosition::new(screen_pos.x + point.x as f64, screen_pos.y + point.y as f64)).to_physical(self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().hidpi_factor());
         Some(Point::new(physical_pos.x as i32, physical_pos.y as i32))
     }
     fn on_popup_size(&self, _: Browser, mut rect: Rect) {
-        let window_size: (u32, u32) = self.window.inner_size().into();
+        let window_size: (u32, u32) = self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().inner_size().into();
         let window_size = (window_size.0 as i32, window_size.1 as i32);
         rect.x = i32::max(rect.x, 0);
         rect.y = i32::max(rect.y, 0);
@@ -131,7 +132,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         *self.popup_rect.lock() = Some(rect);
     }
     fn get_screen_info(&self, _: Browser) -> Option<ScreenInfo> {
-        let inner_size = self.window.inner_size();
+        let inner_size = self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().inner_size();
         let rect = Rect {
             x: 0,
             y: 0,
@@ -140,7 +141,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         };
 
         Some(ScreenInfo {
-            device_scale_factor: self.window.hidpi_factor() as f32,
+            device_scale_factor: self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().hidpi_factor() as f32,
             depth: 32,
             depth_per_component: 8,
             is_monochrome: false,
@@ -163,43 +164,30 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             &buffer[row as usize * width as usize..(1 + row) as usize * width as usize]
         };
         let mut pixel_buffer = self.pixel_buffer.lock();
-        if pixel_buffer.width() != width as u32 || pixel_buffer.height() != height as u32 {
-            *pixel_buffer = PixelBufferTyped::new_supported(width as u32, height as u32, &self.window);
-        }
+        pixel_buffer.resize((width as _, height as _));
         match (element_type, *self.popup_rect.lock()) {
             (PaintElementType::View, _) => {
                 for rect in dirty_rects {
                     let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
                     for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
                         let pixel_buffer_row =
-                            &mut pixel_buffer.row_mut(height as u32 - 1 - row as u32).unwrap()
+                            &mut pixel_buffer.row_mut(row as u32).unwrap()
                                 [row_span.clone()];
                         pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
                     }
-
-                    pixel_buffer.blit_rect(
-                        (rect.x as u32, rect.y as u32),
-                        (rect.x as u32, rect.y as u32),
-                        (rect.width as u32, rect.height as u32),
-                        &self.window
-                    ).unwrap();
                 }
+                unsafe {pixel_buffer.blit()}
             },
             (PaintElementType::Popup, Some(rect)) => {
                 let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
                 for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
                     let pixel_buffer_row =
-                        &mut pixel_buffer.row_mut(height as u32 - 1 - row as u32).unwrap()
+                        &mut pixel_buffer.row_mut(row as u32).unwrap()
                             [row_span.clone()];
                     pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
                 }
 
-                pixel_buffer.blit_rect(
-                    (rect.x as u32, rect.y as u32),
-                    (rect.x as u32, rect.y as u32),
-                    (rect.width as u32, rect.height as u32),
-                    &self.window
-                ).unwrap();
+                unsafe {pixel_buffer.blit()}
             },
             _ => (),
         }
@@ -267,10 +255,10 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         };
         match winit_cursor {
             Some(cursor) => {
-                self.window.set_cursor_icon(cursor);
-                self.window.set_cursor_visible(true);
+                self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().set_cursor_icon(cursor);
+                self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().set_cursor_visible(true);
             },
-            None => self.window.set_cursor_visible(false),
+            None => self.pixel_buffer.lock().windowed_context.as_ref().unwrap().window().set_cursor_visible(false),
         }
     }
     fn update_drag_cursor(&self, _browser: Browser, _operation: DragOperation) {
@@ -290,7 +278,7 @@ fn main() {
     #[cfg(windows)]
     cef::enable_highdpi_support();
     let args = MainArgs::new();
-    let result = cef::execute_process(&args, Some(app.clone()), None);
+    let result = cef::execute_process(&args, Some(app.clone()));
     if result >= 0 {
         std::process::exit(result);
     }
@@ -302,19 +290,18 @@ fn main() {
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
 
-    let context = cef::Context::initialize(&args, &settings, Some(app), None).unwrap();
+    let context = cef::Context::initialize(&args, &settings, Some(app)).unwrap();
 
-    let window = WindowBuilder::new()
-        .with_title("CEF Example Window")
-        .build(&event_loop)
-        .unwrap();
+    let window_builder = WindowBuilder::new()
+        .with_title("CEF Example Window");
+    let blit = unsafe{ QuickBlit::new(window_builder, &event_loop) };
 
-    let width = window.inner_size().to_physical(window.hidpi_factor()).width.round() as u32;
-    let height = window.inner_size().to_physical(window.hidpi_factor()).height.round() as u32;
+
+    let width = blit.windowed_context.as_ref().unwrap().window().inner_size().to_physical(blit.windowed_context.as_ref().unwrap().window().hidpi_factor()).width.round() as u32;
+    let height = blit.windowed_context.as_ref().unwrap().window().inner_size().to_physical(blit.windowed_context.as_ref().unwrap().window().hidpi_factor()).height.round() as u32;
 
     let window_info = WindowInfo {
         windowless_rendering_enabled: true,
-        parent_window: window.hwnd() as _,
         width: width as _,
         height: height as _,
         ..WindowInfo::new()
@@ -327,10 +314,9 @@ fn main() {
             proxy: Mutex::new(event_loop.create_proxy()),
         }),
         render_handler: RenderHandler::new(RenderHandlerCallbacksImpl {
-            pixel_buffer: Mutex::new(PixelBufferTyped::new_supported(width, height, &window)),
-            window,
+            pixel_buffer: Mutex::new(blit),
             popup_rect: Mutex::new(None),
-        })
+        }),
     });
 
 

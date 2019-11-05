@@ -38,7 +38,7 @@ pub trait BrowserProcessHandlerCallbacks: 'static + Sync + Send {
     /// Return the handler for printing on Linux. If a print handler is not
     /// provided then printing will not be supported on the Linux platform.
     #[cfg(target_os = "linux")]
-    fn get_print_handler(&self) -> Option<Box<dyn PrintHandler>> {
+    fn get_print_handler(&self) -> Option<!> { // Option<PrintHandler>
         None
     }
     /// Called from any thread when work has been scheduled for the browser process
@@ -57,8 +57,8 @@ pub trait BrowserProcessHandlerCallbacks: 'static + Sync + Send {
 
 pub(crate) struct BrowserProcessHandlerWrapper {
     delegate: Box<dyn BrowserProcessHandlerCallbacks>,
-    #[cfg(target_os = "linux")]
-    print_handler: Option<RefCountedPtr<cef_print_handler_t>>,
+    // #[cfg(target_os = "linux")]
+    // print_handler: Option<RefCountedPtr<cef_print_handler_t>>,
 }
 
 impl Wrapper for BrowserProcessHandlerWrapper {
@@ -70,9 +70,9 @@ impl Wrapper for BrowserProcessHandlerWrapper {
                 on_context_initialized: Some(Self::context_initialized),
                 on_before_child_process_launch: Some(Self::before_child_process_launch),
                 on_render_process_thread_created: Some(Self::render_process_thread_created),
-                #[cfg(target_os = "linux")]
-                get_print_handler: Some(Self::get_print_handler),
-                #[cfg(not(target_os = "linux"))]
+                // #[cfg(target_os = "linux")]
+                // get_print_handler: Some(Self::get_print_handler),
+                // #[cfg(not(target_os = "linux"))]
                 get_print_handler: None,
                 on_schedule_message_pump_work: Some(Self::schedule_message_pump_work),
             },
@@ -85,8 +85,8 @@ impl BrowserProcessHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn BrowserProcessHandlerCallbacks>) -> BrowserProcessHandlerWrapper {
         Self {
             delegate,
-            #[cfg(target_os = "linux")]
-            print_handler: None,
+            // #[cfg(target_os = "linux")]
+            // print_handler: None,
         }
     }
 }
@@ -111,20 +111,21 @@ cef_callback_impl! {
         #[cfg(target_os = "linux")]
         fn get_print_handler(
             &self
-        ) -> *mut cef_print_handler_t {
-            if let Some(handler) = self.delegate.get_print_handler() {
-                let wrapper = PrintHandlerWrapper::new(handler);
-                this.print_handler = wrapper;
-                wrapper as *mut cef_print_handler_t
-            } else {
-                if !this.print_handler.is_null() {
-                    RefCounted::<cef_print_handler_t>::release(
-                        (*this).print_handler as *mut cef_base_ref_counted_t,
-                    );
-                    this.print_handler = null_mut();
-                }
-                null_mut()
-            }
+        ) -> *mut cef_sys::cef_print_handler_t {
+            unimplemented!()
+            // if let Some(handler) = self.delegate.get_print_handler() {
+            //     let wrapper = PrintHandlerWrapper::new(handler);
+            //     this.print_handler = wrapper;
+            //     wrapper as *mut cef_print_handler_t
+            // } else {
+            //     if !this.print_handler.is_null() {
+            //         RefCounted::<cef_print_handler_t>::release(
+            //             (*this).print_handler as *mut cef_base_ref_counted_t,
+            //         );
+            //         this.print_handler = null_mut();
+            //     }
+            //     null_mut()
+            // }
         }
         fn schedule_message_pump_work(
             &self,

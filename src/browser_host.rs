@@ -28,7 +28,8 @@ use std::{
     iter::FromIterator,
     ptr::{null, null_mut},
 };
-use winapi::shared::minwindef::HINSTANCE;
+#[cfg(target_os = "windows")]
+use winapi::shared::windef::HWND;
 
 /// Paint element types.
 #[repr(i32)]
@@ -39,9 +40,17 @@ pub enum PaintElementType {
 }
 
 #[cfg(target_os = "windows")]
-pub type WindowHandle = HINSTANCE;
+pub type WindowHandle = HWND;
+#[cfg(target_os = "windows")]
+fn null_window_handle() -> HWND {
+    null_mut()
+}
 #[cfg(target_os = "linux")]
 pub type WindowHandle = u64;
+#[cfg(target_os = "linux")]
+fn null_window_handle() -> u64 {
+    0
+}
 #[cfg(target_os = "macos")]
 pub type WindowHandle = *mut std::ffi::c_void; // Actually NSView*
 
@@ -160,7 +169,7 @@ impl BrowserHost {
         self.0
             .get_window_handle
             .map(|get_window_handle| unsafe { get_window_handle(self.0.as_ptr()) as WindowHandle })
-            .unwrap_or_else(null_mut)
+            .unwrap_or_else(null_window_handle)
     }
     /// Retrieve the window handle of the browser that opened this browser. Will
     /// return None for non-popup windows or if this browser is wrapped in a
@@ -171,7 +180,7 @@ impl BrowserHost {
             .get_opener_window_handle
             .and_then(|get_opener_window_handle| {
                 let handle = unsafe { get_opener_window_handle(self.0.as_ptr()) };
-                if handle.is_null() {
+                if handle == null_window_handle() as _ {
                     None
                 } else {
                     Some(handle as WindowHandle)

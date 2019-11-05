@@ -13,10 +13,17 @@ libc = "0.2"
 bitflags = "1"
 lazy_static = "1"
 chashmap = "2"
+raw-window-handle = "0.3"
 
 [dev-dependencies]
 winit = "=0.20.0-alpha4"
-winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
+# winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
+
+# I'm temporarily pulling in my opengl wrapper because it's
+# 12:30 AM and I don't want to learn wgpu right now.
+gullery = {git = "https://github.com/Osspial/gullery.git" }
+gullery_macros = {git = "https://github.com/Osspial/gullery.git" }
+glutin = "0.22.0-alpha3"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3" }

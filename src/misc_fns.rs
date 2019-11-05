@@ -9,7 +9,7 @@ use crate::{
     settings::Settings,
 };
 use cef_sys::{
-    cef_do_message_loop_work, cef_enable_highdpi_support, cef_execute_process,
+    cef_do_message_loop_work, cef_execute_process,
     cef_initialize, cef_quit_message_loop, cef_run_message_loop, cef_set_osmodal_loop, cef_shutdown,
 };
 use std::{ptr::null_mut};
@@ -25,7 +25,7 @@ use crate::sandbox::SandboxInfo;
 #[cfg(target_os = "windows")]
 pub fn enable_highdpi_support() {
     unsafe {
-        cef_enable_highdpi_support();
+        cef_sys::cef_enable_highdpi_support();
     }
 }
 /// This function should be called from the application entry point function to
@@ -43,15 +43,15 @@ pub fn enable_highdpi_support() {
 pub fn execute_process(
     args: &MainArgs,
     application: Option<App>,
-    windows_sandbox_info: Option<&SandboxInfo>,
 ) -> i32 {
     unsafe {
         cef_execute_process(
             args.get(),
             application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-            windows_sandbox_info
-                .map(|wsi| wsi.get())
-                .unwrap_or_else(null_mut),
+            null_mut(),
+            // windows_sandbox_info
+            //     .map(|wsi| wsi.get())
+            //     .unwrap_or_else(null_mut),
         )
     }
 }
@@ -66,7 +66,7 @@ pub fn execute_process(
 /// secondary process it will block until the process should exit and then return
 /// the process exit code. The `application` parameter may be None.
 #[cfg(not(target_os = "windows"))]
-pub fn execute_process(args: &[&str], application: Option<App>) -> i32 {
+pub fn execute_process(args: &MainArgs, application: Option<App>) -> i32 {
     unsafe {
         cef_execute_process(
             args.get(),
@@ -94,37 +94,16 @@ impl Context {
         args: &MainArgs,
         settings: &Settings,
         application: Option<App>,
-        windows_sandbox_info: Option<&SandboxInfo>,
     ) -> Option<Context> {
         unsafe {
             let worked = cef_initialize(
                 args.get(),
                 settings.get(),
                 application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-                windows_sandbox_info
-                    .map(|wsi| wsi.get())
-                    .unwrap_or_else(null_mut),
-            ) != 0;
-            match worked {
-                true => Some(Context(())),
-                false => None,
-            }
-        }
-    }
-    /// This function should be called on the main application thread to initialize
-    /// the CEF browser process.
-    ///
-    /// The `application` parameter may be None. A return
-    /// value of true indicates that it succeeded and false indicates that it
-    /// failed.
-    #[cfg(not(target_os = "windows"))]
-    pub fn initialize(args: &[&str], settings: &Settings, application: Option<App>) -> Option<Context> {
-        unsafe {
-            let worked = cef_initialize(
-                args.get(),
-                settings.get(),
-                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
                 null_mut(),
+                // windows_sandbox_info
+                //     .map(|wsi| wsi.get())
+                //     .unwrap_or_else(null_mut),
             ) != 0;
             match worked {
                 true => Some(Context(())),

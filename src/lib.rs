@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_variables)]
-#![feature(fn_traits, unboxed_closures, trait_alias)]
+#![feature(fn_traits, unboxed_closures, trait_alias, never_type)]
 #[macro_use]
 mod refcounted;
 #[macro_use]
@@ -39,7 +39,6 @@ pub mod app;
 
 #[cfg(target_os = "windows")]
 pub mod sandbox;
-#[cfg(target_os = "windows")]
 pub mod main_args;
 pub mod settings;
 pub mod color;
