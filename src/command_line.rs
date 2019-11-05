@@ -54,16 +54,16 @@ impl CommandLine {
     /// supported on non-Windows platforms.
     #[cfg(not(target_os = "windows"))]
     pub fn new_from_argv(argv: &[&str]) -> Self {
-        let instance = unsafe { cef_command_line_create() };
+        let instance = Self::new();
         let argv: Vec<*const c_char> = argv
             .iter()
             .map(|arg| CString::new(*arg).unwrap().as_ptr())
             .collect();
 
         unsafe {
-            ((*instance).init_from_argv.unwrap())(instance, argv.len() as i32, argv.as_ptr());
+            (instance.0.init_from_argv.unwrap())(instance.as_ptr(), argv.len() as i32, argv.as_ptr());
         }
-        Self(instance)
+        instance
     }
     /// Initialize the command line with the string returned by calling
     /// GetCommandLineW(). This function is only supported on Windows.

@@ -2,7 +2,7 @@ use cef_sys::{cef_pdf_print_margin_type_t, cef_pdf_print_settings_t};
 
 use crate::string::CefString;
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub enum PDFPrintMargin {
     Default = cef_pdf_print_margin_type_t::PDF_PRINT_MARGIN_DEFAULT,
@@ -71,7 +71,7 @@ impl PDFPrintSettings {
 
     /// Margin type.
     pub fn set_margin_type(&mut self, margin_type: PDFPrintMargin) {
-        self.0.margin_type = margin_type as i32;
+        self.0.margin_type = margin_type as _;
     }
 
     /// Call this to print headers and footers.

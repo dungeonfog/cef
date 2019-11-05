@@ -4,24 +4,24 @@ use num_enum::UnsafeFromPrimitive;
 use std::path::Path;
 
 /// Log severity levels.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, UnsafeFromPrimitive)]
 pub enum LogSeverity {
     /// Default logging (currently INFO logging).
-    Default = cef_log_severity_t::LOGSEVERITY_DEFAULT as i32,
+    Default = cef_log_severity_t::LOGSEVERITY_DEFAULT,
     /// Verbose logging (same as DEBUG logging).
-    Verbose = cef_log_severity_t::LOGSEVERITY_VERBOSE as i32,
+    Verbose = cef_log_severity_t::LOGSEVERITY_VERBOSE,
     /// INFO logging.
-    Info = cef_log_severity_t::LOGSEVERITY_INFO as i32,
+    Info = cef_log_severity_t::LOGSEVERITY_INFO,
     /// WARNING logging.
-    Warning = cef_log_severity_t::LOGSEVERITY_WARNING as i32,
+    Warning = cef_log_severity_t::LOGSEVERITY_WARNING,
     /// ERROR logging.
-    Error = cef_log_severity_t::LOGSEVERITY_ERROR as i32,
+    Error = cef_log_severity_t::LOGSEVERITY_ERROR,
     /// FATAL logging.
-    Fatal = cef_log_severity_t::LOGSEVERITY_FATAL as i32,
+    Fatal = cef_log_severity_t::LOGSEVERITY_FATAL,
     /// Disable logging to file for all messages, and to stderr for messages with
     /// severity less than FATAL.
-    Disable = cef_log_severity_t::LOGSEVERITY_DISABLE as i32,
+    Disable = cef_log_severity_t::LOGSEVERITY_DISABLE,
 }
 
 pub struct Settings(cef_settings_t);

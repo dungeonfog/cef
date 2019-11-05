@@ -3,7 +3,7 @@ use cef_sys::{cef_alpha_type_t, cef_color_type_t, cef_image_create, cef_image_t}
 use crate::values::BinaryValue;
 
 /// Describes how to interpret the components of a pixel.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ColorType {
     /// RGBA with 8 bits per pixel (32bits total).
@@ -13,7 +13,7 @@ pub enum ColorType {
 }
 
 /// Describes how to interpret the alpha component of a pixel.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AlphaType {
     /// No transparency. The alpha component is ignored.

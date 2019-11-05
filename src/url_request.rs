@@ -21,20 +21,20 @@ use crate::{
 };
 
 /// Flags that represent [URLRequest] status.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum URLRequestStatus {
     /// Unknown status.
-    Unknown = cef_urlrequest_status_t::UR_UNKNOWN as i32,
+    Unknown = cef_urlrequest_status_t::UR_UNKNOWN,
     /// Request succeeded.
-    Success = cef_urlrequest_status_t::UR_SUCCESS as i32,
+    Success = cef_urlrequest_status_t::UR_SUCCESS,
     /// An IO request is pending, and the caller will be informed when it is
     /// completed.
-    IOPending = cef_urlrequest_status_t::UR_IO_PENDING as i32,
+    IOPending = cef_urlrequest_status_t::UR_IO_PENDING,
     /// Request was canceled programatically.
-    Canceled = cef_urlrequest_status_t::UR_CANCELED as i32,
+    Canceled = cef_urlrequest_status_t::UR_CANCELED,
     /// Request failed for some reason.
-    Failed = cef_urlrequest_status_t::UR_FAILED as i32,
+    Failed = cef_urlrequest_status_t::UR_FAILED,
 }
 
 ref_counted_ptr! {
@@ -90,7 +90,7 @@ impl URLRequest {
     pub fn get_request_status(&self) -> URLRequestStatus {
         unsafe {
             URLRequestStatus::from_unchecked(
-                self.0.get_request_status.unwrap()(self.as_ptr()) as i32
+                self.0.get_request_status.unwrap()(self.as_ptr()) as u32
             )
         }
     }
@@ -427,12 +427,12 @@ cef_callback_impl! {
     }
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, UnsafeFromPrimitive)]
 pub enum ResponseFilterStatus {
-    NeedMoreData = cef_response_filter_status_t::RESPONSE_FILTER_NEED_MORE_DATA as i32,
-    Done = cef_response_filter_status_t::RESPONSE_FILTER_DONE as i32,
-    Error = cef_response_filter_status_t::RESPONSE_FILTER_ERROR as i32,
+    NeedMoreData = cef_response_filter_status_t::RESPONSE_FILTER_NEED_MORE_DATA,
+    Done = cef_response_filter_status_t::RESPONSE_FILTER_DONE,
+    Error = cef_response_filter_status_t::RESPONSE_FILTER_ERROR,
 }
 
 ref_counted_ptr!{

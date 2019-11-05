@@ -1,4 +1,8 @@
 use cef_sys::cef_main_args_t;
+use std::{
+    os::raw::c_char,
+    ffi::CString,
+};
 
 /// Structure representing CefExecuteProcess arguments.
 pub struct MainArgs {
@@ -22,15 +26,15 @@ impl MainArgs {
         }
     }
     #[cfg(not(target_os = "windows"))]
-    fn new_inner() {
-        let mut args: Vec<*mut c_char> = std::env::args_os()
+    fn new_inner() -> Self {
+        let mut args: Vec<*mut c_char> = std::env::args()
             .map(|arg| CString::new(arg).unwrap().into_raw())
             .collect();
         Self {
-            cef: Box::into_raw(Box::new(cef_main_args_t {
+            cef: cef_main_args_t {
                 argc: args.len() as i32,
                 argv: args.as_mut_ptr(),
-            })),
+            },
             rust: args,
         }
     }
@@ -46,6 +50,6 @@ impl MainArgs {
 impl Drop for MainArgs {
     fn drop(&mut self) {
         #[cfg(not(target_os = "windows"))]
-        self.rust.into_iter().map(CString::from_raw);
+        self.rust.iter().map(|arg| unsafe { CString::from_raw(*arg) });
     }
 }

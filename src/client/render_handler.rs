@@ -22,14 +22,15 @@ use cef_sys::{
     cef_cursor_type_t,
     cef_cursor_info_t,
     cef_drag_data_t,
-    HCURSOR,
 };
+#[cfg(target_os = "windows")]
+use cef_sys::HCURSOR;
 use num_enum::UnsafeFromPrimitive;
 use libc::c_int;
 use std::os::raw::c_void;
 use std::ptr;
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum TextInputMode {
     Default = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DEFAULT,
@@ -330,10 +331,18 @@ pub trait RenderHandlerCallbacks: 'static + Send + Sync {
     );
     /// Called when the browser's cursor has changed. If `type` is CT_CUSTOM then
     /// `custom_cursor_info` will be populated with the custom cursor information.
+    #[cfg(target_os = "windows")]
     fn on_cursor_change(
         &self,
         browser: Browser,
         cursor: HCURSOR, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+        type_: CursorType<'_>,
+    );
+    #[cfg(target_os = "linux")]
+    fn on_cursor_change(
+        &self,
+        browser: Browser,
+        cursor: u64, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
         type_: CursorType<'_>,
     );
     /// Called when the user starts dragging content in the web view. Contextual
@@ -579,10 +588,22 @@ cef_callback_impl!{
             };
             self.0.on_accelerated_paint(browser, type_, dirty_rects, shared_handle);
         }
+        #[cfg(target_os = "windows")]
         fn on_cursor_change(
             &self,
             browser: Browser: *mut cef_browser_t,
             cursor: HCURSOR: HCURSOR, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+            type_: cef_cursor_type_t::Type: cef_cursor_type_t::Type,
+            custom_cursor_info: *const cef_cursor_info_t: *const cef_cursor_info_t,
+        ) {
+            let cursor_type = unsafe{ CursorType::from_raw(type_, custom_cursor_info) };
+            self.0.on_cursor_change(browser, cursor, cursor_type);
+        }
+        #[cfg(target_os = "linux")]
+        fn on_cursor_change(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            cursor: u64: u64, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
             type_: cef_cursor_type_t::Type: cef_cursor_type_t::Type,
             custom_cursor_info: *const cef_cursor_info_t: *const cef_cursor_info_t,
         ) {

@@ -1,11 +1,13 @@
-use cef_sys::{cef_browser_process_handler_t, cef_command_line_t, cef_list_value_t};
-
+use cef_sys::{cef_browser_process_handler_t, cef_command_line_t, cef_list_value_t, cef_print_handler_t};
+use std::ptr::null_mut;
 use crate::{
     command_line::CommandLine,
     refcounted::{RefCountedPtr, Wrapper},
     values::ListValue,
-    // print_handler::PrintHandler,
 };
+#[cfg(target_os = "linux")]
+use crate::print_handler::{PrintHandler, PrintHandlerWrapper};
+
 
 ref_counted_ptr!{
     pub struct BrowserProcessHandler(*mut cef_browser_process_handler_t);
@@ -113,16 +115,8 @@ cef_callback_impl! {
             &self
         ) -> *mut cef_print_handler_t {
             if let Some(handler) = self.delegate.get_print_handler() {
-                let wrapper = PrintHandlerWrapper::new(handler);
-                this.print_handler = wrapper;
-                wrapper as *mut cef_print_handler_t
+                PrintHandlerWrapper::new(handler).wrap().into_raw()
             } else {
-                if !this.print_handler.is_null() {
-                    RefCounted::<cef_print_handler_t>::release(
-                        (*this).print_handler as *mut cef_base_ref_counted_t,
-                    );
-                    this.print_handler = null_mut();
-                }
                 null_mut()
             }
         }

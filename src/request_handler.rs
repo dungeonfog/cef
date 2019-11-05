@@ -16,7 +16,7 @@ use crate::{
     url_request::{AuthCallback, RequestCallback},
 };
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum WindowOpenDisposition {
     Unknown = cef_window_open_disposition_t::WOD_UNKNOWN,
@@ -31,7 +31,7 @@ pub enum WindowOpenDisposition {
     IgnoreAction = cef_window_open_disposition_t::WOD_IGNORE_ACTION,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum TerminationStatus {
     AbnormalTermination = cef_termination_status_t::TS_ABNORMAL_TERMINATION,

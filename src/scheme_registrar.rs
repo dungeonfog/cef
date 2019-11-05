@@ -100,14 +100,14 @@ impl SchemeRegistrar {
     /// per unique `scheme_name` value. If `scheme_name` is already registered or
     /// if an error occurs this function will return false.
     pub fn add_custom_scheme(&self, scheme_name: &str, options: &[SchemeOptions]) -> bool {
-        let options: std::os::raw::c_int = options.iter().fold(0, |flags, option| {
+        let options = options.iter().fold(0, |flags, option| {
             flags | (<SchemeOptions as Into<cef_scheme_options_t::Type>>::into(*option))
         });
         unsafe {
             ((*self.0).add_custom_scheme.unwrap())(
                 self.0,
                 CefString::new(scheme_name).as_ptr(),
-                options,
+                options as _,
             ) != 0
         }
     }

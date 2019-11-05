@@ -12,6 +12,7 @@ use cef::{
     settings::{Settings, LogSeverity},
     window::WindowInfo,
 };
+use std::sync::Arc;
 
 pub struct AppCallbacksImpl {}
 
@@ -27,11 +28,13 @@ impl ClientCallbacks for ClientCallbacksImpl {
     }
 }
 
-pub struct LifeSpanHandlerImpl {}
+pub struct LifeSpanHandlerImpl {
+    context: Arc<cef::Context>,
+}
 
 impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     fn on_before_close(&self, _browser: Browser) {
-        cef::quit_message_loop()
+        self.context.quit_message_loop();
     }
 }
 
@@ -40,41 +43,56 @@ fn main() {
     #[cfg(windows)]
     cef::enable_highdpi_support();
     let args = MainArgs::new();
+    #[cfg(target_os = "windows")]
     let result = cef::execute_process(&args, Some(app.clone()), None);
+    #[cfg(not(target_os = "windows"))]
+    let result = cef::execute_process(&args, Some(app.clone()));
     if result >= 0 {
         std::process::exit(result);
     }
     let mut settings = Settings::new();
-    settings.set_log_severity(LogSeverity::Disable);
+    //settings.set_log_severity(LogSeverity::Disable);
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
+    let locales_folder = std::path::Path::new("./Resources/locales").canonicalize().unwrap();
+    settings.set_locales_dir_path(&locales_folder);
 
-    cef::initialize(&args, &settings, Some(app), None);
+    if let Some(context) = {
+        #[cfg(target_os = "windows")]
+        {
+            cef::Context::initialize(&args, &settings, Some(app), None)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            cef::Context::initialize(&args, &settings, Some(app))
+        }
+    } {
+        let context = Arc::new(context);
+        let mut window_info = WindowInfo::new();
+        #[cfg(windows)] {
+            window_info.style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE;
+        }
+        window_info.window_name = "cefsimple Rust example".into();
+        window_info.width = 500;
+        window_info.height = 500;
+        let browser_settings = BrowserSettings::new();
 
-    let mut window_info = WindowInfo::new();
-    #[cfg(windows)] {
-        window_info.style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE;
+        let client = Client::new(ClientCallbacksImpl {
+            life_span_handler: LifeSpanHandler::new(LifeSpanHandlerImpl {
+                context: context.clone(),
+            })
+        });
+
+        BrowserHost::create_browser(
+            &window_info,
+            client,
+            "https://www.youtube.com",
+            &browser_settings,
+            None,
+            None,
+        );
+
+        context.run_message_loop();
     }
-    window_info.window_name = "cefsimple Rust example".into();
-    window_info.width = 500;
-    window_info.height = 500;
-    let browser_settings = BrowserSettings::new();
-
-    let client = Client::new(ClientCallbacksImpl {
-        life_span_handler: LifeSpanHandler::new(LifeSpanHandlerImpl {})
-    });
-
-    BrowserHost::create_browser(
-        &window_info,
-        client,
-        "https://www.youtube.com",
-        &browser_settings,
-        None,
-        None,
-    );
-
-    cef::run_message_loop();
-
-    cef::shutdown();
 }

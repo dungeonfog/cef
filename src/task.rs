@@ -5,7 +5,7 @@ use cef_sys::{
 };
 use parking_lot::Mutex;
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ThreadId {
     UI = cef_thread_id_t::TID_UI,
@@ -37,9 +37,9 @@ impl TaskRunner {
     }
     /// Returns the task runner for the specified CEF thread.
     pub fn get_for_thread(thread_id: ThreadId) -> Option<Self> {
-        unsafe { Self::from_ptr(cef_task_runner_get_for_thread(thread_id as i32)) }
+        unsafe { Self::from_ptr(cef_task_runner_get_for_thread(thread_id as _))}
     }
-    /// Returns true if called on the specified thread. Equivalent to using
+    /// Returns true if called on the specified thread. Equivalent to usingimpl Wrapper for TaskWrapper {
     /// `TaskRunner::get_for_thread(thread_id).belongs_to_current_thread()`.
     pub fn currently_on(thread_id: ThreadId) -> bool {
         unsafe { cef_currently_on(thread_id as cef_thread_id_t::Type) != 0 }

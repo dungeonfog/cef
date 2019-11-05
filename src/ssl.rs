@@ -4,7 +4,7 @@ use std::collections::HashSet;
 /// Supported certificate status code values. See net\cert\cert_status_flags.h
 /// for more information. CERT_STATUS_NONE is new in CEF because we use an
 /// enum while cert_status_flags.h uses a typedef and static const variables.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum CertStatus {
     None = cef_cert_status_t::CERT_STATUS_NONE.0,
@@ -57,7 +57,7 @@ impl CertStatus {
     pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
         status_flags: I,
     ) -> cef_cert_status_t {
-        cef_cert_status_t(status_flags.fold(0, |mask, flag| mask | (*flag as i32)))
+        cef_cert_status_t(status_flags.fold(0, |mask, flag| mask | (*flag as u32)))
     }
 }
 

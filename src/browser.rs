@@ -130,7 +130,7 @@ impl Browser {
 }
 
 /// Represents the state of a setting.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum State {
     /// Use the default state for the setting.

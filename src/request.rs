@@ -12,37 +12,37 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 /// if the `--no-referrers` command-line flag is specified then the policy value
 /// will be ignored and the Referrer value will never be sent.
 /// Must be kept synchronized with `net::URLRequest::ReferrerPolicy` from Chromium.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ReferrerPolicy {
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
-    Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,
+    Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT,
     /// A slight variant on CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE (Default):
     /// if the request destination is HTTP, an HTTPS referrer will be cleared. if
     /// the request's destination is cross-origin with the referrer (but does not
     /// downgrade), the referrer's granularity will be stripped down to an origin
     /// rather than a full URL. Same-origin requests will send the full referrer.
-    ReduceReferrerGranularityOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN as i32,
+    ReduceReferrerGranularityOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN,
     /// Strip the referrer down to an origin when the origin of the referrer is
     /// different from the destination's origin.
-    OriginOnlyOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN as i32,
+    OriginOnlyOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN,
     /// Never change the referrer.
-    NeverClearReferrer = cef_referrer_policy_t::REFERRER_POLICY_NEVER_CLEAR_REFERRER as i32,
+    NeverClearReferrer = cef_referrer_policy_t::REFERRER_POLICY_NEVER_CLEAR_REFERRER,
     /// Strip the referrer down to the origin regardless of the redirect location.
-    Origin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN as i32,
+    Origin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN,
     /// Clear the referrer when the request's referrer is cross-origin with the
     /// request's destination.
-    ClearReferrerOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN as i32,
+    ClearReferrerOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN,
     /// Strip the referrer down to the origin, but clear it entirely if the
     /// referrer value is HTTPS and the destination is HTTP.
-    OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE as i32,
+    OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE,
     /// Always clear the referrer regardless of the request destination.
-    NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as i32,
+    NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER,
 }
 
 /// Flags used to customize the behavior of [URLRequest].
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum URLRequestFlags {
     /// if set the cache will be skipped when handling the request. Setting this
@@ -78,12 +78,12 @@ pub enum URLRequestFlags {
 }
 
 impl URLRequestFlags {
-    pub(crate) fn to_bitfield(flags: &[URLRequestFlags]) -> i32 {
+    pub(crate) fn to_bitfield(flags: &[URLRequestFlags]) -> u32 {
         flags
             .iter()
-            .fold(0, |flags, flag| flags | (1 << (*flag) as i32))
+            .fold(0, |flags, flag| flags | (1 << ((*flag) as u32)))
     }
-    pub(crate) fn from_bitfield(bitfield: i32) -> Vec<URLRequestFlags> {
+    pub(crate) fn from_bitfield(bitfield: u32) -> Vec<URLRequestFlags> {
         [
             URLRequestFlags::SkipCache,
             URLRequestFlags::OnlyFromCache,
@@ -95,61 +95,61 @@ impl URLRequestFlags {
             URLRequestFlags::StopOnRedirect,
         ]
         .iter()
-        .filter(|flag| bitfield & (1 << (**flag) as i32) != 0)
+        .filter(|flag| bitfield & (1 << ((**flag) as u32)) != 0)
         .cloned()
         .collect()
     }
 }
 
 /// Resource type for a request.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ResourceType {
     /// Top level page.
-    MainFrame = cef_resource_type_t::RT_MAIN_FRAME as i32,
+    MainFrame = cef_resource_type_t::RT_MAIN_FRAME,
     /// Frame or iframe.
-    SubFrame = cef_resource_type_t::RT_SUB_FRAME as i32,
+    SubFrame = cef_resource_type_t::RT_SUB_FRAME,
     /// CSS stylesheet.
-    Stylesheet = cef_resource_type_t::RT_STYLESHEET as i32,
+    Stylesheet = cef_resource_type_t::RT_STYLESHEET,
     /// External script.
-    Script = cef_resource_type_t::RT_SCRIPT as i32,
+    Script = cef_resource_type_t::RT_SCRIPT,
     /// Image (jpg/gif/png/etc).
-    Image = cef_resource_type_t::RT_IMAGE as i32,
+    Image = cef_resource_type_t::RT_IMAGE,
     /// Font.
-    FontResource = cef_resource_type_t::RT_FONT_RESOURCE as i32,
+    FontResource = cef_resource_type_t::RT_FONT_RESOURCE,
     /// Some other subresource. This is the default type if the actual type is
     /// unknown.
-    SubResource = cef_resource_type_t::RT_SUB_RESOURCE as i32,
+    SubResource = cef_resource_type_t::RT_SUB_RESOURCE,
     /// Object (or embed) tag for a plugin, or a resource that a plugin requested.
-    Object = cef_resource_type_t::RT_OBJECT as i32,
+    Object = cef_resource_type_t::RT_OBJECT,
     /// Media resource.
-    Media = cef_resource_type_t::RT_MEDIA as i32,
+    Media = cef_resource_type_t::RT_MEDIA,
     /// Main resource of a dedicated worker.
-    Worker = cef_resource_type_t::RT_WORKER as i32,
+    Worker = cef_resource_type_t::RT_WORKER,
     /// Main resource of a shared worker.
-    SharedWorker = cef_resource_type_t::RT_SHARED_WORKER as i32,
+    SharedWorker = cef_resource_type_t::RT_SHARED_WORKER,
     /// Explicitly requested prefetch.
-    Prefetch = cef_resource_type_t::RT_PREFETCH as i32,
+    Prefetch = cef_resource_type_t::RT_PREFETCH,
     /// Favicon.
-    Favicon = cef_resource_type_t::RT_FAVICON as i32,
+    Favicon = cef_resource_type_t::RT_FAVICON,
     /// XMLHttpRequest.
-    XHR = cef_resource_type_t::RT_XHR as i32,
+    XHR = cef_resource_type_t::RT_XHR,
     /// A request for a <ping>
-    Ping = cef_resource_type_t::RT_PING as i32,
+    Ping = cef_resource_type_t::RT_PING,
     /// Main resource of a service worker.
-    ServiceWorker = cef_resource_type_t::RT_SERVICE_WORKER as i32,
+    ServiceWorker = cef_resource_type_t::RT_SERVICE_WORKER,
     /// A report of Content Security Policy violations.
-    CSPReport = cef_resource_type_t::RT_CSP_REPORT as i32,
+    CSPReport = cef_resource_type_t::RT_CSP_REPORT,
     /// A resource that a plugin requested.
-    PluginResource = cef_resource_type_t::RT_PLUGIN_RESOURCE as i32,
+    PluginResource = cef_resource_type_t::RT_PLUGIN_RESOURCE,
 }
 
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum PostDataElementType {
-    Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY as i32,
-    Bytes = cef_postdataelement_type_t::PDE_TYPE_BYTES as i32,
-    File = cef_postdataelement_type_t::PDE_TYPE_FILE as i32,
+    Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY,
+    Bytes = cef_postdataelement_type_t::PDE_TYPE_BYTES,
+    File = cef_postdataelement_type_t::PDE_TYPE_FILE,
 }
 
 ref_counted_ptr! {
@@ -245,7 +245,7 @@ impl Request {
         self.0
             .get_referrer_policy
             .map(|get_referrer_policy| unsafe {
-                ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32)
+                ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()))
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
@@ -298,7 +298,7 @@ impl Request {
                     self.0.as_ptr(),
                     CefString::new(name).as_ptr(),
                     CefString::new(value).as_ptr(),
-                    overwrite as i32,
+                    overwrite as _,
                 );
             }
         }
@@ -331,7 +331,7 @@ impl Request {
     /// [URLRequestFlags] for supported values.
     pub fn get_flags(&self) -> Vec<URLRequestFlags> {
         if let Some(get_flags) = self.0.get_flags {
-            URLRequestFlags::from_bitfield(unsafe { get_flags(self.0.as_ptr()) })
+            URLRequestFlags::from_bitfield(unsafe { get_flags(self.0.as_ptr()) } as u32)
         } else {
             Vec::new()
         }
@@ -341,7 +341,7 @@ impl Request {
     pub fn set_flags(&self, flags: &[URLRequestFlags]) {
         if let Some(set_flags) = self.0.set_flags {
             unsafe {
-                set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags));
+                set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags) as i32);
             }
         }
     }
@@ -375,7 +375,7 @@ impl Request {
         unsafe {
             ResourceType::from_unchecked(((*self.0.as_ptr()).get_resource_type).unwrap()(
                 self.0.as_ptr(),
-            ) as i32)
+            ))
         }
     }
     /// Get the transition type for this request. Only available in the browser
@@ -544,7 +544,7 @@ impl PostDataElement {
     /// Return the type of this post data element.
     pub fn get_type(&self) -> PostDataElementType {
         if let Some(get_type) = self.0.get_type {
-            unsafe { PostDataElementType::from_unchecked(get_type(self.as_ptr()) as i32) }
+            unsafe { PostDataElementType::from_unchecked(get_type(self.as_ptr())) }
         } else {
             PostDataElementType::Empty
         }

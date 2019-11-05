@@ -59,7 +59,7 @@ id!(pub struct CommandId);
 id!(pub struct GroupId);
 
 /// Supported color types for menu items.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum MenuColorType {
     Text = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT,
@@ -72,7 +72,7 @@ pub enum MenuColorType {
 }
 
 /// Supported menu item types.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum MenuItemType {
     None = cef_menu_item_type_t::MENUITEMTYPE_NONE,
@@ -85,7 +85,7 @@ pub enum MenuItemType {
 
 bitflags!{
     /// Supported context menu type flags.
-    pub struct ContextMenuTypeFlags: i32 {
+    pub struct ContextMenuTypeFlags: u32 {
         /// No node is selected.
         const NONE = cef_context_menu_type_flags_t::CM_TYPEFLAG_NONE;
         /// The top page is selected.
@@ -104,7 +104,7 @@ bitflags!{
 }
 bitflags!{
     /// Supported context menu media state bit flags.
-    pub struct ContextMenuMediaStateFlags: i32 {
+    pub struct ContextMenuMediaStateFlags: u32 {
         const NONE = cef_context_menu_media_state_flags_t::CM_MEDIAFLAG_NONE;
         const ERROR = cef_context_menu_media_state_flags_t::CM_MEDIAFLAG_ERROR;
         const PAUSED = cef_context_menu_media_state_flags_t::CM_MEDIAFLAG_PAUSED;
@@ -120,7 +120,7 @@ bitflags!{
 }
 bitflags!{
     /// Supported context menu edit state bit flags.
-    pub struct ContextMenuEditStateFlags: i32 {
+    pub struct ContextMenuEditStateFlags: u32 {
         const NONE = cef_context_menu_edit_state_flags_t::CM_EDITFLAG_NONE;
         const CAN_UNDO = cef_context_menu_edit_state_flags_t::CM_EDITFLAG_CAN_UNDO;
         const CAN_REDO = cef_context_menu_edit_state_flags_t::CM_EDITFLAG_CAN_REDO;

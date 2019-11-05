@@ -28,10 +28,11 @@ use std::{
     iter::FromIterator,
     ptr::{null, null_mut},
 };
+#[cfg(target_os = "windows")]
 use winapi::shared::minwindef::HINSTANCE;
 
 /// Paint element types.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum PaintElementType {
     View = cef_paint_element_type_t::PET_VIEW,
@@ -157,10 +158,20 @@ impl BrowserHost {
     /// a [BrowserView] this function should be called on the browser process
     /// UI thread and it will return the handle for the top-level native window.
     pub fn get_window_handle(&self) -> WindowHandle {
-        self.0
-            .get_window_handle
-            .map(|get_window_handle| unsafe { get_window_handle(self.0.as_ptr()) as WindowHandle })
-            .unwrap_or_else(null_mut)
+        #[cfg(target_os = "windows")]
+        {
+            self.0
+                .get_window_handle
+                .map(|get_window_handle| unsafe { get_window_handle(self.0.as_ptr()) as WindowHandle })
+                .unwrap_or_else(null_mut)
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            self.0
+                .get_window_handle
+                .map(|get_window_handle| unsafe { get_window_handle(self.0.as_ptr()) as WindowHandle })
+                .unwrap_or(0)
+        }
     }
     /// Retrieve the window handle of the browser that opened this browser. Will
     /// return None for non-popup windows or if this browser is wrapped in a
@@ -171,10 +182,21 @@ impl BrowserHost {
             .get_opener_window_handle
             .and_then(|get_opener_window_handle| {
                 let handle = unsafe { get_opener_window_handle(self.0.as_ptr()) };
-                if handle.is_null() {
-                    None
-                } else {
-                    Some(handle as WindowHandle)
+                #[cfg(target_os = "windows")]
+                {
+                    if handle.is_null() {
+                        None
+                    } else {
+                        Some(handle as WindowHandle)
+                    }
+                }
+                #[cfg(not(target_os = "windows"))]
+                {
+                    if handle == 0 {
+                        None
+                    } else {
+                        Some(handle as WindowHandle)
+                    }
                 }
             })
     }
@@ -531,7 +553,7 @@ impl BrowserHost {
     pub fn invalidate(&self, element_type: PaintElementType) {
         if let Some(invalidate) = self.0.invalidate {
             unsafe {
-                invalidate(self.0.as_ptr(), element_type as i32);
+                invalidate(self.0.as_ptr(), element_type as _);
             }
         }
     }
@@ -566,7 +588,7 @@ impl BrowserHost {
                 send_mouse_click_event(
                     self.0.as_ptr(),
                     event.as_cef(),
-                    button_type as i32,
+                    button_type as u32,
                     mouse_up as i32,
                     click_count,
                 );
@@ -860,7 +882,7 @@ impl BrowserHost {
     pub fn set_accessibility_state(&self, accessibility_state: State) {
         if let Some(set_accessibility_state) = self.0.set_accessibility_state {
             unsafe {
-                set_accessibility_state(self.0.as_ptr(), accessibility_state as i32);
+                set_accessibility_state(self.0.as_ptr(), accessibility_state as _);
             }
         }
     }

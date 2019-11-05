@@ -16,10 +16,10 @@ chashmap = "2"
 
 [dev-dependencies]
 winit = "=0.20.0-alpha4"
-winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3" }
 
 [target.'cfg(windows)'.dev-dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
+winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}

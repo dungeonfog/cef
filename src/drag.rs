@@ -15,7 +15,7 @@ use crate::{
 /// "Verb" of a drag-and-drop operation as negotiated between the source and
 /// destination. These constants match their equivalents in WebCore's
 /// DragActions.h.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive, Hash)]
 pub enum DragOperation {
     None = cef_drag_operations_mask_t::DRAG_OPERATION_NONE.0,
@@ -45,7 +45,7 @@ impl DragOperation {
     pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a DragOperation>>(
         operations: I,
     ) -> cef_drag_operations_mask_t {
-        cef_drag_operations_mask_t(operations.fold(0, |mask, op| mask | (*op as i32)))
+        cef_drag_operations_mask_t(operations.fold(0, |mask, op| mask | (*op as u32)))
     }
 }
 

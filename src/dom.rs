@@ -10,19 +10,19 @@ use crate::{
 };
 
 /// DOM node types.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum DOMNodeType {
-    Unsupported = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED as i32,
-    Element = cef_dom_node_type_t::DOM_NODE_TYPE_ELEMENT as i32,
-    Attribute = cef_dom_node_type_t::DOM_NODE_TYPE_ATTRIBUTE as i32,
-    Text = cef_dom_node_type_t::DOM_NODE_TYPE_TEXT as i32,
-    CDataSection = cef_dom_node_type_t::DOM_NODE_TYPE_CDATA_SECTION as i32,
-    ProcessingInstructions = cef_dom_node_type_t::DOM_NODE_TYPE_PROCESSING_INSTRUCTIONS as i32,
-    Comment = cef_dom_node_type_t::DOM_NODE_TYPE_COMMENT as i32,
-    Document = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT as i32,
-    DocumentType = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_TYPE as i32,
-    DocumentFragment = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as i32,
+    Unsupported = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED,
+    Element = cef_dom_node_type_t::DOM_NODE_TYPE_ELEMENT,
+    Attribute = cef_dom_node_type_t::DOM_NODE_TYPE_ATTRIBUTE,
+    Text = cef_dom_node_type_t::DOM_NODE_TYPE_TEXT,
+    CDataSection = cef_dom_node_type_t::DOM_NODE_TYPE_CDATA_SECTION,
+    ProcessingInstructions = cef_dom_node_type_t::DOM_NODE_TYPE_PROCESSING_INSTRUCTIONS,
+    Comment = cef_dom_node_type_t::DOM_NODE_TYPE_COMMENT,
+    Document = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT,
+    DocumentType = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_TYPE,
+    DocumentFragment = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT,
 }
 
 ref_counted_ptr! {

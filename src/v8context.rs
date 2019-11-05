@@ -420,7 +420,7 @@ impl From<V8StackTrace> for Vec<V8StackFrame> {
 }
 
 /// V8 property attribute values.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum V8PropertyAttribute {
     /// Not writeable
@@ -435,7 +435,7 @@ impl V8PropertyAttribute {
     pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
         attributes: I,
     ) -> cef_v8_propertyattribute_t {
-        cef_v8_propertyattribute_t(attributes.fold(0, |mask, attr| mask | (*attr as i32)))
+        cef_v8_propertyattribute_t(attributes.fold(0, |mask, attr| mask | (*attr as u32)))
     }
     pub(crate) fn as_vec(mask: cef_v8_propertyattribute_t) -> HashSet<Self> {
         [
@@ -444,14 +444,14 @@ impl V8PropertyAttribute {
             V8PropertyAttribute::DontDelete,
         ]
         .iter()
-        .filter(|flag| (**flag as i32) & mask.0 != 0)
+        .filter(|flag| (**flag as u32) & mask.0 != 0)
         .cloned()
         .collect()
     }
 }
 
 /// V8 access control values.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum V8AccessControl {
     AllCanRead = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_READ.0,
@@ -463,7 +463,7 @@ impl V8AccessControl {
     pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
         attributes: I,
     ) -> cef_v8_accesscontrol_t {
-        cef_v8_accesscontrol_t(attributes.fold(0, |mask, attr| mask | (*attr as i32)))
+        cef_v8_accesscontrol_t(attributes.fold(0, |mask, attr| mask | (*attr as u32)))
     }
     pub(crate) fn as_vec(mask: cef_v8_accesscontrol_t) -> HashSet<Self> {
         [
@@ -472,7 +472,7 @@ impl V8AccessControl {
             V8AccessControl::ProhibitsOverwriting,
         ]
         .iter()
-        .filter(|flag| (**flag as i32) & mask.0 != 0)
+        .filter(|flag| (**flag as u32) & mask.0 != 0)
         .cloned()
         .collect()
     }

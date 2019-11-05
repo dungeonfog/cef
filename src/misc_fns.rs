@@ -66,7 +66,7 @@ pub fn execute_process(
 /// secondary process it will block until the process should exit and then return
 /// the process exit code. The `application` parameter may be None.
 #[cfg(not(target_os = "windows"))]
-pub fn execute_process(args: &[&str], application: Option<App>) -> i32 {
+pub fn execute_process(args: &MainArgs, application: Option<App>) -> i32 {
     unsafe {
         cef_execute_process(
             args.get(),
@@ -118,7 +118,7 @@ impl Context {
     /// value of true indicates that it succeeded and false indicates that it
     /// failed.
     #[cfg(not(target_os = "windows"))]
-    pub fn initialize(args: &[&str], settings: &Settings, application: Option<App>) -> Option<Context> {
+    pub fn initialize(args: &MainArgs, settings: &Settings, application: Option<App>) -> Option<Context> {
         unsafe {
             let worked = cef_initialize(
                 args.get(),

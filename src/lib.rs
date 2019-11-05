@@ -39,7 +39,6 @@ pub mod app;
 
 #[cfg(target_os = "windows")]
 pub mod sandbox;
-#[cfg(target_os = "windows")]
 pub mod main_args;
 pub mod settings;
 pub mod color;
@@ -56,17 +55,17 @@ pub mod request_handler;
 pub mod stream;
 pub mod ssl;
 pub mod task;
+#[cfg(target_os = "linux")]
+pub mod print_handler;
 
 /// Return value types.
-#[repr(i32)]
+#[repr(u32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum ReturnValue {
     /// Cancel immediately.
-    Cancel = cef_sys::cef_return_value_t::RV_CANCEL as i32,
+    Cancel = cef_sys::cef_return_value_t::RV_CANCEL,
     /// Continue immediately.
-    Continue = cef_sys::cef_return_value_t::RV_CONTINUE as i32,
+    Continue = cef_sys::cef_return_value_t::RV_CONTINUE,
     /// Continue asynchronously (usually via a callback).
-    ContinueAsync = cef_sys::cef_return_value_t::RV_CONTINUE_ASYNC as i32,
+    ContinueAsync = cef_sys::cef_return_value_t::RV_CONTINUE_ASYNC,
 }
-
-
