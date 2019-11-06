@@ -12,7 +12,7 @@ use crate::{
     string::CefString,
 };
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 /// Any of the core values in [TransitionType] can be augmented by one or more qualifiers.
 /// These qualifiers further define the transition.
@@ -34,7 +34,7 @@ pub enum TransitionTypeQualifiers {
 impl TransitionTypeQualifiers {
     /// Used to test whether a transition involves a redirect.
     pub fn is_redirect(self) -> bool {
-        (self as u32 & cef_transition_type_t::TT_IS_REDIRECT_MASK.0) != 0
+        (self as i32 & cef_transition_type_t::TT_IS_REDIRECT_MASK.0) != 0
     }
 }
 
@@ -72,9 +72,9 @@ pub enum TransitionType {
     Reload(HashSet<TransitionTypeQualifiers>),
 }
 
-impl TryFrom<u32> for TransitionType {
+impl TryFrom<i32> for TransitionType {
     type Error = ();
-    fn try_from(value: u32) -> Result<Self, Self::Error> {
+    fn try_from(value: i32) -> Result<Self, Self::Error> {
         let mut flags = HashSet::new();
         if value & cef_transition_type_t::TT_BLOCKED_FLAG.0 != 0 {
             flags.insert(TransitionTypeQualifiers::BlockedFlag);
@@ -108,8 +108,8 @@ impl TryFrom<u32> for TransitionType {
     }
 }
 
-impl Into<u32> for TransitionType {
-    fn into(self) -> u32 {
+impl Into<i32> for TransitionType {
+    fn into(self) -> i32 {
         let value;
         let flags = match self {
             Self::Link(flags) => {
@@ -137,7 +137,7 @@ impl Into<u32> for TransitionType {
                 flags
             }
         };
-        value.0 | flags.into_iter().fold(0, |flags, flag| flags | flag as u32)
+        value.0 | flags.into_iter().fold(0, |flags, flag| flags | flag as i32)
     }
 }
 

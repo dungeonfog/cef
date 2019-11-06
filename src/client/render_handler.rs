@@ -30,7 +30,7 @@ use libc::c_int;
 use std::os::raw::c_void;
 use std::ptr;
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum TextInputMode {
     Default = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DEFAULT,

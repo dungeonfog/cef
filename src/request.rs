@@ -12,7 +12,7 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 /// if the `--no-referrers` command-line flag is specified then the policy value
 /// will be ignored and the Referrer value will never be sent.
 /// Must be kept synchronized with `net::URLRequest::ReferrerPolicy` from Chromium.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ReferrerPolicy {
     /// Clear the referrer header if the header value is HTTPS but the request
@@ -42,7 +42,7 @@ pub enum ReferrerPolicy {
 }
 
 /// Flags used to customize the behavior of [URLRequest].
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum URLRequestFlags {
     /// if set the cache will be skipped when handling the request. Setting this
@@ -78,12 +78,12 @@ pub enum URLRequestFlags {
 }
 
 impl URLRequestFlags {
-    pub(crate) fn to_bitfield(flags: &[URLRequestFlags]) -> u32 {
+    pub(crate) fn to_bitfield(flags: &[URLRequestFlags]) -> i32 {
         flags
             .iter()
-            .fold(0, |flags, flag| flags | (1 << ((*flag) as u32)))
+            .fold(0, |flags, flag| flags | (1 << ((*flag) as i32)))
     }
-    pub(crate) fn from_bitfield(bitfield: u32) -> Vec<URLRequestFlags> {
+    pub(crate) fn from_bitfield(bitfield: i32) -> Vec<URLRequestFlags> {
         [
             URLRequestFlags::SkipCache,
             URLRequestFlags::OnlyFromCache,
@@ -95,14 +95,14 @@ impl URLRequestFlags {
             URLRequestFlags::StopOnRedirect,
         ]
         .iter()
-        .filter(|flag| bitfield & (1 << ((**flag) as u32)) != 0)
+        .filter(|flag| bitfield & (1 << ((**flag) as i32)) != 0)
         .cloned()
         .collect()
     }
 }
 
 /// Resource type for a request.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ResourceType {
     /// Top level page.
@@ -144,7 +144,7 @@ pub enum ResourceType {
     PluginResource = cef_resource_type_t::RT_PLUGIN_RESOURCE,
 }
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum PostDataElementType {
     Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY,
@@ -331,7 +331,7 @@ impl Request {
     /// [URLRequestFlags] for supported values.
     pub fn get_flags(&self) -> Vec<URLRequestFlags> {
         if let Some(get_flags) = self.0.get_flags {
-            URLRequestFlags::from_bitfield(unsafe { get_flags(self.0.as_ptr()) } as u32)
+            URLRequestFlags::from_bitfield(unsafe { get_flags(self.0.as_ptr()) } as _)
         } else {
             Vec::new()
         }
@@ -341,7 +341,7 @@ impl Request {
     pub fn set_flags(&self, flags: &[URLRequestFlags]) {
         if let Some(set_flags) = self.0.set_flags {
             unsafe {
-                set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags) as i32);
+                set_flags(self.0.as_ptr(), URLRequestFlags::to_bitfield(flags) as _);
             }
         }
     }

@@ -11,7 +11,7 @@ use crate::{
     string::CefStringList,
 };
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
 pub enum FileDialogModeFlags {
     /// Prompt to overwrite if the user selects an existing file with the Save
@@ -85,7 +85,7 @@ impl Into<cef_file_dialog_mode_t> for FileDialogMode {
         cef_file_dialog_mode_t(
             flags
                 .into_iter()
-                .fold(result, |result, flag| result | flag as u32),
+                .fold(result, |result, flag| result | flag as i32),
         )
     }
 }

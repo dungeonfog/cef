@@ -16,7 +16,7 @@ use std::{
 use crate::string::{CefString, CefStringList, CefStringListIntoIter};
 
 #[derive(Debug, Eq, PartialEq)]
-#[repr(u32)]
+#[repr(i32)]
 pub(crate) enum ValueType {
     Invalid = cef_value_type_t::VTYPE_INVALID,
     Null = cef_value_type_t::VTYPE_NULL,

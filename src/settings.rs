@@ -4,7 +4,7 @@ use num_enum::UnsafeFromPrimitive;
 use std::path::Path;
 
 /// Log severity levels.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy, UnsafeFromPrimitive)]
 pub enum LogSeverity {
     /// Default logging (currently INFO logging).

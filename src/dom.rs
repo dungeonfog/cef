@@ -10,7 +10,7 @@ use crate::{
 };
 
 /// DOM node types.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum DOMNodeType {
     Unsupported = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED,

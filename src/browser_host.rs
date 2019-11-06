@@ -32,7 +32,7 @@ use std::{
 use winapi::shared::minwindef::HINSTANCE;
 
 /// Paint element types.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum PaintElementType {
     View = cef_paint_element_type_t::PET_VIEW,
@@ -588,7 +588,7 @@ impl BrowserHost {
                 send_mouse_click_event(
                     self.0.as_ptr(),
                     event.as_cef(),
-                    button_type as u32,
+                    button_type as _,
                     mouse_up as i32,
                     click_count,
                 );

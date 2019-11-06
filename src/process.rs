@@ -7,7 +7,7 @@ use crate::{
 };
 
 /// Existing process IDs.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ProcessId {
     /// Browser process.

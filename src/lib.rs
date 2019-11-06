@@ -59,7 +59,7 @@ pub mod task;
 pub mod print_handler;
 
 /// Return value types.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum ReturnValue {
     /// Cancel immediately.

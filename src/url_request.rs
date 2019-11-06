@@ -21,7 +21,7 @@ use crate::{
 };
 
 /// Flags that represent [URLRequest] status.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum URLRequestStatus {
     /// Unknown status.
@@ -90,7 +90,7 @@ impl URLRequest {
     pub fn get_request_status(&self) -> URLRequestStatus {
         unsafe {
             URLRequestStatus::from_unchecked(
-                self.0.get_request_status.unwrap()(self.as_ptr()) as u32
+                self.0.get_request_status.unwrap()(self.as_ptr()) as _
             )
         }
     }
@@ -427,7 +427,7 @@ cef_callback_impl! {
     }
 }
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, UnsafeFromPrimitive)]
 pub enum ResponseFilterStatus {
     NeedMoreData = cef_response_filter_status_t::RESPONSE_FILTER_NEED_MORE_DATA,

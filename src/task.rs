@@ -5,7 +5,7 @@ use cef_sys::{
 };
 use parking_lot::Mutex;
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ThreadId {
     UI = cef_thread_id_t::TID_UI,

@@ -7,7 +7,7 @@ use bitflags::bitflags;
 use std::mem;
 
 /// Key event types.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum KeyEventType {
     /// Notification that a key transitioned from "up" to "down".
@@ -26,7 +26,7 @@ pub enum KeyEventType {
 
 bitflags!{
     #[derive(Default)]
-    pub struct EventFlags: u32 {
+    pub struct EventFlags: i32 {
         const CAPS_LOCK_ON = cef_event_flags_t::EVENTFLAG_CAPS_LOCK_ON.0 as _;
         const SHIFT_DOWN = cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0 as _;
         const CONTROL_DOWN = cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0 as _;
@@ -43,7 +43,7 @@ bitflags!{
 }
 
 impl EventFlags {
-    pub unsafe fn from_unchecked(i: u32) -> EventFlags {
+    pub unsafe fn from_unchecked(i: i32) -> EventFlags {
         EventFlags::from_bits_unchecked(i)
     }
 }
@@ -79,7 +79,7 @@ impl Into<cef_key_event_t> for KeyEvent {
 }
 
 /// Mouse button types.
-#[repr(u32)]
+#[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum MouseButtonType {
     Left = cef_mouse_button_type_t::MBT_LEFT,

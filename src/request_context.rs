@@ -22,7 +22,7 @@ use crate::{
     web_plugin::WebPluginInfo,
 };
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum PluginPolicy {
     Allow = cef_plugin_policy_t::PLUGIN_POLICY_ALLOW,

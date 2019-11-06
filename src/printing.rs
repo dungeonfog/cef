@@ -2,7 +2,7 @@ use cef_sys::{cef_pdf_print_margin_type_t, cef_pdf_print_settings_t};
 
 use crate::string::CefString;
 
-#[repr(u32)]
+#[repr(i32)]
 #[derive(Eq, PartialEq, Clone, Copy, Debug)]
 pub enum PDFPrintMargin {
     Default = cef_pdf_print_margin_type_t::PDF_PRINT_MARGIN_DEFAULT,
