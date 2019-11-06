@@ -23,3 +23,6 @@ winapi = { version = "0.3" }
 [target.'cfg(windows)'.dev-dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
 winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
+
+[target.'cfg(target_os="linux")'.dev-dependencies]
+x11-dl = "2.18"

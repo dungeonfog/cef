@@ -11,12 +11,21 @@ use cef::{
     main_args::MainArgs,
     settings::{Settings, LogSeverity},
     window::WindowInfo,
+    command_line::CommandLine,
 };
 use std::sync::Arc;
+use x11_dl::xlib::{Xlib, Display, XErrorEvent};
 
 pub struct AppCallbacksImpl {}
 
-impl AppCallbacks for AppCallbacksImpl {}
+impl AppCallbacks for AppCallbacksImpl {
+    fn on_before_command_line_processing (&self, process_type: Option<&str>, command_line: CommandLine) {
+        if process_type == None {
+            command_line.append_switch("disable-gpu");
+            command_line.append_switch("disable-gpu-compositing");
+        }
+    }
+}
 
 pub struct ClientCallbacksImpl {
     life_span_handler: LifeSpanHandler,
@@ -38,25 +47,44 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     }
 }
 
+extern "C" fn x_error_handler(_: *mut Display, error: *mut XErrorEvent) -> std::os::raw::c_int {
+    unsafe {
+        println!("X Error type {} resourceid {} serial {} error_code {} request_code {} minor_code {}",
+            (*error).type_, (*error).resourceid, (*error).serial, (*error).error_code, (*error).request_code, (*error).minor_code);
+    }
+    0
+}
+extern "C" fn x_io_error_handler(_: *mut Display) -> std::os::raw::c_int {
+    0
+}
+
 fn main() {
-    let app = App::new(AppCallbacksImpl {});
     #[cfg(windows)]
     cef::enable_highdpi_support();
     let args = MainArgs::new();
     #[cfg(target_os = "windows")]
-    let result = cef::execute_process(&args, Some(app.clone()), None);
+    let result = cef::execute_process(&args, None, None);
     #[cfg(not(target_os = "windows"))]
-    let result = cef::execute_process(&args, Some(app.clone()));
+    let result = cef::execute_process(&args, None);
     if result >= 0 {
         std::process::exit(result);
     }
+    let xlib = Xlib::open().unwrap();
+
+    unsafe {
+        (xlib.XSetErrorHandler)(Some(x_error_handler));
+        (xlib.XSetIOErrorHandler)(Some(x_io_error_handler));
+    }
+
     let mut settings = Settings::new();
-    //settings.set_log_severity(LogSeverity::Disable);
+    settings.set_log_severity(LogSeverity::Info);
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
     let locales_folder = std::path::Path::new("./Resources/locales").canonicalize().unwrap();
     settings.set_locales_dir_path(&locales_folder);
+
+    let app = App::new(AppCallbacksImpl {});
 
     if let Some(context) = {
         #[cfg(target_os = "windows")]
