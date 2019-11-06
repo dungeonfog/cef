@@ -14,6 +14,7 @@ use cef::{
     command_line::CommandLine,
 };
 use std::sync::Arc;
+#[cfg(target_os = "linux")]
 use x11_dl::xlib::{Xlib, Display, XErrorEvent};
 
 pub struct AppCallbacksImpl {}
@@ -47,6 +48,7 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     }
 }
 
+#[cfg(target_os = "linux")]
 extern "C" fn x_error_handler(_: *mut Display, error: *mut XErrorEvent) -> std::os::raw::c_int {
     unsafe {
         println!("X Error type {} resourceid {} serial {} error_code {} request_code {} minor_code {}",
@@ -54,6 +56,7 @@ extern "C" fn x_error_handler(_: *mut Display, error: *mut XErrorEvent) -> std::
     }
     0
 }
+#[cfg(target_os = "linux")]
 extern "C" fn x_io_error_handler(_: *mut Display) -> std::os::raw::c_int {
     0
 }
@@ -69,9 +72,10 @@ fn main() {
     if result >= 0 {
         std::process::exit(result);
     }
-    let xlib = Xlib::open().unwrap();
 
+    #[cfg(target_os = "linux")]
     unsafe {
+        let xlib = Xlib::open().unwrap();
         (xlib.XSetErrorHandler)(Some(x_error_handler));
         (xlib.XSetIOErrorHandler)(Some(x_io_error_handler));
     }
