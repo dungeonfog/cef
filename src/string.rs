@@ -1,7 +1,8 @@
 use cef_sys::{
     cef_string_list_alloc, cef_string_list_append, cef_string_list_free, cef_string_list_size,
     cef_string_list_t, cef_string_list_value, cef_string_t, cef_string_utf8_to_utf16,
-    cef_string_visitor_t, cef_string_userfree_t
+    cef_string_visitor_t, cef_string_userfree_t, cef_string_userfree_utf16_free,
+    cef_string_userfree_utf16_alloc,
 };
 use std::ptr::null_mut;
 
@@ -91,13 +92,22 @@ impl CefString {
         if raw == null_mut() {
             None
         } else {
-            Some(CefString(cef_string_t{..*raw}))
+            Some(CefString(unwrap_userfree(raw)))
         }
     }
 
     pub unsafe fn from_userfree_unchecked(raw: cef_string_userfree_t) -> CefString {
-        CefString(cef_string_t{..*raw})
+        CefString(unwrap_userfree(raw))
     }
+}
+
+/// De-allocate the structure the userfree points to without freeing the underlying buffers.
+unsafe fn unwrap_userfree(raw: cef_string_userfree_t) -> cef_string_t {
+    unsafe extern "C" fn null_dtor(str: *mut u16) {}
+    let cef_string = cef_string_t{..*raw};
+    (*raw).dtor = Some(null_dtor);
+    cef_string_userfree_utf16_free(raw);
+    cef_string
 }
 
 impl Default for CefString {
@@ -119,6 +129,16 @@ impl Drop for CefString {
 impl From<cef_string_t> for CefString {
     fn from(source: cef_string_t) -> Self {
         CefString(source)
+    }
+}
+
+impl From<CefString> for cef_string_userfree_t {
+    fn from(string: CefString) -> cef_string_userfree_t {
+        unsafe {
+            let userfree = cef_string_userfree_utf16_alloc();
+            *userfree = string.into_raw();
+            userfree
+        }
     }
 }
 

@@ -11,7 +11,7 @@ pub mod life_span_handler;
 pub mod render_handler;
 
 use self::{
-    // context_menu_handler::ContextMenuHandler,
+    context_menu_handler::ContextMenuHandler,
     drag_handler::DragHandler,
     life_span_handler::LifeSpanHandler,
     render_handler::RenderHandler,
@@ -41,8 +41,8 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // /// Return the handler for audio rendering events.
     // fn get_audio_handler(&self) -> Option<Box<dyn AudioHandler>> { None }
     // /// Return the handler for context menus. If no handler is provided the default
-    // /// implementation will be used.
-    // fn get_context_menu_handler(&self) -> Option<ContextMenuHandler> { None }
+    /// implementation will be used.
+    fn get_context_menu_handler(&self) -> Option<ContextMenuHandler> { None }
     // /// Return the handler for dialogs. If no handler is provided the default
     // /// implementation will be used.
     // fn get_dialog_handler(&self) -> Option<Box<dyn DialogHandler>> { None }

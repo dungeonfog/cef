@@ -199,6 +199,8 @@ owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::MenuCo
 owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
 owned_casts_from_flags_unchecked!(impl for crate::events::EventFlags: cef_sys::cef_event_flags_t);
 owned_casts_from_unchecked!(impl for crate::color::Color: cef_sys::cef_color_t);
+owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::CommandId: i32);
+owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::GroupId: i32);
 owned_casts_from!(impl for crate::values::Rect: cef_sys::cef_rect_t);
 owned_casts_from!(impl for crate::values::Size: cef_sys::cef_size_t);
 owned_casts_from!(impl for crate::values::Range: cef_sys::cef_range_t);
