@@ -365,3 +365,4 @@ ref_counter!(cef_web_plugin_info_t);
 ref_counter!(cef_web_plugin_info_visitor_t);
 ref_counter!(cef_web_plugin_unstable_callback_t);
 ref_counter!(cef_register_cdm_callback_t);
+ref_counter!(_cef_menu_model_delegate_t);

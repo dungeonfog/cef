@@ -202,6 +202,7 @@ owned_casts_from_unchecked!(impl for crate::color::Color: cef_sys::cef_color_t);
 owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::CommandId: i32);
 owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::GroupId: i32);
 owned_casts_from!(impl for crate::values::Rect: cef_sys::cef_rect_t);
+owned_casts_from!(impl for crate::values::Point: cef_sys::cef_point_t);
 owned_casts_from!(impl for crate::values::Size: cef_sys::cef_size_t);
 owned_casts_from!(impl for crate::values::Range: cef_sys::cef_range_t);
 impl CToRustType for bool {

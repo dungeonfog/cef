@@ -40,7 +40,7 @@ impl Client {
 pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // /// Return the handler for audio rendering events.
     // fn get_audio_handler(&self) -> Option<Box<dyn AudioHandler>> { None }
-    // /// Return the handler for context menus. If no handler is provided the default
+    /// Return the handler for context menus. If no handler is provided the default
     /// implementation will be used.
     fn get_context_menu_handler(&self) -> Option<ContextMenuHandler> { None }
     // /// Return the handler for dialogs. If no handler is provided the default

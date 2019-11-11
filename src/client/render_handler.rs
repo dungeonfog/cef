@@ -22,8 +22,8 @@ use cef_sys::{
     cef_cursor_type_t,
     cef_cursor_info_t,
     cef_drag_data_t,
-    HCURSOR,
 };
+use winapi::shared::windef::HCURSOR;
 use num_enum::UnsafeFromPrimitive;
 use libc::c_int;
 use std::os::raw::c_void;

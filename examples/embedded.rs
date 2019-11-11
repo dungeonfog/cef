@@ -337,7 +337,7 @@ fn main() {
     let browser = BrowserHost::create_browser_sync(
         &window_info,
         client,
-        "https://www.github.com/anlumo/cef",
+        "https://blog.johnnovak.net/2016/09/21/what-every-coder-should-know-about-gamma/",
         &browser_settings,
         None,
         None,
