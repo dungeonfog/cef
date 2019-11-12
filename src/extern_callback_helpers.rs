@@ -197,6 +197,7 @@ owned_casts_from_unchecked!(impl for crate::browser_host::PaintElementType: cef_
 owned_casts_from_unchecked!(impl for crate::client::render_handler::TextInputMode: cef_sys::cef_text_input_mode_t::Type);
 owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::MenuColorType: cef_sys::cef_menu_color_type_t::Type);
 owned_casts_from_unchecked!(impl for crate::client::focus_handler::FocusSource: cef_sys::cef_focus_source_t::Type);
+owned_casts_from_unchecked!(impl for crate::client::js_dialog_handler::JsDialogType: cef_sys::cef_jsdialog_type_t::Type);
 owned_casts_from_unchecked!(impl for crate::settings::LogSeverity: cef_sys::cef_log_severity_t::Type);
 owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
 owned_casts_from_flags_unchecked!(impl for crate::events::EventFlags: cef_sys::cef_event_flags_t);

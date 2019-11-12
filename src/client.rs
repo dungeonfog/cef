@@ -10,6 +10,7 @@ pub mod dialog_handler;
 pub mod display_handler;
 pub mod drag_handler;
 pub mod focus_handler;
+pub mod js_dialog_handler;
 pub mod keyboard_handler;
 pub mod life_span_handler;
 pub mod render_handler;
@@ -20,6 +21,7 @@ use self::{
     display_handler::DisplayHandler,
     drag_handler::DragHandler,
     focus_handler::FocusHandler,
+    js_dialog_handler::JsDialogHandler,
     keyboard_handler::KeyboardHandler,
     life_span_handler::LifeSpanHandler,
     render_handler::RenderHandler,
@@ -65,9 +67,9 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // fn get_find_handler(&self) -> Option<FindHandler> { None }
     /// Return the handler for focus events.
     fn get_focus_handler(&self) -> Option<FocusHandler> { None }
-    // /// Return the handler for JavaScript dialogs. If no handler is provided the
-    // /// default implementation will be used.
-    // fn get_jsdialog_handler(&self) -> Option<JsDialogHandler> { None }
+    /// Return the handler for JavaScript dialogs. If no handler is provided the
+    /// default implementation will be used.
+    fn get_jsdialog_handler(&self) -> Option<JsDialogHandler> { None }
     /// Return the handler for keyboard events.
     fn get_keyboard_handler(&self) -> Option<KeyboardHandler> { None }
     /// Return the handler for browser life span events.
