@@ -7,12 +7,14 @@ use std::{ptr::null_mut};
 
 pub mod context_menu_handler;
 pub mod drag_handler;
+pub mod keyboard_handler;
 pub mod life_span_handler;
 pub mod render_handler;
 
 use self::{
     context_menu_handler::ContextMenuHandler,
     drag_handler::DragHandler,
+    keyboard_handler::KeyboardHandler,
     life_span_handler::LifeSpanHandler,
     render_handler::RenderHandler,
 };
@@ -39,29 +41,29 @@ impl Client {
 /// Implement this trait to provide handler implementations.
 pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // /// Return the handler for audio rendering events.
-    // fn get_audio_handler(&self) -> Option<Box<dyn AudioHandler>> { None }
+    // fn get_audio_handler(&self) -> Option<AudioHandler> { None }
     /// Return the handler for context menus. If no handler is provided the default
     /// implementation will be used.
     fn get_context_menu_handler(&self) -> Option<ContextMenuHandler> { None }
     // /// Return the handler for dialogs. If no handler is provided the default
     // /// implementation will be used.
-    // fn get_dialog_handler(&self) -> Option<Box<dyn DialogHandler>> { None }
+    // fn get_dialog_handler(&self) -> Option<DialogHandler> { None }
     // /// Return the handler for browser display state events.
-    // fn get_display_handler(&self) -> Option<Box<dyn DisplayHandler>> { None }
+    // fn get_display_handler(&self) -> Option<DisplayHandler> { None }
     // /// Return the handler for download events. If no handler is returned downloads
     // /// will not be allowed.
-    // fn get_download_handler(&self) -> Option<Box<dyn DownloadHandler>> { None }
+    // fn get_download_handler(&self) -> Option<DownloadHandler> { None }
     /// Return the handler for drag events.
     fn get_drag_handler(&self) -> Option<DragHandler> { None }
     // /// Return the handler for find result events.
-    // fn get_find_handler(&self) -> Option<Box<dyn FindHandler>> { None }
+    // fn get_find_handler(&self) -> Option<FindHandler> { None }
     // /// Return the handler for focus events.
-    // fn get_focus_handler(&self) -> Option<Box<dyn FocusHandler>> { None }
+    // fn get_focus_handler(&self) -> Option<FocusHandler> { None }
     // /// Return the handler for JavaScript dialogs. If no handler is provided the
     // /// default implementation will be used.
-    // fn get_jsdialog_handler(&self) -> Option<Box<dyn JsDialogHandler>> { None }
-    // /// Return the handler for keyboard events.
-    // fn get_keyboard_handler(&self) -> Option<Box<dyn KeyboardHandler>> { None }
+    // fn get_jsdialog_handler(&self) -> Option<JsDialogHandler> { None }
+    /// Return the handler for keyboard events.
+    fn get_keyboard_handler(&self) -> Option<KeyboardHandler> { None }
     /// Return the handler for browser life span events.
     fn get_life_span_handler(&self) -> Option<LifeSpanHandler> { None }
     /// Return the handler for browser load status events.

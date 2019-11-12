@@ -67,13 +67,24 @@ impl KeyEvent {
     }
 }
 
-impl Into<cef_key_event_t> for KeyEvent {
-    fn into(self) -> cef_key_event_t {
+impl From<KeyEvent> for cef_key_event_t {
+    fn from(event: KeyEvent) -> cef_key_event_t {
         unsafe {
             mem::transmute::<
                 KeyEvent,
                 cef_key_event_t,
-            >(self)
+            >(event)
+        }
+    }
+}
+
+impl From<cef_key_event_t> for KeyEvent {
+    fn from(event: cef_key_event_t) -> KeyEvent {
+        unsafe {
+            mem::transmute::<
+                cef_key_event_t,
+                KeyEvent,
+            >(event)
         }
     }
 }
