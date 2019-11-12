@@ -1,38 +1,34 @@
 use cef_sys::{cef_file_dialog_mode_t, cef_run_file_dialog_callback_t, cef_string_list_t};
 use parking_lot::Mutex;
 use std::{
-    collections::HashSet,
     convert::TryFrom,
     mem::ManuallyDrop,
 };
-
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
     string::CefStringList,
 };
+use bitflags::bitflags;
 
-#[repr(i32)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, Hash)]
-pub enum FileDialogModeFlags {
-    /// Prompt to overwrite if the user selects an existing file with the Save
-    /// dialog.
-    OverwritePrompt = cef_file_dialog_mode_t::FILE_DIALOG_OVERWRITEPROMPT_FLAG.0,
-    /// Do not display read-only files.
-    HideReadOnly = cef_file_dialog_mode_t::FILE_DIALOG_HIDEREADONLY_FLAG.0,
+bitflags!{
+    pub struct FileDialogModeFlags: i32 {
+        const OVERWRITE_PROMPT = cef_file_dialog_mode_t::FILE_DIALOG_OVERWRITEPROMPT_FLAG.0;
+        const HIDE_READ_ONLY = cef_file_dialog_mode_t::FILE_DIALOG_HIDEREADONLY_FLAG.0;
+    }
 }
 
 /// Supported file dialog modes.
 #[derive(PartialEq, Eq, Clone, Debug)]
 pub enum FileDialogMode {
     /// Requires that the file exists before allowing the user to pick it.
-    Open(HashSet<FileDialogModeFlags>),
+    Open(FileDialogModeFlags),
     /// Like Open, but allows picking multiple files to open.
-    OpenMultiple(HashSet<FileDialogModeFlags>),
+    OpenMultiple(FileDialogModeFlags),
     /// Like Open, but selects a folder to open.
-    OpenFolder(HashSet<FileDialogModeFlags>),
+    OpenFolder(FileDialogModeFlags),
     /// Allows picking a nonexistent file, and prompts to overwrite if the file
     /// already exists.
-    Save(HashSet<FileDialogModeFlags>),
+    Save(FileDialogModeFlags),
 }
 
 impl TryFrom<cef_file_dialog_mode_t> for FileDialogMode {
@@ -40,12 +36,12 @@ impl TryFrom<cef_file_dialog_mode_t> for FileDialogMode {
 
     fn try_from(value: cef_file_dialog_mode_t) -> Result<Self, Self::Error> {
         let base = value & cef_file_dialog_mode_t::FILE_DIALOG_TYPE_MASK;
-        let mut flags = HashSet::new();
+        let mut flags = FileDialogModeFlags::empty();
         if (value & cef_file_dialog_mode_t::FILE_DIALOG_OVERWRITEPROMPT_FLAG).0 != 0 {
-            flags.insert(FileDialogModeFlags::OverwritePrompt);
+            flags.insert(FileDialogModeFlags::OVERWRITE_PROMPT);
         }
         if (value & cef_file_dialog_mode_t::FILE_DIALOG_HIDEREADONLY_FLAG).0 != 0 {
-            flags.insert(FileDialogModeFlags::HideReadOnly);
+            flags.insert(FileDialogModeFlags::HIDE_READ_ONLY);
         }
         match base {
             x if x == cef_file_dialog_mode_t::FILE_DIALOG_OPEN => Ok(Self::Open(flags)),
@@ -63,29 +59,22 @@ impl TryFrom<cef_file_dialog_mode_t> for FileDialogMode {
 
 impl Into<cef_file_dialog_mode_t> for FileDialogMode {
     fn into(self) -> cef_file_dialog_mode_t {
-        let result;
         let flags = match self {
             Self::Open(flags) => {
-                result = cef_file_dialog_mode_t::FILE_DIALOG_OPEN.0;
-                flags
+                cef_file_dialog_mode_t::FILE_DIALOG_OPEN.0 | flags.bits()
             }
             Self::OpenMultiple(flags) => {
-                result = cef_file_dialog_mode_t::FILE_DIALOG_OPEN_MULTIPLE.0;
-                flags
+                cef_file_dialog_mode_t::FILE_DIALOG_OPEN_MULTIPLE.0 | flags.bits()
             }
             Self::OpenFolder(flags) => {
-                result = cef_file_dialog_mode_t::FILE_DIALOG_OPEN_FOLDER.0;
-                flags
+                cef_file_dialog_mode_t::FILE_DIALOG_OPEN_FOLDER.0 | flags.bits()
             }
             Self::Save(flags) => {
-                result = cef_file_dialog_mode_t::FILE_DIALOG_SAVE.0;
-                flags
+                cef_file_dialog_mode_t::FILE_DIALOG_SAVE.0 | flags.bits()
             }
         };
         cef_file_dialog_mode_t(
             flags
-                .into_iter()
-                .fold(result, |result, flag| result | flag as i32),
         )
     }
 }

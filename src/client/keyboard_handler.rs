@@ -51,7 +51,7 @@ pub trait KeyboardHandlerCallbacks: 'static + Send {
     }
 }
 
-pub struct KeyboardHandlerWrapper(Mutex<Box<dyn KeyboardHandlerCallbacks>>);
+struct KeyboardHandlerWrapper(Mutex<Box<dyn KeyboardHandlerCallbacks>>);
 
 impl Wrapper for KeyboardHandlerWrapper {
     type Cef = cef_keyboard_handler_t;

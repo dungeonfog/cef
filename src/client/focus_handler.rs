@@ -12,7 +12,9 @@ use parking_lot::Mutex;
 use num_enum::UnsafeFromPrimitive;
 
 ref_counted_ptr!{
-    /// Instantiate this structure to handle events related to keyboard input.
+    /// Instantiate this structure to handle events related to focus.
+    ///
+    /// The functions of this structure will be called on the UI thread.
     pub struct FocusHandler(*mut cef_focus_handler_t);
 }
 
@@ -32,7 +34,9 @@ pub enum FocusSource {
     System = cef_focus_source_t::FOCUS_SOURCE_SYSTEM,
 }
 
-/// Implement this trait to handle events related to keyboard input.
+/// Implement this trait to handle events related to focus.
+///
+/// The functions of this trait will be called on the UI thread.
 pub trait FocusHandlerCallbacks: 'static + Send {
     /// Called when the browser component is about to lose focus. For instance, if
     /// focus was on the last HTML element and the user pressed the TAB key. `next`

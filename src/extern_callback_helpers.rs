@@ -274,6 +274,12 @@ impl CToRustType for crate::window::WindowInfo {
         Self::from(&*c_type)
     }
 }
+impl CToRustType for crate::file_dialog::FileDialogMode {
+    type CType = cef_sys::cef_file_dialog_mode_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::try_from(c_type).unwrap()
+    }
+}
 
 impl<'a> CToRustType for &mut cef_sys::cef_screen_info_t {
     type CType = *mut cef_sys::cef_screen_info_t;

@@ -6,6 +6,7 @@ use downcast_rs::{impl_downcast, Downcast};
 use std::{ptr::null_mut};
 
 pub mod context_menu_handler;
+pub mod dialog_handler;
 pub mod display_handler;
 pub mod drag_handler;
 pub mod focus_handler;
@@ -15,6 +16,7 @@ pub mod render_handler;
 
 use self::{
     context_menu_handler::ContextMenuHandler,
+    dialog_handler::DialogHandler,
     display_handler::DisplayHandler,
     drag_handler::DragHandler,
     focus_handler::FocusHandler,
@@ -49,9 +51,9 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     /// Return the handler for context menus. If no handler is provided the default
     /// implementation will be used.
     fn get_context_menu_handler(&self) -> Option<ContextMenuHandler> { None }
-    // /// Return the handler for dialogs. If no handler is provided the default
-    // /// implementation will be used.
-    // fn get_dialog_handler(&self) -> Option<DialogHandler> { None }
+    /// Return the handler for dialogs. If no handler is provided the default
+    /// implementation will be used.
+    fn get_dialog_handler(&self) -> Option<DialogHandler> { None }
     /// Return the handler for browser display state events.
     fn get_display_handler(&self) -> Option<DisplayHandler> { None }
     // /// Return the handler for download events. If no handler is returned downloads
