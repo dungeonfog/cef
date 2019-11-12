@@ -8,6 +8,7 @@ use std::{ptr::null_mut};
 pub mod context_menu_handler;
 pub mod display_handler;
 pub mod drag_handler;
+pub mod focus_handler;
 pub mod keyboard_handler;
 pub mod life_span_handler;
 pub mod render_handler;
@@ -16,6 +17,7 @@ use self::{
     context_menu_handler::ContextMenuHandler,
     display_handler::DisplayHandler,
     drag_handler::DragHandler,
+    focus_handler::FocusHandler,
     keyboard_handler::KeyboardHandler,
     life_span_handler::LifeSpanHandler,
     render_handler::RenderHandler,
@@ -59,8 +61,8 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     fn get_drag_handler(&self) -> Option<DragHandler> { None }
     // /// Return the handler for find result events.
     // fn get_find_handler(&self) -> Option<FindHandler> { None }
-    // /// Return the handler for focus events.
-    // fn get_focus_handler(&self) -> Option<FocusHandler> { None }
+    /// Return the handler for focus events.
+    fn get_focus_handler(&self) -> Option<FocusHandler> { None }
     // /// Return the handler for JavaScript dialogs. If no handler is provided the
     // /// default implementation will be used.
     // fn get_jsdialog_handler(&self) -> Option<JsDialogHandler> { None }
