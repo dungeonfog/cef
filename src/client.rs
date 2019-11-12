@@ -9,6 +9,7 @@ pub mod context_menu_handler;
 pub mod dialog_handler;
 pub mod display_handler;
 pub mod drag_handler;
+pub mod find_handler;
 pub mod focus_handler;
 pub mod js_dialog_handler;
 pub mod keyboard_handler;
@@ -20,6 +21,7 @@ use self::{
     dialog_handler::DialogHandler,
     display_handler::DisplayHandler,
     drag_handler::DragHandler,
+    find_handler::FindHandler,
     focus_handler::FocusHandler,
     js_dialog_handler::JsDialogHandler,
     keyboard_handler::KeyboardHandler,
@@ -63,8 +65,8 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     // fn get_download_handler(&self) -> Option<DownloadHandler> { None }
     /// Return the handler for drag events.
     fn get_drag_handler(&self) -> Option<DragHandler> { None }
-    // /// Return the handler for find result events.
-    // fn get_find_handler(&self) -> Option<FindHandler> { None }
+    /// Return the handler for find result events.
+    fn get_find_handler(&self) -> Option<FindHandler> { None }
     /// Return the handler for focus events.
     fn get_focus_handler(&self) -> Option<FocusHandler> { None }
     /// Return the handler for JavaScript dialogs. If no handler is provided the
