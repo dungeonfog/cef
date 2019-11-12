@@ -86,7 +86,7 @@ dependencies = [
 [[package]]
 name = "cef-sys"
 version = "0.1.0"
-source = "git+https://github.com/anlumo/cef-sys.git#687f158835ec4e4364a2b93c158d52cbbc16382a"
+source = "git+https://github.com/anlumo/cef-sys.git#e0e5290d06e32db952aa1f7c6d5b4b3625639e5c"
 dependencies = [
  "winapi 0.3.8 (registry+https://github.com/rust-lang/crates.io-index)",
 ]
