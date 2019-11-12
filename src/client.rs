@@ -8,6 +8,7 @@ use std::{ptr::null_mut};
 pub mod context_menu_handler;
 pub mod dialog_handler;
 pub mod display_handler;
+pub mod download_handler;
 pub mod drag_handler;
 pub mod find_handler;
 pub mod focus_handler;
@@ -20,6 +21,7 @@ use self::{
     context_menu_handler::ContextMenuHandler,
     dialog_handler::DialogHandler,
     display_handler::DisplayHandler,
+    download_handler::DownloadHandler,
     drag_handler::DragHandler,
     find_handler::FindHandler,
     focus_handler::FocusHandler,
@@ -60,9 +62,9 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
     fn get_dialog_handler(&self) -> Option<DialogHandler> { None }
     /// Return the handler for browser display state events.
     fn get_display_handler(&self) -> Option<DisplayHandler> { None }
-    // /// Return the handler for download events. If no handler is returned downloads
-    // /// will not be allowed.
-    // fn get_download_handler(&self) -> Option<DownloadHandler> { None }
+    /// Return the handler for download events. If no handler is returned downloads
+    /// will not be allowed.
+    fn get_download_handler(&self) -> Option<DownloadHandler> { None }
     /// Return the handler for drag events.
     fn get_drag_handler(&self) -> Option<DragHandler> { None }
     /// Return the handler for find result events.

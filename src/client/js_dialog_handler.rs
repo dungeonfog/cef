@@ -21,7 +21,7 @@ ref_counted_ptr!{
 }
 
 ref_counted_ptr!{
-    /// Callback trait used for asynchronous continuation of JavaScript dialog
+    /// Callback struct used for asynchronous continuation of JavaScript dialog
     /// requests.
     pub struct JsDialogCallback(*mut cef_jsdialog_callback_t);
 }
@@ -42,8 +42,20 @@ impl JsDialogHandler {
 }
 
 impl JsDialogCallback {
-    pub fn new<C: JsDialogCallbacks>(callbacks: C) -> JsDialogCallback {
-        unsafe{ JsDialogCallback::from_ptr_unchecked(JsDialogCallbackWrapper(Box::new(callbacks)).wrap().into_raw()) }
+    // Continue the JS dialog request. Set `success` to `true` if the OK button
+    // was pressed. The `user_input` value should be specified for prompt dialogs.
+    pub fn cont(
+        &self,
+        success: bool,
+        user_input: &str,
+    ) {
+        unsafe{
+            self.0.cont.unwrap()(
+                self.as_ptr(),
+                success as c_int,
+                CefString::new(user_input).as_ptr(),
+            )
+        }
     }
 }
 
@@ -108,18 +120,6 @@ pub trait JsDialogHandlerCallbacks: 'static + Send {
     }
 }
 
-/// Callback trait used for asynchronous continuation of JavaScript dialog
-/// requests.
-pub trait JsDialogCallbacks: 'static + Send + Sync {
-    // Continue the JS dialog request. Set `success` to `true` if the OK button
-    // was pressed. The `user_input` value should be specified for prompt dialogs.
-    fn cont(
-        &self,
-        success: bool,
-        user_input: &str,
-    );
-}
-
 struct JsDialogHandlerWrapper(Mutex<Box<dyn JsDialogHandlerCallbacks>>);
 impl Wrapper for JsDialogHandlerWrapper {
     type Cef = cef_jsdialog_handler_t;
@@ -131,20 +131,6 @@ impl Wrapper for JsDialogHandlerWrapper {
                 on_before_unload_dialog: Some(Self::on_before_unload_dialog),
                 on_reset_dialog_state: Some(Self::on_reset_dialog_state),
                 on_dialog_closed: Some(Self::on_dialog_closed),
-            },
-            self,
-        )
-    }
-}
-
-struct JsDialogCallbackWrapper(Box<dyn JsDialogCallbacks>);
-impl Wrapper for JsDialogCallbackWrapper {
-    type Cef = cef_jsdialog_callback_t;
-    fn wrap(self) -> RefCountedPtr<Self::Cef> {
-        RefCountedPtr::wrap(
-            cef_jsdialog_callback_t {
-                base: unsafe { std::mem::zeroed() },
-                cont: Some(Self::cont),
             },
             self,
         )
@@ -201,18 +187,6 @@ cef_callback_impl!{
             browser: Browser: *mut cef_browser_t
         ) {
             self.0.lock().on_dialog_closed(browser);
-        }
-    }
-}
-
-cef_callback_impl!{
-    impl for JsDialogCallbackWrapper: cef_jsdialog_callback_t {
-        fn cont(
-            &self,
-            success: c_int: c_int,
-            user_input: &CefString: *const cef_string_t,
-        ) {
-            self.0.cont(success != 0, &String::from(user_input));
         }
     }
 }
