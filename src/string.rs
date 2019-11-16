@@ -1,3 +1,12 @@
+use cef_sys::cef_string_map_clear;
+use cef_sys::cef_string_map_find;
+use cef_sys::cef_string_map_key;
+use cef_sys::cef_string_map_t;
+use cef_sys::cef_string_map_alloc;
+use cef_sys::cef_string_map_free;
+use cef_sys::cef_string_map_size;
+use cef_sys::cef_string_map_value;
+use cef_sys::cef_string_map_append;
 use cef_sys::{
     cef_string_list_alloc, cef_string_list_append, cef_string_list_free, cef_string_list_size,
     cef_string_list_t, cef_string_list_value, cef_string_t, cef_string_utf8_to_utf16,
@@ -369,6 +378,176 @@ cef_callback_impl! {
             string: &CefString: *const cef_string_t
         ) {
             (&mut *self.delegate.lock())(&String::from(string))
+        }
+    }
+}
+
+pub(crate) struct CefStringMap(cef_string_map_t);
+
+impl Default for CefStringMap {
+    fn default() -> Self {
+        Self(unsafe { cef_string_map_alloc() })
+    }
+}
+
+impl Drop for CefStringMap {
+    fn drop(&mut self) {
+        unsafe {
+            cef_string_map_free(self.0);
+        }
+    }
+}
+
+impl From<CefStringMap> for cef_string_map_t {
+    fn from(list: CefStringMap) -> cef_string_map_t {
+        list.into_raw()
+    }
+}
+
+impl CefStringMap {
+    pub fn new() -> Self {
+        Self::default()
+    }
+    pub fn as_mut_ptr(&mut self) -> cef_string_map_t {
+        self.0
+    }
+    pub fn len(&self) -> usize {
+        unsafe { cef_string_map_size(self.0) }
+    }
+    pub fn get(&self, key: &CefString) -> Option<CefString> {
+        let mut string = CefString::default();
+        let result = unsafe { cef_string_map_find(self.0, key.as_ptr(), string.as_ptr_mut()) };
+        if result == 0 {
+            None
+        } else {
+            Some(string)
+        }
+    }
+    pub fn key(&self, index: usize) -> Option<CefString> {
+        let mut string = CefString::default();
+        let result = unsafe { cef_string_map_key(self.0, index, string.as_ptr_mut()) };
+        if result == 0 {
+            None
+        } else {
+            Some(string)
+        }
+    }
+    pub fn value(&self, index: usize) -> Option<CefString> {
+        let mut string = CefString::default();
+        let result = unsafe { cef_string_map_value(self.0, index, string.as_ptr_mut()) };
+        if result == 0 {
+            None
+        } else {
+            Some(string)
+        }
+    }
+    pub fn push(&mut self, key: &CefString, val: &CefString) {
+        unsafe {
+            cef_string_map_append(self.0, key.as_ptr(), val.as_ptr());
+        }
+    }
+    pub fn clear(&mut self) {
+        unsafe{ cef_string_map_clear(self.0) };
+    }
+    pub unsafe fn from_raw(raw: cef_string_map_t) -> mem::ManuallyDrop<CefStringMap> {
+        mem::ManuallyDrop::new(CefStringMap(raw))
+    }
+    pub fn into_raw(self) -> cef_string_map_t {
+        let list = self.0;
+        mem::forget(self);
+        list
+    }
+}
+
+impl<'a> IntoIterator for &'a CefStringMap {
+    type Item = (CefString, CefString);
+    type IntoIter = CefStringMapIter<'a>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CefStringMapIter {
+            list: self,
+            range: 0..self.len(),
+        }
+    }
+}
+
+impl IntoIterator for CefStringMap {
+    type Item = (CefString, CefString);
+    type IntoIter = CefStringMapIntoIter;
+
+    fn into_iter(self) -> Self::IntoIter {
+        CefStringMapIntoIter {
+            range: 0..self.len(),
+            list: self,
+        }
+    }
+}
+
+pub(crate) struct CefStringMapIter<'a> {
+    list: &'a CefStringMap,
+    range: Range<usize>,
+}
+
+pub(crate) struct CefStringMapIntoIter {
+    list: CefStringMap,
+    range: Range<usize>,
+}
+
+impl<'a> Iterator for CefStringMapIter<'a> {
+    type Item = (CefString, CefString);
+
+    fn next(&mut self) -> Option<(CefString, CefString)> {
+        self.range.next().and_then(|i| self.list.key(i).and_then(|k| self.list.value(i).map(|v| (k, v))))
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let s = self.range.len();
+        (s, Some(s))
+    }
+}
+impl<'a> ExactSizeIterator for CefStringMapIter<'a> {}
+
+impl Iterator for CefStringMapIntoIter {
+    type Item = (CefString, CefString);
+
+    fn next(&mut self) -> Option<(CefString, CefString)> {
+        self.range.next().and_then(|i| self.list.key(i).and_then(|k| self.list.value(i).map(|v| (k, v))))
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        let s = self.range.len();
+        (s, Some(s))
+    }
+}
+impl<'a> ExactSizeIterator for CefStringMapIntoIter {}
+
+impl<'a> FromIterator<(&'a str, &'a str)> for CefStringMap {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = (&'a str, &'a str)>,
+    {
+        let mut list = Self::new();
+        list.extend(iter);
+        list
+    }
+}
+
+impl<'a> Extend<(&'a str, &'a str)> for CefStringMap {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = (&'a str, &'a str)>,
+    {
+        for (k, v) in iter {
+            self.push(&k.into(), &v.into());
+        }
+    }
+}
+
+impl<'a> Extend<(&'a CefString, &'a CefString)> for CefStringMap {
+    fn extend<T>(&mut self, iter: T)
+    where
+        T: IntoIterator<Item = (&'a CefString, &'a CefString)>,
+    {
+        for (k, v) in iter {
+            self.push(k, v);
         }
     }
 }

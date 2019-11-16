@@ -1,84 +1,83 @@
-use cef_sys::{_cef_sslinfo_t, _cef_x509certificate_t, cef_cert_status_t};
-use std::collections::HashSet;
+use cef_sys::cef_sslstatus_t;
+use cef_sys::{_cef_sslinfo_t, cef_cert_status_t, cef_is_cert_status_error, cef_ssl_version_t, cef_ssl_content_status_t};
+use bitflags::bitflags;
+use num_enum::UnsafeFromPrimitive;
+use crate::x509_certificate::X509Certificate;
 
-/// Supported certificate status code values. See net\cert\cert_status_flags.h
-/// for more information. CERT_STATUS_NONE is new in CEF because we use an
-/// enum while cert_status_flags.h uses a typedef and static const variables.
+bitflags!{
+    /// Supported certificate status code values. See net\cert\cert_status_flags.h
+    /// for more information. CERT_STATUS_NONE is new in CEF because we use an
+    /// enum while cert_status_flags.h uses a typedef and static const variables.
+    #[derive(Default)]
+    pub struct CertStatus: i32 {
+        const NONE = cef_cert_status_t::CERT_STATUS_NONE.0;
+        const COMMON_NAME_INVALID = cef_cert_status_t::CERT_STATUS_COMMON_NAME_INVALID.0;
+        const DATE_INVALID = cef_cert_status_t::CERT_STATUS_DATE_INVALID.0;
+        const AUTHORITY_INVALID = cef_cert_status_t::CERT_STATUS_AUTHORITY_INVALID.0;
+        const NO_REVOCATION_MECHANISM = cef_cert_status_t::CERT_STATUS_NO_REVOCATION_MECHANISM.0;
+        const UNABLE_TO_CHECK_REVOCATION = cef_cert_status_t::CERT_STATUS_UNABLE_TO_CHECK_REVOCATION.0;
+        const REVOKED = cef_cert_status_t::CERT_STATUS_REVOKED.0;
+        const INVALID = cef_cert_status_t::CERT_STATUS_INVALID.0;
+        const WEAK_SIGNATURE_ALGORITHM = cef_cert_status_t::CERT_STATUS_WEAK_SIGNATURE_ALGORITHM.0;
+        const NON_UNIQUE_NAME = cef_cert_status_t::CERT_STATUS_NON_UNIQUE_NAME.0;
+        const WEAK_KEY = cef_cert_status_t::CERT_STATUS_WEAK_KEY.0;
+        const PINNED_KEY_MISSING = cef_cert_status_t::CERT_STATUS_PINNED_KEY_MISSING.0;
+        const NAME_CONSTRAINT_VIOLATION = cef_cert_status_t::CERT_STATUS_NAME_CONSTRAINT_VIOLATION.0;
+        const VALIDITY_TOO_LONG = cef_cert_status_t::CERT_STATUS_VALIDITY_TOO_LONG.0;
+        const IS_EV = cef_cert_status_t::CERT_STATUS_IS_EV.0;
+        const REV_CHECKING_ENABLED = cef_cert_status_t::CERT_STATUS_REV_CHECKING_ENABLED.0;
+        const SHA1_SIGNATURE_PRESENT = cef_cert_status_t::CERT_STATUS_SHA1_SIGNATURE_PRESENT.0;
+        const CT_COMPLIANCE_FAILED = cef_cert_status_t::CERT_STATUS_CT_COMPLIANCE_FAILED.0;
+    }
+}
+
+// Supported SSL version values. See net/ssl/ssl_connection_status_flags.h
+// for more information.
 #[repr(i32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum CertStatus {
-    None = cef_cert_status_t::CERT_STATUS_NONE.0,
-    CommonNameInvalid = cef_cert_status_t::CERT_STATUS_COMMON_NAME_INVALID.0,
-    DateInvalid = cef_cert_status_t::CERT_STATUS_DATE_INVALID.0,
-    AuthorityInvalid = cef_cert_status_t::CERT_STATUS_AUTHORITY_INVALID.0,
-    NoRevocationMechanism = cef_cert_status_t::CERT_STATUS_NO_REVOCATION_MECHANISM.0,
-    UnableToCheckRevocation = cef_cert_status_t::CERT_STATUS_UNABLE_TO_CHECK_REVOCATION.0,
-    Revoked = cef_cert_status_t::CERT_STATUS_REVOKED.0,
-    Invalid = cef_cert_status_t::CERT_STATUS_INVALID.0,
-    WeakSignatureAlgorithm = cef_cert_status_t::CERT_STATUS_WEAK_SIGNATURE_ALGORITHM.0,
-    NonUniqueName = cef_cert_status_t::CERT_STATUS_NON_UNIQUE_NAME.0,
-    WeakKey = cef_cert_status_t::CERT_STATUS_WEAK_KEY.0,
-    PinnedKeyMissing = cef_cert_status_t::CERT_STATUS_PINNED_KEY_MISSING.0,
-    NameConstraintViolation = cef_cert_status_t::CERT_STATUS_NAME_CONSTRAINT_VIOLATION.0,
-    ValidityTooLong = cef_cert_status_t::CERT_STATUS_VALIDITY_TOO_LONG.0,
-    IsEV = cef_cert_status_t::CERT_STATUS_IS_EV.0,
-    RevCheckingEnabled = cef_cert_status_t::CERT_STATUS_REV_CHECKING_ENABLED.0,
-    Sha1SignaturePresent = cef_cert_status_t::CERT_STATUS_SHA1_SIGNATURE_PRESENT.0,
-    CTComplianceFailed = cef_cert_status_t::CERT_STATUS_CT_COMPLIANCE_FAILED.0,
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, UnsafeFromPrimitive)]
+pub enum SSLVersion {
+    Unknown = cef_ssl_version_t::SSL_CONNECTION_VERSION_UNKNOWN,
+    SSL2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL2,
+    SSL3 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL3,
+    TLS1 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1,
+    TLS1_1 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_1,
+    TLS1_2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_2,
+    TLS1_3 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_3,
+    QUIC = cef_ssl_version_t::SSL_CONNECTION_VERSION_QUIC,
+}
+
+bitflags!{
+    // Supported SSL content status flags. See content/public/common/ssl_status.h
+    // for more information.
+    pub struct ContentStatus: i32 {
+        const NORMAL = cef_ssl_content_status_t::SSL_CONTENT_NORMAL_CONTENT;
+        const DISPLAYED_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_DISPLAYED_INSECURE_CONTENT;
+        const RAN_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_RAN_INSECURE_CONTENT;
+    }
 }
 
 impl CertStatus {
-    pub(crate) fn as_vec(status: cef_cert_status_t) -> HashSet<CertStatus> {
-        [
-            CertStatus::CommonNameInvalid,
-            CertStatus::DateInvalid,
-            CertStatus::AuthorityInvalid,
-            CertStatus::NoRevocationMechanism,
-            CertStatus::UnableToCheckRevocation,
-            CertStatus::Revoked,
-            CertStatus::Invalid,
-            CertStatus::WeakSignatureAlgorithm,
-            CertStatus::NonUniqueName,
-            CertStatus::WeakKey,
-            CertStatus::PinnedKeyMissing,
-            CertStatus::NameConstraintViolation,
-            CertStatus::ValidityTooLong,
-            CertStatus::IsEV,
-            CertStatus::RevCheckingEnabled,
-            CertStatus::Sha1SignaturePresent,
-            CertStatus::CTComplianceFailed,
-        ]
-        .iter()
-        .filter(|flag| (**flag) as u32 & status.0 as u32 != 0)
-        .cloned()
-        .collect()
-    }
-
-    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
-        status_flags: I,
-    ) -> cef_cert_status_t {
-        cef_cert_status_t(status_flags.fold(0, |mask, flag| mask | (*flag as i32)))
+    pub fn is_cert_status_error(&self) -> bool {
+        unsafe { cef_is_cert_status_error(cef_cert_status_t(self.bits())) != 0 }
     }
 }
-
-// impl HashSet<CertStatus> {
-//     pub fn is_cert_status_error(&self) -> bool {
-//         unsafe { cef_is_cert_status_error(CertStatus::as_mask(self)) != 0 }
-//     }
-// }
 
 ref_counted_ptr! {
     /// Structure representing SSL information.
     pub struct SSLInfo(*mut _cef_sslinfo_t);
 }
 
+ref_counted_ptr!{
+    pub struct SSLStatus(*mut cef_sslstatus_t);
+}
+
 impl SSLInfo {
     /// Returns a set containing any and all problems verifying the server
     /// certificate.
-    pub fn get_cert_status(&self) -> HashSet<CertStatus> {
+    pub fn get_cert_status(&self) -> CertStatus {
         self.0
             .get_cert_status
-            .map(|get_cert_status| CertStatus::as_vec(unsafe { get_cert_status(self.0.as_ptr()) }))
+            .map(|get_cert_status| CertStatus::from_bits_truncate(unsafe { get_cert_status(self.0.as_ptr()).0 }))
             .unwrap_or_default()
     }
     /// Returns the X.509 certificate.
@@ -88,6 +87,20 @@ impl SSLInfo {
     }
 }
 
-ref_counted_ptr! {
-    pub struct X509Certificate(*mut _cef_x509certificate_t);
+impl SSLStatus {
+    pub fn is_secure_connection(&self) -> bool {
+        unsafe{ self.0.is_secure_connection.unwrap()(self.as_ptr()) != 0 }
+    }
+    pub fn get_cert_status(&self) -> CertStatus {
+        unsafe{ CertStatus::from_bits_truncate(self.0.get_cert_status.unwrap()(self.as_ptr()).0) }
+    }
+    pub fn get_ssl_version(&self) -> SSLVersion {
+        unsafe{ SSLVersion::from_unchecked(self.0.get_sslversion.unwrap()(self.as_ptr())) }
+    }
+    pub fn get_content_status(&self) -> ContentStatus {
+        unsafe{ ContentStatus::from_bits_truncate(self.0.get_content_status.unwrap()(self.as_ptr())) }
+    }
+    pub fn get_x509certificate(&self) -> X509Certificate {
+        unsafe{ X509Certificate::from_ptr_unchecked(self.0.get_x509certificate.unwrap()(self.as_ptr())) }
+    }
 }

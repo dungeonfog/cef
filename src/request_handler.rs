@@ -23,7 +23,8 @@ use crate::{
     refcounted::{RefCountedPtr, Wrapper},
     request::Request,
     resource_request_handler::ResourceRequestHandler,
-    ssl::{SSLInfo, X509Certificate},
+    ssl::SSLInfo,
+    x509_certificate::X509Certificate,
     url_request::{AuthCallback, RequestCallback},
 };
 

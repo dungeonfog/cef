@@ -3,8 +3,8 @@ use cef_sys::{
     cef_transition_type_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{collections::HashSet, convert::TryFrom};
-
+use std::{convert::TryFrom};
+use bitflags::bitflags;
 use crate::{
     browser::Browser,
     frame::Frame,
@@ -12,29 +12,29 @@ use crate::{
     string::CefString,
 };
 
-#[repr(i32)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-/// Any of the core values in [TransitionType] can be augmented by one or more qualifiers.
-/// These qualifiers further define the transition.
-pub enum TransitionTypeQualifiers {
-    /// Attempted to visit a URL but was blocked.
-    BlockedFlag = cef_transition_type_t::TT_BLOCKED_FLAG.0,
-    /// Used the Forward or Back function to navigate among browsing history.
-    ForwardBackFlag = cef_transition_type_t::TT_FORWARD_BACK_FLAG.0,
-    /// The beginning of a navigation chain.
-    ChainStartFlag = cef_transition_type_t::TT_CHAIN_START_FLAG.0,
-    /// The last transition in a redirect chain.
-    ChainEndFlag = cef_transition_type_t::TT_CHAIN_END_FLAG.0,
-    /// Redirects caused by JavaScript or a meta refresh tag on the page.
-    ClientRedirectFlag = cef_transition_type_t::TT_CLIENT_REDIRECT_FLAG.0,
-    /// Redirects sent from the server by HTTP headers.
-    ServerRedirectFlag = cef_transition_type_t::TT_SERVER_REDIRECT_FLAG.0,
+bitflags!{
+    /// Any of the core values in [TransitionType] can be augmented by one or more qualifiers.
+    /// These qualifiers further define the transition.
+    pub struct TransitionTypeQualifiers: i32 {
+        /// Attempted to visit a URL but was blocked.
+        const BLOCKED = cef_transition_type_t::TT_BLOCKED_FLAG.0;
+        /// Used the Forward or Back function to navigate among browsing history.
+        const FORWARD_BACK = cef_transition_type_t::TT_FORWARD_BACK_FLAG.0;
+        /// The beginning of a navigation chain.
+        const CHAIN_START = cef_transition_type_t::TT_CHAIN_START_FLAG.0;
+        /// The last transition in a redirect chain.
+        const CHAIN_END = cef_transition_type_t::TT_CHAIN_END_FLAG.0;
+        /// Redirects caused by JavaScript or a meta refresh tag on the page.
+        const CLIENT_REDIRECT = cef_transition_type_t::TT_CLIENT_REDIRECT_FLAG.0;
+        /// Redirects sent from the server by HTTP headers.
+        const SERVER_REDIRECT = cef_transition_type_t::TT_SERVER_REDIRECT_FLAG.0;
+    }
 }
 
 impl TransitionTypeQualifiers {
     /// Used to test whether a transition involves a redirect.
     pub fn is_redirect(self) -> bool {
-        (self as i32 & cef_transition_type_t::TT_IS_REDIRECT_MASK.0) != 0
+        (self.bits() & cef_transition_type_t::TT_IS_REDIRECT_MASK.0) != 0
     }
 }
 
@@ -45,55 +45,37 @@ pub enum TransitionType {
     /// Source is a link click or the JavaScript window.open function. This is
     /// also the default value for requests like sub-resource loads that are not
     /// navigations.
-    Link(HashSet<TransitionTypeQualifiers>),
+    Link(TransitionTypeQualifiers),
     /// Source is some other "explicit" navigation action such as creating a new
     /// browser or using the LoadURL function. This is also the default value
     /// for navigations where the actual type is unknown.
-    Explicit(HashSet<TransitionTypeQualifiers>),
+    Explicit(TransitionTypeQualifiers),
     /// Source is a subframe navigation. This is any content that is automatically
     /// loaded in a non-toplevel frame. For example, if a page consists of several
     /// frames containing ads, those ad URLs will have this transition type.
     /// The user may not even realize the content in these pages is a separate
     /// frame, so may not care about the URL.
-    AutoSubframe(HashSet<TransitionTypeQualifiers>),
+    AutoSubframe(TransitionTypeQualifiers),
     /// Source is a subframe navigation explicitly requested by the user that will
     /// generate new navigation entries in the back/forward list. These are
     /// probably more important than frames that were automatically loaded in
     /// the background because the user probably cares about the fact that this
     /// link was loaded.
-    ManualSubframe(HashSet<TransitionTypeQualifiers>),
+    ManualSubframe(TransitionTypeQualifiers),
     /// Source is a form submission by the user. NOTE: In some situations
     /// submitting a form does not result in this transition type. This can happen
     /// if the form uses a script to submit the contents.
-    FormSubmit(HashSet<TransitionTypeQualifiers>),
+    FormSubmit(TransitionTypeQualifiers),
     /// Source is a "reload" of the page via the Reload function or by re-visiting
     /// the same URL. NOTE: This is distinct from the concept of whether a
     /// particular load uses "reload semantics" (i.e. bypasses cached data).
-    Reload(HashSet<TransitionTypeQualifiers>),
+    Reload(TransitionTypeQualifiers),
 }
 
 impl TryFrom<i32> for TransitionType {
     type Error = ();
     fn try_from(value: i32) -> Result<Self, Self::Error> {
-        let mut flags = HashSet::new();
-        if value & cef_transition_type_t::TT_BLOCKED_FLAG.0 != 0 {
-            flags.insert(TransitionTypeQualifiers::BlockedFlag);
-        }
-        if value & cef_transition_type_t::TT_FORWARD_BACK_FLAG.0 != 0 {
-            flags.insert(TransitionTypeQualifiers::ForwardBackFlag);
-        }
-        if value & cef_transition_type_t::TT_CHAIN_START_FLAG.0 != 0 {
-            flags.insert(TransitionTypeQualifiers::ChainStartFlag);
-        }
-        if value & cef_transition_type_t::TT_CHAIN_END_FLAG.0 != 0 {
-            flags.insert(TransitionTypeQualifiers::ChainEndFlag);
-        }
-        if value & cef_transition_type_t::TT_CLIENT_REDIRECT_FLAG.0 != 0 {
-            flags.insert(TransitionTypeQualifiers::ClientRedirectFlag);
-        }
-        if value & cef_transition_type_t::TT_SERVER_REDIRECT_FLAG.0 != 0 {
-            flags.insert(TransitionTypeQualifiers::ServerRedirectFlag);
-        }
+        let flags = TransitionTypeQualifiers::from_bits_truncate(value);
         match value & cef_transition_type_t::TT_SOURCE_MASK.0 {
             x if x == cef_transition_type_t::TT_LINK.0 => Ok(Self::Link(flags)),
             x if x == cef_transition_type_t::TT_EXPLICIT.0 => Ok(Self::Explicit(flags)),
@@ -105,39 +87,6 @@ impl TryFrom<i32> for TransitionType {
             x if x == cef_transition_type_t::TT_RELOAD.0 => Ok(Self::Reload(flags)),
             _ => Err(()),
         }
-    }
-}
-
-impl Into<i32> for TransitionType {
-    fn into(self) -> i32 {
-        let value;
-        let flags = match self {
-            Self::Link(flags) => {
-                value = cef_transition_type_t::TT_LINK;
-                flags
-            }
-            Self::Explicit(flags) => {
-                value = cef_transition_type_t::TT_EXPLICIT;
-                flags
-            }
-            Self::AutoSubframe(flags) => {
-                value = cef_transition_type_t::TT_AUTO_SUBFRAME;
-                flags
-            }
-            Self::ManualSubframe(flags) => {
-                value = cef_transition_type_t::TT_MANUAL_SUBFRAME;
-                flags
-            }
-            Self::FormSubmit(flags) => {
-                value = cef_transition_type_t::TT_FORM_SUBMIT;
-                flags
-            }
-            Self::Reload(flags) => {
-                value = cef_transition_type_t::TT_RELOAD;
-                flags
-            }
-        };
-        value.0 | flags.into_iter().fold(0, |flags, flag| flags | flag as i32)
     }
 }
 

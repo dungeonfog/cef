@@ -49,6 +49,7 @@ pub mod drag;
 pub mod file_dialog;
 pub mod printing;
 pub mod window;
+pub mod x509_certificate;
 use num_enum::UnsafeFromPrimitive;
 pub mod ime;
 pub mod navigation;

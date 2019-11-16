@@ -5,7 +5,7 @@ use parking_lot::Mutex;
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
-    string::CefString,
+    string::{CefString, CefStringMap},
     values::Rect,
 };
 
@@ -124,7 +124,14 @@ impl DOMNode {
     }
     /// Returns a map of all element attributes.
     pub fn get_element_attributes(&self) -> HashMap<String, String> {
-        unimplemented!()
+        let mut string_map = CefStringMap::new();
+        unsafe {
+            self.0.get_element_attributes.unwrap()(
+                self.as_ptr(),
+                string_map.as_mut_ptr()
+            );
+        }
+        string_map.into_iter().map(|(k, v)| (String::from(k), String::from(v))).collect()
     }
     /// Set the value for the element attribute named `attr_name`. Returns true
     /// on success.
@@ -146,14 +153,6 @@ impl DOMNode {
             width: rect.width,
             height: rect.height,
         }
-    }
-}
-
-impl PartialEq for DOMNode {
-    /// Returns true if this object is pointing to the same handle as `that`
-    /// object.
-    fn eq(&self, that: &Self) -> bool {
-        unimplemented!()
     }
 }
 

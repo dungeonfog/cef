@@ -1,3 +1,4 @@
+use parking_lot::Mutex;
 use cef_sys::{
     cef_auth_callback_t, cef_browser_t, cef_callback_t, cef_cookie_access_filter_t, cef_cookie_t,
     cef_frame_t, cef_request_callback_t, cef_request_t, cef_resource_handler_t,
@@ -6,7 +7,11 @@ use cef_sys::{
     cef_urlrequest_create, cef_urlrequest_status_t, cef_urlrequest_t,
 };
 use num_enum::UnsafeFromPrimitive;
-use std::{ptr::null_mut};
+use std::{
+    convert::TryInto,
+    ptr::null_mut,
+    os::raw::{c_int, c_void},
+};
 
 use crate::{
     browser::Browser,
@@ -542,6 +547,14 @@ ref_counted_ptr!{
     pub struct ResourceHandler(*mut cef_resource_handler_t);
 }
 
+ref_counted_ptr!{
+    pub struct ResourceSkipCallback(*mut cef_resource_skip_callback_t);
+}
+
+ref_counted_ptr!{
+    pub struct ResourceReadCallback(*mut cef_resource_read_callback_t);
+}
+
 impl ResourceHandler {
     pub fn new<C: ResourceHandlerCallbacks>(callbacks: C) -> ResourceHandler {
         unsafe{ ResourceHandler::from_ptr_unchecked(ResourceHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
@@ -557,7 +570,7 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// to continue or cancel the request. To cancel the request immediately set
     /// `handle_request` to true and return false. This function will be
     /// called in sequence but not from a dedicated thread.
-    fn open(&self, request: &Request, handle_request: &mut bool, callback: Callback) -> bool {
+    fn open(&self, request: Request, handle_request: &mut bool, callback: Callback) -> bool {
         (*handle_request) = true;
         false
     }
@@ -576,8 +589,8 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// `response` to indicate the error condition.
     fn get_response_headers(
         &self,
-        response: &mut Response,
-        response_length: &mut i64,
+        response: Response,
+        response_length: &mut Option<u64>,
         redirect_url: &mut String,
     ) {
     }
@@ -585,24 +598,20 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// `bytes_to_skip` bytes of response data. If data is available immediately
     /// set `bytes_skipped` to the number of bytes skipped and return true. To
     /// read the data at a later time set `bytes_skipped` to 0, return true and
-    /// execute `callback` when the data is available. To indicate failure set
-    /// `bytes_skipped` to < 0 (e.g. -2 for [ErrorCode::Failed]) and return false. This
-    /// function will be called in sequence but not from a dedicated thread.
-    fn skip(&self, bytes_to_skip: i64, bytes_skipped: &mut i64, callback: Callback) -> bool {
-        false
-    }
+    /// execute `callback` when the data is available. To indicate failure return
+    /// `Err(ErrorCode::$Error)`. This function will be called in sequence but not
+    /// from a dedicated thread.
+    fn skip(&self, bytes_to_skip: u64, bytes_skipped: &mut u64, callback: ResourceSkipCallback) -> Result<(), ErrorCode>;
     /// Read response data. If data is available immediately copy up to
     /// the slice len into `data_out`, set `bytes_read` to the number of
     /// bytes copied, and return true. To read the data at a later time keep a
     /// reference to `data_out`, set `bytes_read` to 0, return true and execute
     /// `callback` when the data is available (`data_out` will remain valid until
     /// the callback is executed). To indicate response completion set `bytes_read`
-    /// to 0 and return false. To indicate failure set `bytes_read` to < 0
-    /// (e.g. -2 for [ErrorCode::Failed]) and return false. This function will be called
-    /// in sequence but not from a dedicated thread.
-    fn read(&self, data_out: &mut [u8], bytes_read: &mut i32, callback: Callback) -> bool {
-        false
-    }
+    /// to 0 and return false. To indicate failure return
+    /// `Err(ErrorCode::$Error)`. This function will be called in sequence but not
+    /// from a dedicated thread.
+    fn read(&self, data_out: &mut [u8], bytes_read: &mut u32, callback: ResourceReadCallback) -> Result<(), ErrorCode>;
     /// Request processing has been canceled.
     fn cancel(&self) {}
 }
@@ -635,41 +644,145 @@ impl ResourceHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn ResourceHandlerCallbacks>) -> ResourceHandlerWrapper {
         ResourceHandlerWrapper { delegate }
     }
-    // TODO: move to cef_callback_impl
-    extern "C" fn open(
-        self_: *mut cef_resource_handler_t,
-        request: *mut cef_request_t,
-        handle_request: *mut std::os::raw::c_int,
-        callback: *mut cef_callback_t,
-    ) -> std::os::raw::c_int {
-        unimplemented!()
+}
+
+cef_callback_impl!{
+    impl for ResourceHandlerWrapper: cef_resource_handler_t {
+        fn open(
+            &self,
+            request: Request: *mut cef_request_t,
+            handle_request: &mut c_int: *mut c_int,
+            callback: Callback: *mut cef_callback_t,
+        ) -> c_int {
+            let mut handle_request_rs = *handle_request != 0;
+            let ret = self.delegate.open(request, &mut handle_request_rs, callback) as c_int;
+            *handle_request = handle_request_rs as c_int;
+            ret
+        }
+        fn get_response_headers(
+            &self,
+            response: Response: *mut cef_response_t,
+            response_length: &mut i64: *mut i64,
+            redirect_url: &mut CefString: *mut cef_string_t,
+        ) {
+            let mut response_length_rs = None;
+            let mut redirect_url_rs = String::new();
+            self.delegate.get_response_headers(
+                response,
+                &mut response_length_rs,
+                &mut redirect_url_rs
+            );
+            *response_length = response_length_rs.map(|i| i.try_into().unwrap()).unwrap_or(-1);
+            *redirect_url = CefString::new(&redirect_url_rs);
+        }
+        fn skip(
+            &self,
+            bytes_to_skip: i64: i64,
+            bytes_skipped: &mut i64: *mut i64,
+            callback: ResourceSkipCallback: *mut cef_resource_skip_callback_t,
+        ) -> c_int {
+            let mut bytes_skipped_rs = 0;
+            let result = self.delegate.skip(
+                bytes_to_skip as u64,
+                &mut bytes_skipped_rs,
+                callback
+            );
+            *bytes_skipped = result.err().map(|e| -(e as i32) as i64).unwrap_or(bytes_skipped_rs.try_into().unwrap());
+            result.is_ok() as c_int
+        }
+        fn read(
+            &self,
+            data_out: *mut c_void: *mut c_void,
+            bytes_to_read: c_int: c_int,
+            bytes_read: &mut c_int: *mut c_int,
+            callback: ResourceReadCallback: *mut cef_resource_read_callback_t,
+        ) -> c_int {
+            let data_out = unsafe{
+                std::slice::from_raw_parts_mut(data_out as *mut u8, bytes_to_read as usize)
+            };
+            let mut bytes_read_rs = 0;
+            let result = self.delegate.read(
+                data_out,
+                &mut bytes_read_rs,
+                callback
+            );
+            *bytes_read = result.err().map(|e| -(e as i32)).unwrap_or(bytes_read_rs.try_into().unwrap());
+            result.is_ok() as c_int
+        }
+        fn cancel(&self) {
+            self.delegate.cancel();
+        }
     }
-    extern "C" fn get_response_headers(
-        self_: *mut cef_resource_handler_t,
-        response: *mut cef_response_t,
-        response_length: *mut i64,
-        redirect_url: *mut cef_string_t,
-    ) {
-        unimplemented!()
+}
+
+impl ResourceSkipCallback {
+    pub fn new(f: impl 'static + Send + FnMut(u64)) -> ResourceSkipCallback {
+        unsafe{ ResourceSkipCallback::from_ptr_unchecked(ResourceSkipCallbackWrapper(Mutex::new(Box::new(f))).wrap().into_raw()) }
     }
-    extern "C" fn skip(
-        self_: *mut cef_resource_handler_t,
-        bytes_to_skip: i64,
-        bytes_skipped: *mut i64,
-        callback: *mut cef_resource_skip_callback_t,
-    ) -> std::os::raw::c_int {
-        unimplemented!()
+
+    pub fn cont(&self, bytes_skipped: u64) {
+        unsafe{ self.0.cont.unwrap()(self.as_ptr(), bytes_skipped.try_into().unwrap()) }
     }
-    extern "C" fn read(
-        self_: *mut cef_resource_handler_t,
-        data_out: *mut std::os::raw::c_void,
-        bytes_to_read: std::os::raw::c_int,
-        bytes_read: *mut std::os::raw::c_int,
-        callback: *mut cef_resource_read_callback_t,
-    ) -> std::os::raw::c_int {
-        unimplemented!()
+}
+
+struct ResourceSkipCallbackWrapper(Mutex<Box<dyn 'static + Send + FnMut(u64)>>);
+
+impl Wrapper for ResourceSkipCallbackWrapper {
+    type Cef = cef_resource_skip_callback_t;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
+            cef_resource_skip_callback_t {
+                base: unsafe { std::mem::zeroed() },
+                cont: Some(Self::cont),
+            },
+            self,
+        )
     }
-    extern "C" fn cancel(self_: *mut cef_resource_handler_t) {
-        unimplemented!()
+}
+
+cef_callback_impl!{
+    impl for ResourceSkipCallbackWrapper: cef_resource_skip_callback_t {
+        fn cont(
+            &self,
+            bytes_skipped: i64: i64,
+        ) {
+            (&mut *self.0.lock())(bytes_skipped as u64)
+        }
+    }
+}
+
+impl ResourceReadCallback {
+    pub fn new(f: impl 'static + Send + FnMut(u32)) -> ResourceReadCallback {
+        unsafe{ ResourceReadCallback::from_ptr_unchecked(ResourceReadCallbackWrapper(Mutex::new(Box::new(f))).wrap().into_raw()) }
+    }
+
+    pub fn cont(&self, bytes_read: u32) {
+        unsafe{ self.0.cont.unwrap()(self.as_ptr(), bytes_read.try_into().unwrap()) }
+    }
+}
+
+struct ResourceReadCallbackWrapper(Mutex<Box<dyn 'static + Send + FnMut(u32)>>);
+
+impl Wrapper for ResourceReadCallbackWrapper {
+    type Cef = cef_resource_read_callback_t;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
+            cef_resource_read_callback_t {
+                base: unsafe { std::mem::zeroed() },
+                cont: Some(Self::cont),
+            },
+            self,
+        )
+    }
+}
+
+cef_callback_impl!{
+    impl for ResourceReadCallbackWrapper: cef_resource_read_callback_t {
+        fn cont(
+            &self,
+            bytes_read: c_int: c_int,
+        ) {
+            (&mut *self.0.lock())(bytes_read as u32)
+        }
     }
 }
