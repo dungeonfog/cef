@@ -1,15 +1,30 @@
+use std::net::IpAddr;
+use crate::string::CefStringList;
+use parking_lot::Mutex;
+use std::mem::ManuallyDrop;
+use std::os::raw::c_int;
+use crate::load_handler::ErrorCode;
+use crate::scheme::SchemeHandlerFactory;
+use cef_sys::cef_resolve_callback_t;
+use crate::cookie::CookieManager;
+use crate::values::{StoredValue, DictionaryValue, Value};
+use cef_sys::cef_string_list_t;
+use crate::extension::ExtensionHandler;
+use crate::extension::Extension;
+use crate::callback::CompletionCallback;
 use cef_sys::{
     cef_browser_t, cef_create_context_shared, cef_frame_t, cef_plugin_policy_t,
     cef_request_context_create_context, cef_request_context_get_global_context,
     cef_request_context_handler_t, cef_request_context_settings_t, cef_request_context_t,
     cef_request_t, cef_resource_request_handler_t, cef_string_t, cef_string_utf8_to_utf16,
-    cef_web_plugin_info_t,
+    cef_web_plugin_info_t, cef_errorcode_t,
 };
 
 use num_enum::UnsafeFromPrimitive;
 use std::{
     path::Path,
     ptr::{null, null_mut},
+    convert::TryFrom,
 };
 
 use crate::{
@@ -59,7 +74,7 @@ pub trait RequestContextHandlerCallbacks: 'static + Send + Sync {
     /// plugin that will be loaded. `plugin_policy` is the recommended policy.
     /// Return Some([PluginPolicy]) to change the policy. Return
     /// None to use the recommended policy. The default plugin policy can be
-    /// set at runtime using the `--plugin-policy=[allow|detect|block]` command-
+    /// set at runtime using the `--plugin-policy=[allow`detect`block]` command-
     /// line flag. Decisions to mark a plugin as disabled by setting
     /// `plugin_policy` to PLUGIN_POLICY_DISABLED may be cached when
     /// `top_origin_url` is None. To purge the plugin list cache and potentially
@@ -210,6 +225,48 @@ ref_counted_ptr! {
     pub struct RequestContext(*mut cef_request_context_t);
 }
 
+ref_counted_ptr!{
+    struct ResolveCallback(*mut cef_resolve_callback_t);
+}
+
+struct ResolveCallbackWrapper(Mutex<Option<Box<dyn 'static + Send + FnOnce(ErrorCode, &[IpAddr])>>>);
+
+impl ResolveCallback {
+    fn new(callback: impl 'static + Send + FnOnce(ErrorCode, &[IpAddr])) -> ResolveCallback {
+        unsafe{ ResolveCallback::from_ptr_unchecked(ResolveCallbackWrapper(Mutex::new(Some(Box::new(callback)))).wrap().into_raw()) }
+    }
+}
+
+impl Wrapper for ResolveCallbackWrapper {
+    type Cef = cef_resolve_callback_t;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
+            cef_resolve_callback_t {
+                base: unsafe { std::mem::zeroed() },
+                on_resolve_completed: Some(Self::on_resolve_completed),
+            },
+            self,
+        )
+    }
+}
+
+cef_callback_impl!{
+    impl for ResolveCallbackWrapper: cef_resolve_callback_t {
+        fn on_resolve_completed(
+            &self,
+            result: ErrorCode: cef_errorcode_t::Type,
+            resolved_ips: ManuallyDrop<CefStringList>: cef_string_list_t,
+        ) {
+            let resolved_ips = (&*resolved_ips).into_iter().map(String::from).filter_map(|s| s.parse().ok()).collect::<Vec<IpAddr>>();
+            self.0.lock().take().unwrap()(
+                result,
+                &resolved_ips,
+            );
+        }
+    }
+}
+
+
 impl RequestContext {
     /// Returns the global context object.
     pub fn global() -> Self {
@@ -228,6 +285,298 @@ impl RequestContext {
         };
         unsafe {
             Self::from_ptr_unchecked(cef_create_context_shared(other.into_raw(), handler_ptr))
+        }
+    }
+
+    /// Returns `true` if this object is pointing to the same context as `that`
+    /// object.
+    pub fn is_same(&self, other: RequestContext) -> bool {
+        unsafe{ self.0.is_same.unwrap()(self.as_ptr(), other.into_raw()) != 0 }
+    }
+    /// Returns `true` if this object is sharing the same storage as `that`
+    /// object.
+    pub fn is_sharing_with(&self, other: RequestContext) -> bool {
+        unsafe{ self.0.is_sharing_with.unwrap()(self.as_ptr(), other.into_raw()) != 0 }
+    }
+    /// Returns `true` if this object is the global context. The global context
+    /// is used by default when creating a browser or URL request with a `None`
+    /// context argument.
+    pub fn is_global(&self) -> bool {
+        unsafe{ self.0.is_global.unwrap()(self.as_ptr()) != 0 }
+    }
+    /// Returns the handler for this context if any.
+    pub fn get_handler(&self) -> Option<RequestContextHandler> {
+        unsafe{ RequestContextHandler::from_ptr(self.0.get_handler.unwrap()(self.as_ptr())) }
+    }
+    /// Returns the cache path for this object. If `None` an "incognito mode" in-
+    /// memory cache is being used.
+    pub fn get_cache_path(&self) -> Option<String> {
+        unsafe{ CefString::from_userfree(self.0.get_cache_path.unwrap()(self.as_ptr())).map(String::from) }
+    }
+    /// Returns the cookie manager for this object. `callback`
+    /// will be executed asnychronously on the IO thread after the manager's
+    /// storage has been initialized.
+    pub fn get_cookie_manager(&self, callback: impl 'static + Send + FnOnce()) -> CookieManager {
+        unsafe{ CookieManager::from_ptr_unchecked(self.0.get_cookie_manager.unwrap()(self.as_ptr(), CompletionCallback::new(callback).into_raw())) }
+    }
+    /// Register a scheme handler factory for the specified `scheme_name` and
+    /// optional `domain_name`. An `None` `domain_name` value for a standard scheme
+    /// will cause the factory to match all domain names. The `domain_name` value
+    /// will be ignored for non-standard schemes. If `scheme_name` is a built-in
+    /// scheme and no handler is returned by `factory` then the built-in scheme
+    /// handler factory will be called. If `scheme_name` is a custom scheme then
+    /// you must also implement the cef_app_t::on_register_custom_schemes()
+    /// function in all processes. This function may be called multiple times to
+    /// change or remove the factory that matches the specified `scheme_name` and
+    /// optional `domain_name`. Returns `false` if an error occurs. This function
+    /// may be called on any thread in the browser process.
+    pub fn register_scheme_handler_factory(&self, scheme_name: &str, domain_name: Option<&str>, factory: SchemeHandlerFactory) -> bool {
+        unsafe{
+            self.0.register_scheme_handler_factory.unwrap()(
+                self.as_ptr(),
+                CefString::new(scheme_name).as_ptr(),
+                domain_name.map(CefString::new).as_ref().map(CefString::as_ptr).unwrap_or(null()),
+                factory.into_raw()
+            ) != 0
+        }
+    }
+    /// Clear all registered scheme handler factories. Returns `false` on error.
+    /// This function may be called on any thread in the browser process.
+    pub fn clear_scheme_handler_factories(&self) -> bool {
+        unsafe{ self.0.clear_scheme_handler_factories.unwrap()(self.as_ptr()) != 0 }
+    }
+    /// Tells all renderer processes associated with this context to throw away
+    /// their plugin list cache. If `reload_pages` is `true` they will also
+    /// reload all pages with plugins.
+    /// cef_request_tContextHandler::OnBeforePluginLoad may be called to rebuild
+    /// the plugin list cache.
+    pub fn purge_plugin_list_cache(&self, reload_pages: bool) {
+        unsafe{ self.0.purge_plugin_list_cache.unwrap()(self.as_ptr(), reload_pages as c_int) }
+    }
+    /// Returns `true` if a preference with the specified `name` exists. This
+    /// function must be called on the browser process UI thread.
+    pub fn has_preference(&self, name: &str) -> bool {
+        unsafe{
+            self.0.has_preference.unwrap()(
+                self.as_ptr(),
+                CefString::new(name).as_ptr(),
+            ) != 0
+        }
+    }
+    /// Returns the value for the preference with the specified `name`. Returns
+    /// `None` if the preference does not exist. The returned object contains a copy
+    /// of the underlying preference value and modifications to the returned object
+    /// will not modify the underlying preference value. This function must be
+    /// called on the browser process UI thread.
+    pub fn get_preference(&self, name: &str) -> Option<StoredValue> {
+        unsafe{
+            Value::from_ptr(self.0.get_preference.unwrap()(
+                self.as_ptr(),
+                CefString::new(name).as_ptr(),
+            )).map(StoredValue::from)
+        }
+    }
+    /// Returns all preferences as a dictionary. If `include_defaults` is `true`
+    /// then preferences currently at their default value will be included. The
+    /// returned object contains a copy of the underlying preference values and
+    /// modifications to the returned object will not modify the underlying
+    /// preference values. This function must be called on the browser process UI
+    /// thread.
+    pub fn get_all_preferences(&self, include_defaults: bool) -> DictionaryValue {
+        unsafe{
+            DictionaryValue::from_ptr_unchecked(self.0.get_all_preferences.unwrap()(
+                self.as_ptr(),
+                include_defaults as c_int,
+            ))
+        }
+    }
+    /// Returns `true` if the preference with the specified `name` can be
+    /// modified using SetPreference. As one example preferences set via the
+    /// command-line usually cannot be modified. This function must be called on
+    /// the browser process UI thread.
+    pub fn can_set_preference(&self, name: &str) -> bool {
+        unsafe{
+            self.0.can_set_preference.unwrap()(
+                self.as_ptr(),
+                CefString::new(name).as_ptr(),
+            ) != 0
+        }
+    }
+    /// Set the `value` associated with preference `name`. Returns `true` if the
+    /// value is set successfully and `false` otherwise. If `value` is `None` the
+    /// preference will be restored to its default value. If setting the preference
+    /// fails then `error` will be populated with a detailed description of the
+    /// problem. This function must be called on the browser process UI thread.
+    pub fn set_preference(&self, name: &str, value: Option<StoredValue>) -> Result<(), String> {
+        let mut error = CefString::null();
+        let success = unsafe {
+            self.0.set_preference.unwrap()(
+                self.as_ptr(),
+                CefString::new(name).as_ptr(),
+                value.map(|v| Value::try_from(v).unwrap().into_raw()).unwrap_or(null_mut()),
+                error.as_ptr_mut(),
+            ) != 0
+        };
+        if success {
+            Ok(())
+        } else {
+            Err(String::from(error))
+        }
+    }
+    /// Clears all certificate exceptions that were added as part of handling
+    /// cef_request_tHandler::on_certificate_error(). If you call this it is
+    /// recommended that you also call close_all_connections() or you risk not
+    /// being prompted again for server certificates if you reconnect quickly.
+    /// `callback` will be executed on the UI thread after completion.
+    pub fn clear_certificate_exceptions(&self, callback: impl 'static + Send + FnOnce()) {
+        unsafe {
+            self.0.clear_certificate_exceptions.unwrap()(
+                self.as_ptr(),
+                CompletionCallback::new(callback).into_raw(),
+            );
+        }
+    }
+    /// Clears all HTTP authentication credentials that were added as part of
+    /// handling GetAuthCredentials. `callback` will be executed
+    /// on the UI thread after completion.
+    pub fn clear_http_auth_credentials(&self, callback: impl 'static + Send + FnOnce()) {
+        unsafe {
+            self.0.clear_http_auth_credentials.unwrap()(
+                self.as_ptr(),
+                CompletionCallback::new(callback).into_raw(),
+            );
+        }
+    }
+    /// Clears all active and idle connections that Chromium currently has. This is
+    /// only recommended if you have released all other CEF objects but don't yet
+    /// want to call Cefshutdown(). `callback` will be executed
+    /// on the UI thread after completion.
+    pub fn close_all_connections(&self, callback: impl 'static + Send + FnOnce()) {
+        unsafe {
+            self.0.close_all_connections.unwrap()(
+                self.as_ptr(),
+                CompletionCallback::new(callback).into_raw(),
+            );
+        }
+    }
+    /// Attempts to resolve `origin` to a list of associated IP addresses.
+    /// `callback` will be executed on the UI thread after completion.
+    pub fn resolve_host(&self, origin: &str, callback: impl 'static + Send + FnOnce(ErrorCode, &[IpAddr])) {
+        unsafe {
+            self.0.resolve_host.unwrap()(
+                self.as_ptr(),
+                CefString::new(origin).as_ptr(),
+                ResolveCallback::new(callback).into_raw()
+            )
+        }
+    }
+    /// Load an extension.
+    ///
+    /// If extension resources will be read from disk using the default load
+    /// implementation then `root_directory` should be the absolute path to the
+    /// extension resources directory and `manifest` should be `None`. If extension
+    /// resources will be provided by the client (e.g. via cef_request_tHandler
+    /// and/or cef_extension_tHandler) then `root_directory` should be a path
+    /// component unique to the extension (if not absolute this will be internally
+    /// prefixed with the PK_DIR_RESOURCES path) and `manifest` should contain the
+    /// contents that would otherwise be read from the "manifest.json" file on
+    /// disk.
+    ///
+    /// The loaded extension will be accessible in all contexts sharing the same
+    /// storage (HasExtension returns `true`). However, only the context on which
+    /// this function was called is considered the loader (DidLoadExtension returns
+    /// `true`) and only the loader will receive cef_request_tContextHandler
+    /// callbacks for the extension.
+    ///
+    /// cef_extension_tHandler::OnExtensionLoaded will be called on load success or
+    /// cef_extension_tHandler::OnExtensionLoadFailed will be called on load
+    /// failure.
+    ///
+    /// If the extension specifies a background script via the "background"
+    /// manifest key then cef_extension_tHandler::OnBeforeBackgroundBrowser will be
+    /// called to create the background browser. See that function for additional
+    /// information about background scripts.
+    ///
+    /// For visible extension views the client application should evaluate the
+    /// manifest to determine the correct extension URL to load and then pass that
+    /// URL to the cef_browser_host_t::CreateBrowser* function after the extension
+    /// has loaded. For example, the client can look for the "browser_action"
+    /// manifest key as documented at
+    /// https://developer.chrome.com/extensions/browserAction. Extension URLs take
+    /// the form "chrome-extension://<extension_id>/<path>".
+    ///
+    /// Browsers that host extensions differ from normal browsers as follows:
+    ///  - Can access chrome.* JavaScript APIs if allowed by the manifest. Visit
+    ///    chrome://extensions-support for the list of extension APIs currently
+    ///    supported by CEF.
+    ///  - Main frame navigation to non-extension content is blocked.
+    ///  - Pinch-zooming is disabled.
+    ///  - CefBrowserHost::GetExtension returns the hosted extension.
+    ///  - CefBrowserHost::IsBackgroundHost returns true for background hosts.
+    ///
+    /// See https://developer.chrome.com/extensions for extension implementation
+    /// and usage documentation.
+    pub fn load_extension(&self, root_directory: &str, manifest: Option<DictionaryValue>, handler: ExtensionHandler) {
+        unsafe {
+            self.0.load_extension.unwrap()(
+                self.as_ptr(),
+                CefString::new(root_directory).as_ptr(),
+                manifest.map(|m| m.into_raw()).unwrap_or(null_mut()),
+                handler.into_raw(),
+            )
+        }
+    }
+    /// Returns `true` if this context was used to load the extension identified
+    /// by `extension_id`. Other contexts sharing the same storage will also have
+    /// access to the extension (see HasExtension). This function must be called on
+    /// the browser process UI thread.
+    pub fn did_load_extension(&self, extension_id: &str) -> bool {
+        unsafe{
+            self.0.did_load_extension.unwrap()(
+                self.as_ptr(),
+                CefString::new(extension_id).as_ptr(),
+            ) != 0
+        }
+    }
+    /// Returns `true` if this context has access to the extension identified by
+    /// `extension_id`. This may not be the context that was used to load the
+    /// extension (see DidLoadExtension). This function must be called on the
+    /// browser process UI thread.
+    pub fn has_extension(&self, extension_id: &str) -> bool {
+        unsafe{
+            self.0.has_extension.unwrap()(
+                self.as_ptr(),
+                CefString::new(extension_id).as_ptr(),
+            ) != 0
+        }
+    }
+    /// Retrieve the list of all extensions that this context has access to (see
+    /// HasExtension). `extension_ids` will be populated with the list of extension
+    /// ID values. Returns `true` on success. This function must be called on the
+    /// browser process UI thread.
+    pub fn get_extensions(&self) -> Option<Vec<String>> {
+        unsafe {
+            let mut string_list = CefStringList::new();
+            let success = self.0.get_extensions.unwrap()(
+                self.as_ptr(),
+                string_list.as_mut_ptr()
+            ) != 0;
+            if success {
+                Some(string_list.into_iter().map(String::from).collect())
+            } else {
+                None
+            }
+        }
+    }
+    /// Returns the extension matching `extension_id` or `None` if no matching
+    /// extension is accessible in this context (see HasExtension). This function
+    /// must be called on the browser process UI thread.
+    pub fn get_extension(&self, extension_id: &str) -> Option<Extension> {
+        unsafe{
+            Extension::from_ptr(self.0.get_extension.unwrap()(
+                self.as_ptr(),
+                CefString::new(extension_id).as_ptr(),
+            ))
         }
     }
 }

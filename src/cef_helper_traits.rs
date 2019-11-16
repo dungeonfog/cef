@@ -18,7 +18,6 @@ macro_rules! is_same {
     };
 }
 
-// TODO: STANDARZIE MEANING OF EQUAL
 is_same!(_cef_value_t);
 is_same!(_cef_binary_value_t);
 is_same!(_cef_dictionary_value_t);

@@ -1,6 +1,17 @@
+use cef_sys::cef_x509certificate_t;
+use cef_sys::cef_sslinfo_t;
+use cef_sys::int64;
+use cef_sys::cef_string_t;
+use cef_sys::cef_resource_request_handler_t;
+use cef_sys::cef_auth_callback_t;
+use cef_sys::cef_request_callback_t;
+use cef_sys::cef_browser_t;
+use cef_sys::cef_frame_t;
+use cef_sys::cef_request_t;
+use std::os::raw::c_int;
 use cef_sys::{
-    _cef_select_client_certificate_callback_t, cef_request_handler_t, cef_termination_status_t,
-    cef_window_open_disposition_t,
+    cef_select_client_certificate_callback_t, cef_request_handler_t, cef_termination_status_t,
+    cef_window_open_disposition_t, cef_errorcode_t,
 };
 use num_enum::UnsafeFromPrimitive;
 use std::{ptr::null_mut};
@@ -87,7 +98,7 @@ pub trait RequestHandlerCallbacks: Sync + Send + 'static {
     /// it navigated automatically (e.g. via the DomContentLoaded event). Return
     /// true to cancel the navigation or false to allow the navigation to
     /// proceed in the source browser's top-level frame.
-    fn on_open_urlfrom_tab(
+    fn on_open_url_from_tab(
         &self,
         browser: Browser,
         frame: Frame,
@@ -173,7 +184,7 @@ pub trait RequestHandlerCallbacks: Sync + Send + 'static {
         browser: Browser,
         cert_error: ErrorCode,
         request_url: &str,
-        ssl_info: &SSLInfo,
+        ssl_info: SSLInfo,
         callback: RequestCallback,
     ) -> bool {
         false
@@ -227,17 +238,153 @@ impl Wrapper for RequestHandlerWrapper {
         RefCountedPtr::wrap(
             cef_request_handler_t {
                 base: unsafe { std::mem::zeroed() },
-                // TODO
-                ..unsafe { std::mem::zeroed() }
+                on_before_browse: Some(Self::on_before_browse),
+                on_open_urlfrom_tab: Some(Self::on_open_url_from_tab),
+                get_resource_request_handler: Some(Self::get_resource_request_handler),
+                get_auth_credentials: Some(Self::get_auth_credentials),
+                on_quota_request: Some(Self::on_quota_request),
+                on_certificate_error: Some(Self::on_certificate_error),
+                on_select_client_certificate: Some(Self::on_select_client_certificate),
+                on_plugin_crashed: Some(Self::on_plugin_crashed),
+                on_render_view_ready: Some(Self::on_render_view_ready),
+                on_render_process_terminated: Some(Self::on_render_process_terminated),
             },
             self,
         )
     }
 }
 
+cef_callback_impl!{
+    impl for RequestHandlerWrapper: cef_request_handler_t {
+        fn on_before_browse(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            user_gesture: bool: c_int,
+            is_redirect: bool: c_int
+        ) -> c_int {
+            self.0.on_before_browse(browser, frame, request, user_gesture, is_redirect) as c_int
+        }
+        fn on_open_url_from_tab(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            target_url: String: *const cef_string_t,
+            target_disposition: WindowOpenDisposition: cef_window_open_disposition_t::Type,
+            user_gesture: bool: c_int
+        ) -> c_int {
+            self.0.on_open_url_from_tab(
+                browser,
+                frame,
+                &target_url,
+                target_disposition,
+                user_gesture,
+            ) as c_int
+        }
+        fn get_resource_request_handler(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            frame: Frame: *mut cef_frame_t,
+            request: Request: *mut cef_request_t,
+            is_navigation: bool: c_int,
+            is_download: bool: c_int,
+            request_initiator: String: *const cef_string_t,
+            disable_default_handling: &mut c_int: *mut c_int
+        ) -> *mut cef_resource_request_handler_t {
+            let mut disable_default_handling_rs = *disable_default_handling != 0;
+            let ret = self.0.get_resource_request_handler(
+                browser,
+                frame,
+                request,
+                is_navigation,
+                is_download,
+                &request_initiator,
+                &mut disable_default_handling_rs
+            ).map(|h| h.into_raw()).unwrap_or(null_mut());
+            *disable_default_handling = disable_default_handling_rs as c_int;
+            ret
+        }
+        fn get_auth_credentials(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            origin_url: String: *const cef_string_t,
+            is_proxy: bool: c_int,
+            host: String: *const cef_string_t,
+            port: c_int: c_int,
+            realm: Option<String>: *const cef_string_t,
+            scheme: Option<String>: *const cef_string_t,
+            callback: AuthCallback: *mut cef_auth_callback_t
+        ) -> c_int {
+            self.0.get_auth_credentials(
+                browser,
+                &origin_url,
+                is_proxy,
+                &host,
+                port as _,
+                realm.as_ref().map(|s| &**s),
+                scheme.as_ref().map(|s| &**s),
+                callback
+            ) as c_int
+        }
+        fn on_quota_request(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            origin_url: String: *const cef_string_t,
+            new_size: i64: int64,
+            callback: RequestCallback: *mut cef_request_callback_t
+        ) -> c_int {
+            self.0.on_quota_request(browser, &origin_url, new_size, callback) as c_int
+        }
+        fn on_certificate_error(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            cert_error: ErrorCode: cef_errorcode_t::Type,
+            request_url: String: *const cef_string_t,
+            ssl_info: SSLInfo: *mut cef_sslinfo_t,
+            callback: RequestCallback: *mut cef_request_callback_t
+        ) -> c_int {
+            self.0.on_certificate_error(browser, cert_error, &request_url, ssl_info, callback) as c_int
+        }
+        fn on_select_client_certificate(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            is_proxy: bool: c_int,
+            host: String: *const cef_string_t,
+            port: c_int: c_int,
+            certificates_count: usize: usize,
+            certificates: *const *mut cef_x509certificate_t: *const *mut cef_x509certificate_t,
+            callback: SelectClientCertificateCallback: *mut cef_select_client_certificate_callback_t
+        ) -> c_int {
+            let certificates = unsafe{ std::slice::from_raw_parts(certificates as *const X509Certificate, certificates_count) };
+            self.0.on_select_client_certificate(browser, is_proxy, &host, port as _, certificates, callback) as c_int
+        }
+        fn on_plugin_crashed(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            plugin_path: String: *const cef_string_t
+        ) {
+            self.0.on_plugin_crashed(browser, &plugin_path);
+        }
+        fn on_render_view_ready(
+            &self,
+            browser: Browser: *mut cef_browser_t
+        ) {
+            self.0.on_render_view_ready(browser);
+        }
+        fn on_render_process_terminated(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+            status: TerminationStatus: cef_termination_status_t::Type
+        ) {
+            self.0.on_render_process_terminated(browser, status);
+        }
+    }
+}
+
 ref_counted_ptr! {
     /// Callback structure used for asynchronous continuation of url requests.
-    pub struct SelectClientCertificateCallback(*mut _cef_select_client_certificate_callback_t);
+    pub struct SelectClientCertificateCallback(*mut cef_select_client_certificate_callback_t);
 }
 
 impl SelectClientCertificateCallback {

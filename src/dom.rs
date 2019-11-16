@@ -123,7 +123,7 @@ impl DOMNode {
         unsafe{ CefString::from_userfree(self.0.get_element_attribute.unwrap()(self.as_ptr(), attr_name.as_ptr())).map(String::from) }
     }
     /// Returns a map of all element attributes.
-    pub fn get_element_attributes(&self) -> HashMap<String, Option<String>> {
+    pub fn get_element_attributes(&self) -> HashMap<String, String> {
         unimplemented!()
     }
     /// Set the value for the element attribute named `attr_name`. Returns true

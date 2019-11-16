@@ -41,6 +41,7 @@ pub mod app;
 pub mod sandbox;
 #[cfg(target_os = "windows")]
 pub mod main_args;
+pub mod scheme;
 pub mod settings;
 pub mod color;
 pub mod events;

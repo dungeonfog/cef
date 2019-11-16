@@ -1304,3 +1304,28 @@ pub struct Insets {
     bottom: i32,
     right: i32,
 }
+
+use chrono::{DateTime, NaiveDateTime, NaiveDate, NaiveTime, Utc, Datelike, Timelike};
+
+pub fn cef_time_to_date_time(cef_time: cef_sys::cef_time_t) -> DateTime<Utc> {
+    DateTime::from_utc(
+        NaiveDateTime::new(
+            NaiveDate::from_ymd(cef_time.year as i32, cef_time.month as u32, cef_time.day_of_month as u32),
+            NaiveTime::from_hms_milli(cef_time.hour as u32, cef_time.minute as u32, cef_time.second as u32, cef_time.millisecond as u32),
+        ),
+        Utc,
+    )
+}
+
+pub fn date_time_to_cef_time(date_time: DateTime<Utc>) -> cef_sys::cef_time_t {
+    cef_sys::cef_time_t {
+        year: date_time.year(),
+        month: date_time.month() as i32,
+        day_of_week: date_time.weekday().num_days_from_sunday() as i32,
+        day_of_month: date_time.day() as i32,
+        hour: date_time.hour() as i32,
+        minute: date_time.minute() as i32,
+        second: date_time.second() as i32,
+        millisecond: (date_time.nanosecond() / 1_000_000) as i32,
+    }
+}

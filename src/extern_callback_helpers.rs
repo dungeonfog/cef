@@ -199,6 +199,7 @@ owned_casts_from_unchecked!(impl for crate::client::context_menu_handler::MenuCo
 owned_casts_from_unchecked!(impl for crate::client::focus_handler::FocusSource: cef_sys::cef_focus_source_t::Type);
 owned_casts_from_unchecked!(impl for crate::client::js_dialog_handler::JsDialogType: cef_sys::cef_jsdialog_type_t::Type);
 owned_casts_from_unchecked!(impl for crate::settings::LogSeverity: cef_sys::cef_log_severity_t::Type);
+owned_casts_from_unchecked!(impl for crate::request_handler::TerminationStatus: cef_sys::cef_termination_status_t::Type);
 owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
 owned_casts_from_flags_unchecked!(impl for crate::events::EventFlags: cef_sys::cef_event_flags_t);
 owned_casts_from_unchecked!(impl for crate::color::Color: cef_sys::cef_color_t);
@@ -220,6 +221,13 @@ impl CToRustType for ManuallyDrop<CefStringList> {
     type CType = cef_sys::cef_string_list_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
         CefStringList::from_raw(c_type)
+    }
+}
+
+impl<'a> CToRustType for String {
+    type CType = *const cef_sys::cef_string_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        String::from(CefString::from_ptr_unchecked(c_type))
     }
 }
 
@@ -272,7 +280,7 @@ impl CToRustType for crate::client::life_span_handler::PopupFeatures {
 impl CToRustType for crate::window::WindowInfo {
     type CType = *const cef_sys::cef_window_info_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
-        Self::from(&*c_type)
+        Self::from_raw(&*c_type)
     }
 }
 impl CToRustType for crate::file_dialog::FileDialogMode {
@@ -284,6 +292,20 @@ impl CToRustType for crate::file_dialog::FileDialogMode {
 
 impl<'a> CToRustType for &mut cef_sys::cef_screen_info_t {
     type CType = *mut cef_sys::cef_screen_info_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        &mut *c_type
+    }
+}
+
+impl<'a> CToRustType for &mut cef_sys::cef_browser_settings_t {
+    type CType = *mut cef_sys::cef_browser_settings_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        &mut *c_type
+    }
+}
+
+impl<'a> CToRustType for &mut cef_sys::cef_window_info_t {
+    type CType = *mut cef_sys::cef_window_info_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
         &mut *c_type
     }

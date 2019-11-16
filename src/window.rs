@@ -27,15 +27,9 @@ impl WindowInfo {
     pub fn new() -> Self {
         Self::default()
     }
-    pub fn into_raw(&self) -> cef_window_info_t {
-        self.into()
-    }
-}
-
-impl<'a> From<&'a cef_window_info_t> for WindowInfo {
-    fn from(info: &'a cef_window_info_t) -> WindowInfo {
+    pub unsafe fn from_raw(info: &cef_window_info_t) -> WindowInfo {
         WindowInfo {
-            window_name: unsafe{ CefString::from_ptr_unchecked(&info.window_name).into() },
+            window_name: CefString::from_ptr_unchecked(&info.window_name).into(),
             style: info.style,
             ex_style: info.ex_style,
             x: info.x,
@@ -49,6 +43,9 @@ impl<'a> From<&'a cef_window_info_t> for WindowInfo {
             shared_texture_enabled: info.shared_texture_enabled != 0,
             external_begin_frame_enabled: info.external_begin_frame_enabled != 0,
         }
+    }
+    pub fn into_raw(&self) -> cef_window_info_t {
+        self.into()
     }
 }
 

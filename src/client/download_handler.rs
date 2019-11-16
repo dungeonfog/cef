@@ -5,7 +5,6 @@ use crate::{
 };
 use cef_sys::{
     cef_string_t,
-    cef_time_t,
     cef_browser_t,
     cef_download_handler_t,
     cef_download_item_callback_t,
@@ -14,7 +13,7 @@ use cef_sys::{
 };
 use std::os::raw::{c_int};
 use parking_lot::Mutex;
-use chrono::{DateTime, NaiveDateTime, NaiveDate, NaiveTime, Utc};
+use chrono::{DateTime, Utc};
 
 ref_counted_ptr!{
     /// Structure used to handle file downloads. The functions of this structure will
@@ -119,11 +118,11 @@ impl DownloadItem {
     }
     /// Returns the time that the download started.
     pub fn get_start_time(&self) -> DateTime<Utc> {
-        cef_time_to_system_time(unsafe{ self.0.get_start_time.unwrap()(self.as_ptr()) })
+        crate::values::cef_time_to_date_time(unsafe{ self.0.get_start_time.unwrap()(self.as_ptr()) })
     }
     /// Returns the time that the download ended.
     pub fn get_end_time(&self) -> DateTime<Utc> {
-        cef_time_to_system_time(unsafe{ self.0.get_end_time.unwrap()(self.as_ptr()) })
+        crate::values::cef_time_to_date_time(unsafe{ self.0.get_end_time.unwrap()(self.as_ptr()) })
     }
     /// Returns the full path to the downloaded or downloading file.
     pub fn get_full_path(&self) -> String {
@@ -153,16 +152,6 @@ impl DownloadItem {
     pub fn get_mime_type(&self) -> String {
         String::from(unsafe{ CefString::from_userfree_unchecked(self.0.get_mime_type.unwrap()(self.as_ptr())) })
     }
-}
-
-fn cef_time_to_system_time(cef_time: cef_time_t) -> DateTime<Utc> {
-    DateTime::from_utc(
-        NaiveDateTime::new(
-            NaiveDate::from_ymd(cef_time.year as i32, cef_time.month as u32, cef_time.day_of_month as u32),
-            NaiveTime::from_hms_milli(cef_time.hour as u32, cef_time.minute as u32, cef_time.second as u32, cef_time.millisecond as u32),
-        ),
-        Utc,
-    )
 }
 
 /// Trait used to handle file downloads. The functions of this structure will

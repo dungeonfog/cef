@@ -254,7 +254,7 @@ cef_callback_impl!{
             no_javascript_access: &mut std::os::raw::c_int: *mut std::os::raw::c_int
         ) -> std::os::raw::c_int {
             let window_info_ref = unsafe{ &mut *window_info };
-            let mut window_info_rust = WindowInfo::from(unsafe{ &*window_info });
+            let mut window_info_rust = unsafe{ WindowInfo::from_raw(&*window_info) };
             let settings_ref = unsafe{ &mut *settings };
             let mut settings_rust = unsafe{ BrowserSettings::from_raw(&*settings) };
             let mut no_javascript_access_rust = *no_javascript_access != 0;
