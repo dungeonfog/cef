@@ -106,12 +106,12 @@ lazy_static!{
 macro_rules! ref_counted_ptr {
     (
         $(#[$meta:meta])*
-        $vis:vis struct $Struct:ident$(<$($generic:ident $(: $bound:path)?),+>)?(*mut $cef:ident);
+        $vis:vis struct $Struct:ident$(<$($generic:ident $(: $bound:path)?),+>)?(*mut $cef:ty);
     ) => {
         $(#[$meta])*
         #[repr(transparent)]
         #[derive(Clone)]
-        $vis struct $Struct$(<$($generic $(: $bound)?),+>)?(crate::refcounted::RefCountedPtr<cef_sys::$cef>);
+        $vis struct $Struct$(<$($generic $(: $bound)?),+>)?(crate::refcounted::RefCountedPtr<$cef>);
 
         unsafe impl$(<$($generic $(: $bound)?),+>)? Send for $Struct$(<$($generic),+>)? {}
         unsafe impl$(<$($generic $(: $bound)?),+>)? Sync for $Struct$(<$($generic),+>)? {}

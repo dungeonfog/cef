@@ -38,7 +38,7 @@ pub trait BrowserProcessHandlerCallbacks: 'static + Sync + Send {
     /// Return the handler for printing on Linux. If a print handler is not
     /// provided then printing will not be supported on the Linux platform.
     #[cfg(target_os = "linux")]
-    fn get_print_handler(&self) -> Option<Box<dyn PrintHandler>> {
+    fn get_print_handler(&self) -> Option<PrintHandler> {
         None
     }
     /// Called from any thread when work has been scheduled for the browser process
@@ -57,8 +57,6 @@ pub trait BrowserProcessHandlerCallbacks: 'static + Sync + Send {
 
 pub(crate) struct BrowserProcessHandlerWrapper {
     delegate: Box<dyn BrowserProcessHandlerCallbacks>,
-    #[cfg(target_os = "linux")]
-    print_handler: Option<RefCountedPtr<cef_print_handler_t>>,
 }
 
 impl Wrapper for BrowserProcessHandlerWrapper {
@@ -112,6 +110,7 @@ cef_callback_impl! {
         fn get_print_handler(
             &self
         ) -> *mut cef_print_handler_t {
+
             if let Some(handler) = self.delegate.get_print_handler() {
                 let wrapper = PrintHandlerWrapper::new(handler);
                 this.print_handler = wrapper;
@@ -132,5 +131,14 @@ cef_callback_impl! {
         ) {
             self.delegate.on_schedule_message_pump_work(delay_ms);
         }
+    }
+}
+
+#[cfg(target_os = "linux")]
+pub use self::print_handler::PrintHandler;
+#[cfg(target_os = "linux")]
+mod print_handler {
+    ref_counted_ptr!{
+        pub struct PrintHandler(*mut cef_sys::cef_print_handler_t);
     }
 }

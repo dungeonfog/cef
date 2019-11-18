@@ -22,8 +22,8 @@ use cef_sys::{
     cef_cursor_type_t,
     cef_cursor_info_t,
     cef_drag_data_t,
+    cef_cursor_handle_t,
 };
-use winapi::shared::windef::HCURSOR;
 use num_enum::UnsafeFromPrimitive;
 use libc::c_int;
 use std::os::raw::c_void;
@@ -333,7 +333,7 @@ pub trait RenderHandlerCallbacks: 'static + Send + Sync {
     fn on_cursor_change(
         &self,
         browser: Browser,
-        cursor: HCURSOR, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+        cursor: cef_cursor_handle_t, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
         type_: CursorType<'_>,
     );
     /// Called when the user starts dragging content in the web view. Contextual
@@ -582,7 +582,7 @@ cef_callback_impl!{
         fn on_cursor_change(
             &self,
             browser: Browser: *mut cef_browser_t,
-            cursor: HCURSOR: HCURSOR, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+            cursor: cef_cursor_handle_t: cef_cursor_handle_t,
             type_: cef_cursor_type_t::Type: cef_cursor_type_t::Type,
             custom_cursor_info: *const cef_cursor_info_t: *const cef_cursor_info_t,
         ) {

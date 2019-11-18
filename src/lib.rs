@@ -39,7 +39,6 @@ pub mod app;
 
 #[cfg(target_os = "windows")]
 pub mod sandbox;
-#[cfg(target_os = "windows")]
 pub mod main_args;
 pub mod scheme;
 pub mod settings;

@@ -13,7 +13,7 @@ use crate::{
     request_context::RequestContext,
     string::{CefString, CefStringList},
     values::{DictionaryValue, Point, Range, Size, StoredValue},
-    window::WindowInfo,
+    window::{RawWindow, WindowInfo},
 };
 use cef_sys::{
     cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t,
@@ -28,7 +28,6 @@ use std::{
     iter::FromIterator,
     ptr::{null, null_mut},
 };
-use winapi::shared::minwindef::HINSTANCE;
 
 /// Paint element types.
 #[repr(i32)]
@@ -37,13 +36,6 @@ pub enum PaintElementType {
     View = cef_paint_element_type_t::PET_VIEW,
     Popup = cef_paint_element_type_t::PET_POPUP,
 }
-
-#[cfg(target_os = "windows")]
-pub type WindowHandle = HINSTANCE;
-#[cfg(target_os = "linux")]
-pub type WindowHandle = u64;
-#[cfg(target_os = "macos")]
-pub type WindowHandle = *mut std::ffi::c_void; // Actually NSView*
 
 ref_counted_ptr! {
     /// Structure used to represent the browser process aspects of a browser window.
@@ -156,27 +148,19 @@ impl BrowserHost {
     /// Retrieve the window handle for this browser. If this browser is wrapped in
     /// a [BrowserView] this function should be called on the browser process
     /// UI thread and it will return the handle for the top-level native window.
-    pub fn get_window_handle(&self) -> WindowHandle {
+    pub fn get_window_handle(&self) -> Option<RawWindow> {
         self.0
             .get_window_handle
-            .map(|get_window_handle| unsafe { get_window_handle(self.0.as_ptr()) as WindowHandle })
-            .unwrap_or_else(null_mut)
+            .and_then(|get_window_handle| unsafe { RawWindow::from_cef_handle(get_window_handle(self.0.as_ptr())) })
     }
     /// Retrieve the window handle of the browser that opened this browser. Will
     /// return None for non-popup windows or if this browser is wrapped in a
     /// [BrowserView]. This function can be used in combination with custom
     /// handling of modal windows.
-    pub fn get_opener_window_handle(&self) -> Option<WindowHandle> {
+    pub fn get_opener_window_handle(&self) -> Option<RawWindow> {
         self.0
             .get_opener_window_handle
-            .and_then(|get_opener_window_handle| {
-                let handle = unsafe { get_opener_window_handle(self.0.as_ptr()) };
-                if handle.is_null() {
-                    None
-                } else {
-                    Some(handle as WindowHandle)
-                }
-            })
+            .and_then(|get_opener_window_handle| unsafe { RawWindow::from_cef_handle(get_opener_window_handle(self.0.as_ptr())) })
     }
     /// Returns true if this browser is wrapped in a [BrowserView].
     pub fn has_view(&self) -> bool {
