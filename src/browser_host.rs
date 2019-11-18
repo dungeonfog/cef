@@ -544,10 +544,10 @@ impl BrowserHost {
         }
     }
     /// Send a key event to the browser.
-    pub fn send_key_event(&self, event: &KeyEvent) {
+    pub fn send_key_event(&self, event: KeyEvent) {
         if let Some(send_key_event) = self.0.send_key_event {
             unsafe {
-                send_key_event(self.0.as_ptr(), event.as_cef());
+                send_key_event(self.0.as_ptr(), &event.as_cef());
             }
         }
     }

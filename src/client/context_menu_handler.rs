@@ -264,7 +264,7 @@ impl ContextMenuHandler {
                 frame.into_raw(),
                 params.into_raw(),
                 command_id.get(),
-                cef_event_flags_t(event_flags.bits()),
+                cef_event_flags_t(event_flags.bits() as _),
             ) != 0
         }
     }

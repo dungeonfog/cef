@@ -28,7 +28,7 @@ impl RunContextMenu {
             self.0.cont.unwrap()(
                 self.as_ptr(),
                 command_id.get(),
-                cef_event_flags_t(event_flags.bits())
+                cef_event_flags_t(event_flags.bits() as _)
             )
         }
     }

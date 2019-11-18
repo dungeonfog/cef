@@ -141,8 +141,6 @@ impl AuthCallback {
                 );
             }
         }
-        // TODO: WHY IS THIS HERE?
-        // unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
     }
     /// Cancel the authentication request.
     pub fn cancel(&self) {
@@ -151,8 +149,6 @@ impl AuthCallback {
                 cancel(self.as_ptr());
             }
         }
-        // TODO: WHY IS THIS HERE?
-        // unsafe { ((&*self.0).base.release.unwrap())(&mut (&mut *self.0).base) };
     }
 }
 

@@ -209,7 +209,7 @@ owned_casts_from!(impl for crate::values::Rect: cef_sys::cef_rect_t);
 owned_casts_from!(impl for crate::values::Point: cef_sys::cef_point_t);
 owned_casts_from!(impl for crate::values::Size: cef_sys::cef_size_t);
 owned_casts_from!(impl for crate::values::Range: cef_sys::cef_range_t);
-owned_casts_from!(impl for crate::events::KeyEvent: cef_sys::cef_key_event_t);
+// owned_casts_from!(impl for crate::events::KeyEvent: cef_sys::cef_key_event_t);
 impl CToRustType for bool {
     type CType = c_int;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
@@ -308,6 +308,13 @@ impl<'a> CToRustType for &mut cef_sys::cef_window_info_t {
     type CType = *mut cef_sys::cef_window_info_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
         &mut *c_type
+    }
+}
+
+impl CToRustType for crate::events::KeyEvent {
+    type CType = *const cef_sys::cef_key_event_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::from(*c_type)
     }
 }
 

@@ -73,22 +73,22 @@ cef_callback_impl!{
         fn on_pre_key_event(
             &self,
             browser: Browser: *mut cef_browser_t,
-            event: &KeyEvent: *const cef_key_event_t,
+            event: KeyEvent: *const cef_key_event_t,
             _os_event: cef_event_handle_t: cef_event_handle_t,
             is_keyboard_shortcut: &mut c_int: *mut c_int
         ) -> c_int {
             let mut keyboard_shortcut = *is_keyboard_shortcut != 0;
-            let ret = self.0.lock().on_pre_key_event(browser, *event, &mut keyboard_shortcut) as c_int;
+            let ret = self.0.lock().on_pre_key_event(browser, event, &mut keyboard_shortcut) as c_int;
             *is_keyboard_shortcut = keyboard_shortcut as c_int;
             ret
         }
         fn on_key_event(
             &self,
             browser: Browser: *mut cef_browser_t,
-            event: &KeyEvent: *const cef_key_event_t,
+            event: KeyEvent: *const cef_key_event_t,
             _os_event: cef_event_handle_t: cef_event_handle_t,
         ) -> c_int {
-            self.0.lock().on_key_event(browser, *event) as c_int
+            self.0.lock().on_key_event(browser, event) as c_int
         }
     }
 }

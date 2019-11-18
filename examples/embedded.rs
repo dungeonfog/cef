@@ -1,12 +1,13 @@
+use cef::events::WindowsKeyCode;
+use cef::events::KeyEvent;
 use cef::client::render_handler::CursorType;
-use cef_sys::HCURSOR;
+use winapi::shared::windef::HCURSOR;
 use cef::drag::DragOperation;
 use cef::values::{Rect, Point};
 use cef::client::render_handler::ScreenInfo;
 use cef::browser_host::PaintElementType;
 use std::{
     time::{Duration, Instant},
-    sync::atomic::{AtomicU32, Ordering},
     ffi::c_void,
 };
 use cef::{
@@ -21,8 +22,6 @@ use cef::{
     },
     command_line::CommandLine,
     events::{EventFlags, MouseEvent, MouseButtonType},
-    frame::Frame,
-    process::{ProcessId, ProcessMessage},
     main_args::MainArgs,
     settings::{Settings, LogSeverity},
     window::WindowInfo,
@@ -38,7 +37,7 @@ use winit_blit::{PixelBufferTyped, BGRA};
 use parking_lot::Mutex;
 
 pub struct AppCallbacksImpl {
-    browser_process_handler: BrowserProcessHandler,
+    browser_process_handler: Option<BrowserProcessHandler>,
 }
 pub struct ClientCallbacksImpl {
     life_span_handler: LifeSpanHandler,
@@ -49,7 +48,6 @@ pub struct LifeSpanHandlerImpl {
 }
 pub struct BrowserProcessHandlerCallbacksImpl {
     proxy: Mutex<EventLoopProxy<CefEvent>>,
-    depth: AtomicU32,
 }
 pub struct RenderHandlerCallbacksImpl {
     window: Window,
@@ -71,7 +69,7 @@ impl AppCallbacks for AppCallbacksImpl {
         }
     }
     fn get_browser_process_handler(&self) -> Option<BrowserProcessHandler> {
-        Some(self.browser_process_handler.clone())
+        self.browser_process_handler.clone()
     }
 }
 
@@ -172,7 +170,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
                     let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
                     for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
                         let pixel_buffer_row =
-                            &mut pixel_buffer.row_mut(height as u32 - 1 - row as u32).unwrap()
+                            &mut pixel_buffer.row_mut(row as u32).unwrap()
                                 [row_span.clone()];
                         pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
                     }
@@ -189,7 +187,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
                 let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
                 for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
                     let pixel_buffer_row =
-                        &mut pixel_buffer.row_mut(height as u32 - 1 - row as u32).unwrap()
+                        &mut pixel_buffer.row_mut(row as u32).unwrap()
                             [row_span.clone()];
                     pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
                 }
@@ -248,7 +246,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             CursorType::EastWestResize => Some(CursorIcon::EwResize),
             CursorType::NorthEastSouthWestResize => Some(CursorIcon::NeswResize),
             CursorType::NorthWestSouthEastResize => Some(CursorIcon::NwseResize),
-            CursorType::ColumnResize => Some(CursorIcon::ColResize,),
+            CursorType::ColumnResize => Some(CursorIcon::ColResize),
             CursorType::RowResize => Some(CursorIcon::RowResize),
             CursorType::Move => Some(CursorIcon::Move),
             CursorType::VerticalText => Some(CursorIcon::VerticalText),
@@ -279,28 +277,38 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
 }
 
 fn main() {
-    let event_loop = EventLoop::with_user_event();
+    let mut event_loop: Option<EventLoop<CefEvent>> = None;
 
     let app = App::new(AppCallbacksImpl {
-        browser_process_handler: BrowserProcessHandler::new(BrowserProcessHandlerCallbacksImpl {
-            proxy: Mutex::new(event_loop.create_proxy()),
-            depth: AtomicU32::new(0),
-        })
+        browser_process_handler: match std::env::args().find(|s| s.contains("type")).is_some() {
+            false => {
+                let el = EventLoop::with_user_event();
+                let ret = Some(BrowserProcessHandler::new(BrowserProcessHandlerCallbacksImpl {
+                    proxy: Mutex::new(el.create_proxy()),
+                }));
+                event_loop = Some(el);
+                ret
+            },
+            true => None,
+        }
     });
     #[cfg(windows)]
     cef::enable_highdpi_support();
     let args = MainArgs::new();
+    println!("{:?}", event_loop.is_some());
     let result = cef::execute_process(&args, Some(app.clone()), None);
     if result >= 0 {
         std::process::exit(result);
     }
     let mut settings = Settings::new();
     settings.enable_windowless_rendering();
-    settings.set_log_severity(LogSeverity::Disable);
+    settings.set_log_severity(LogSeverity::Verbose);
     settings.enable_external_message_pump();
     settings.disable_sandbox();
     let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
     settings.set_resources_dir_path(&resources_folder);
+
+    let event_loop = event_loop.unwrap();
 
     let context = cef::Context::initialize(&args, &settings, Some(app), None).unwrap();
 
@@ -337,7 +345,7 @@ fn main() {
     let browser = BrowserHost::create_browser_sync(
         &window_info,
         client,
-        "https://blog.johnnovak.net/2016/09/21/what-every-coder-should-know-about-gamma/",
+        "https://www.google.com",
         &browser_settings,
         None,
         None,
@@ -424,19 +432,37 @@ fn main() {
                             );
                         }
                     },
-                    // WindowEvent::KeyboardInput{input: KeyboardInput {scancode, state, virtual_keycode, modifiers}, ..} => {
-                    //     mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
-                    //     mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
-                    //     mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
-                    //     browser.get_host().send_key_event(
-                    //         &KeyEvent {
-                    //             event_type: KeyEventType::KeyDown,
-                    //             modifiers: mouse_event.modifiers,
-                    //             windows_key_code: scancode,
-                    //             native_key_code:
-                    //         }
-                    //     );
-                    // },
+                    WindowEvent::KeyboardInput{input: KeyboardInput {state, virtual_keycode, modifiers, ..}, ..} => {
+                        mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                        mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                        mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
+                        if let Some(keycode) = virtual_keycode.and_then(winit_keycode_to_windows_keycode) {
+                            browser.get_host().send_key_event(
+                                match state {
+                                    ElementState::Pressed => KeyEvent::KeyDown {
+                                        modifiers: mouse_event.modifiers,
+                                        windows_key_code: keycode,
+                                        is_system_key: false,
+                                        focus_on_editable_field: false,
+                                    },
+                                    ElementState::Released => KeyEvent::KeyUp {
+                                        modifiers: mouse_event.modifiers,
+                                        windows_key_code: keycode,
+                                        is_system_key: false,
+                                        focus_on_editable_field: false,
+                                    },
+                                }
+                            );
+                        }
+                    },
+                    WindowEvent::ReceivedCharacter(char) => {
+                        browser.get_host().send_key_event(
+                            KeyEvent::Char {
+                                modifiers: mouse_event.modifiers,
+                                char,
+                            }
+                        );
+                    }
                     _ => (),
                 }
             },
@@ -455,4 +481,149 @@ fn main() {
             _ => (),//*control_flow = ControlFlow::Wait,
         }
     });
+}
+
+fn winit_keycode_to_windows_keycode(winit_keycode: VirtualKeyCode) -> Option<WindowsKeyCode> {
+    match winit_keycode {
+        VirtualKeyCode::Key1 => Some(WindowsKeyCode::Key1),
+        VirtualKeyCode::Key2 => Some(WindowsKeyCode::Key2),
+        VirtualKeyCode::Key3 => Some(WindowsKeyCode::Key3),
+        VirtualKeyCode::Key4 => Some(WindowsKeyCode::Key4),
+        VirtualKeyCode::Key5 => Some(WindowsKeyCode::Key5),
+        VirtualKeyCode::Key6 => Some(WindowsKeyCode::Key6),
+        VirtualKeyCode::Key7 => Some(WindowsKeyCode::Key7),
+        VirtualKeyCode::Key8 => Some(WindowsKeyCode::Key8),
+        VirtualKeyCode::Key9 => Some(WindowsKeyCode::Key9),
+        VirtualKeyCode::Key0 => Some(WindowsKeyCode::Key0),
+        VirtualKeyCode::A => Some(WindowsKeyCode::A),
+        VirtualKeyCode::B => Some(WindowsKeyCode::B),
+        VirtualKeyCode::C => Some(WindowsKeyCode::C),
+        VirtualKeyCode::D => Some(WindowsKeyCode::D),
+        VirtualKeyCode::E => Some(WindowsKeyCode::E),
+        VirtualKeyCode::F => Some(WindowsKeyCode::F),
+        VirtualKeyCode::G => Some(WindowsKeyCode::G),
+        VirtualKeyCode::H => Some(WindowsKeyCode::H),
+        VirtualKeyCode::I => Some(WindowsKeyCode::I),
+        VirtualKeyCode::J => Some(WindowsKeyCode::J),
+        VirtualKeyCode::K => Some(WindowsKeyCode::K),
+        VirtualKeyCode::L => Some(WindowsKeyCode::L),
+        VirtualKeyCode::M => Some(WindowsKeyCode::M),
+        VirtualKeyCode::N => Some(WindowsKeyCode::N),
+        VirtualKeyCode::O => Some(WindowsKeyCode::O),
+        VirtualKeyCode::P => Some(WindowsKeyCode::P),
+        VirtualKeyCode::Q => Some(WindowsKeyCode::Q),
+        VirtualKeyCode::R => Some(WindowsKeyCode::R),
+        VirtualKeyCode::S => Some(WindowsKeyCode::S),
+        VirtualKeyCode::T => Some(WindowsKeyCode::T),
+        VirtualKeyCode::U => Some(WindowsKeyCode::U),
+        VirtualKeyCode::V => Some(WindowsKeyCode::V),
+        VirtualKeyCode::W => Some(WindowsKeyCode::W),
+        VirtualKeyCode::X => Some(WindowsKeyCode::X),
+        VirtualKeyCode::Y => Some(WindowsKeyCode::Y),
+        VirtualKeyCode::Z => Some(WindowsKeyCode::Z),
+        VirtualKeyCode::Escape => Some(WindowsKeyCode::Escape),
+        VirtualKeyCode::F1 => Some(WindowsKeyCode::F1),
+        VirtualKeyCode::F2 => Some(WindowsKeyCode::F2),
+        VirtualKeyCode::F3 => Some(WindowsKeyCode::F3),
+        VirtualKeyCode::F4 => Some(WindowsKeyCode::F4),
+        VirtualKeyCode::F5 => Some(WindowsKeyCode::F5),
+        VirtualKeyCode::F6 => Some(WindowsKeyCode::F6),
+        VirtualKeyCode::F7 => Some(WindowsKeyCode::F7),
+        VirtualKeyCode::F8 => Some(WindowsKeyCode::F8),
+        VirtualKeyCode::F9 => Some(WindowsKeyCode::F9),
+        VirtualKeyCode::F10 => Some(WindowsKeyCode::F10),
+        VirtualKeyCode::F11 => Some(WindowsKeyCode::F11),
+        VirtualKeyCode::F12 => Some(WindowsKeyCode::F12),
+        VirtualKeyCode::F13 => Some(WindowsKeyCode::F13),
+        VirtualKeyCode::F14 => Some(WindowsKeyCode::F14),
+        VirtualKeyCode::F15 => Some(WindowsKeyCode::F15),
+        VirtualKeyCode::F16 => Some(WindowsKeyCode::F16),
+        VirtualKeyCode::F17 => Some(WindowsKeyCode::F17),
+        VirtualKeyCode::F18 => Some(WindowsKeyCode::F18),
+        VirtualKeyCode::F19 => Some(WindowsKeyCode::F19),
+        VirtualKeyCode::F20 => Some(WindowsKeyCode::F20),
+        VirtualKeyCode::F21 => Some(WindowsKeyCode::F21),
+        VirtualKeyCode::F22 => Some(WindowsKeyCode::F22),
+        VirtualKeyCode::F23 => Some(WindowsKeyCode::F23),
+        VirtualKeyCode::F24 => Some(WindowsKeyCode::F24),
+        VirtualKeyCode::Snapshot => Some(WindowsKeyCode::Snapshot),
+        VirtualKeyCode::Scroll => Some(WindowsKeyCode::Scroll),
+        VirtualKeyCode::Pause => Some(WindowsKeyCode::Pause),
+        VirtualKeyCode::Insert => Some(WindowsKeyCode::Insert),
+        VirtualKeyCode::Home => Some(WindowsKeyCode::Home),
+        VirtualKeyCode::Delete => Some(WindowsKeyCode::Delete),
+        VirtualKeyCode::End => Some(WindowsKeyCode::End),
+        VirtualKeyCode::PageDown => Some(WindowsKeyCode::Next),
+        VirtualKeyCode::PageUp => Some(WindowsKeyCode::Prior),
+        VirtualKeyCode::Left => Some(WindowsKeyCode::Left),
+        VirtualKeyCode::Up => Some(WindowsKeyCode::Up),
+        VirtualKeyCode::Right => Some(WindowsKeyCode::Right),
+        VirtualKeyCode::Down => Some(WindowsKeyCode::Down),
+        VirtualKeyCode::Back => Some(WindowsKeyCode::Back),
+        VirtualKeyCode::Return => Some(WindowsKeyCode::Return),
+        VirtualKeyCode::Space => Some(WindowsKeyCode::Space),
+        VirtualKeyCode::Numlock => Some(WindowsKeyCode::Numlock),
+        VirtualKeyCode::Numpad0 => Some(WindowsKeyCode::Numpad0),
+        VirtualKeyCode::Numpad1 => Some(WindowsKeyCode::Numpad1),
+        VirtualKeyCode::Numpad2 => Some(WindowsKeyCode::Numpad2),
+        VirtualKeyCode::Numpad3 => Some(WindowsKeyCode::Numpad3),
+        VirtualKeyCode::Numpad4 => Some(WindowsKeyCode::Numpad4),
+        VirtualKeyCode::Numpad5 => Some(WindowsKeyCode::Numpad5),
+        VirtualKeyCode::Numpad6 => Some(WindowsKeyCode::Numpad6),
+        VirtualKeyCode::Numpad7 => Some(WindowsKeyCode::Numpad7),
+        VirtualKeyCode::Numpad8 => Some(WindowsKeyCode::Numpad8),
+        VirtualKeyCode::Numpad9 => Some(WindowsKeyCode::Numpad9),
+        VirtualKeyCode::Add => Some(WindowsKeyCode::Add),
+        VirtualKeyCode::Apps => Some(WindowsKeyCode::Apps),
+        VirtualKeyCode::Capital => Some(WindowsKeyCode::Capital),
+        VirtualKeyCode::Comma => Some(WindowsKeyCode::OemComma),
+        VirtualKeyCode::Convert => Some(WindowsKeyCode::Convert),
+        VirtualKeyCode::Decimal => Some(WindowsKeyCode::Decimal),
+        VirtualKeyCode::Divide => Some(WindowsKeyCode::Divide),
+        VirtualKeyCode::Equals => Some(WindowsKeyCode::OemPlus),
+        VirtualKeyCode::Kana => Some(WindowsKeyCode::Kana),
+        VirtualKeyCode::Kanji => Some(WindowsKeyCode::Kanji),
+        VirtualKeyCode::LAlt => Some(WindowsKeyCode::LMenu),
+        VirtualKeyCode::LControl => Some(WindowsKeyCode::LControl),
+        VirtualKeyCode::LShift => Some(WindowsKeyCode::LShift),
+        VirtualKeyCode::LWin => Some(WindowsKeyCode::LWin),
+        VirtualKeyCode::Mail => Some(WindowsKeyCode::LaunchMail),
+        VirtualKeyCode::MediaSelect => Some(WindowsKeyCode::LaunchMediaSelect),
+        VirtualKeyCode::MediaStop => Some(WindowsKeyCode::MediaStop),
+        VirtualKeyCode::Minus => Some(WindowsKeyCode::OemMinus),
+        VirtualKeyCode::Multiply => Some(WindowsKeyCode::Multiply),
+        VirtualKeyCode::Mute => Some(WindowsKeyCode::VolumeMute),
+        VirtualKeyCode::NavigateForward => Some(WindowsKeyCode::BrowserForward),
+        VirtualKeyCode::NavigateBackward => Some(WindowsKeyCode::BrowserBack),
+        VirtualKeyCode::NextTrack => Some(WindowsKeyCode::MediaNextTrack),
+        VirtualKeyCode::NoConvert => Some(WindowsKeyCode::NonConvert),
+        VirtualKeyCode::OEM102 => Some(WindowsKeyCode::Oem102),
+        VirtualKeyCode::Period => Some(WindowsKeyCode::OemPeriod),
+        VirtualKeyCode::PlayPause => Some(WindowsKeyCode::MediaPlayPause),
+        VirtualKeyCode::PrevTrack => Some(WindowsKeyCode::MediaPrevTrack),
+        VirtualKeyCode::RAlt => Some(WindowsKeyCode::RMenu),
+        VirtualKeyCode::RControl => Some(WindowsKeyCode::RControl),
+        VirtualKeyCode::RShift => Some(WindowsKeyCode::RShift),
+        VirtualKeyCode::RWin => Some(WindowsKeyCode::RWin),
+        VirtualKeyCode::Sleep => Some(WindowsKeyCode::Sleep),
+        VirtualKeyCode::Subtract => Some(WindowsKeyCode::Subtract),
+        VirtualKeyCode::Tab => Some(WindowsKeyCode::Tab),
+        VirtualKeyCode::VolumeDown => Some(WindowsKeyCode::VolumeDown),
+        VirtualKeyCode::VolumeUp => Some(WindowsKeyCode::VolumeUp),
+        VirtualKeyCode::WebFavorites => Some(WindowsKeyCode::BrowserFavorites),
+        VirtualKeyCode::WebForward => Some(WindowsKeyCode::BrowserForward),
+        VirtualKeyCode::WebHome => Some(WindowsKeyCode::BrowserHome),
+        VirtualKeyCode::WebRefresh => Some(WindowsKeyCode::BrowserRefresh),
+        VirtualKeyCode::WebSearch => Some(WindowsKeyCode::BrowserSearch),
+        VirtualKeyCode::WebStop => Some(WindowsKeyCode::BrowserStop),
+        // These key-codes should be unmapped by reversing MapVirtualKeyA.
+        // VirtualKeyCode::Apostrophe => Some(WindowsKeyCode::Apostrophe),
+        // VirtualKeyCode::Backslash => Some(WindowsKeyCode::Backslash),
+        // VirtualKeyCode::Grave => Some(WindowsKeyCode::Grave),
+        // VirtualKeyCode::LBracket => Some(WindowsKeyCode::LBracket),
+        // VirtualKeyCode::RBracket => Some(WindowsKeyCode::RBracket),
+        // VirtualKeyCode::Semicolon => Some(WindowsKeyCode::Semicolon),
+        // VirtualKeyCode::Slash => Some(WindowsKeyCode::Slash),
+        _ => None,
+    }
 }
