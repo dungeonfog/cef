@@ -15,16 +15,16 @@ use crate::{
 /// "Verb" of a drag-and-drop operation as negotiated between the source and
 /// destination. These constants match their equivalents in WebCore's
 /// DragActions.h.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive, Hash)]
 pub enum DragOperation {
-    None = cef_drag_operations_mask_t::DRAG_OPERATION_NONE.0,
-    Copy = cef_drag_operations_mask_t::DRAG_OPERATION_COPY.0,
-    Link = cef_drag_operations_mask_t::DRAG_OPERATION_LINK.0,
-    Generic = cef_drag_operations_mask_t::DRAG_OPERATION_GENERIC.0,
-    Private = cef_drag_operations_mask_t::DRAG_OPERATION_PRIVATE.0,
-    Move = cef_drag_operations_mask_t::DRAG_OPERATION_MOVE.0,
-    Delete = cef_drag_operations_mask_t::DRAG_OPERATION_DELETE.0,
+    None = cef_drag_operations_mask_t::DRAG_OPERATION_NONE.0 as isize,
+    Copy = cef_drag_operations_mask_t::DRAG_OPERATION_COPY.0 as isize,
+    Link = cef_drag_operations_mask_t::DRAG_OPERATION_LINK.0 as isize,
+    Generic = cef_drag_operations_mask_t::DRAG_OPERATION_GENERIC.0 as isize,
+    Private = cef_drag_operations_mask_t::DRAG_OPERATION_PRIVATE.0 as isize,
+    Move = cef_drag_operations_mask_t::DRAG_OPERATION_MOVE.0 as isize,
+    Delete = cef_drag_operations_mask_t::DRAG_OPERATION_DELETE.0 as isize,
 }
 
 impl DragOperation {

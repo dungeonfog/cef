@@ -26,20 +26,20 @@ use crate::{
 };
 
 /// Flags that represent [URLRequest] status.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum URLRequestStatus {
     /// Unknown status.
-    Unknown = cef_urlrequest_status_t::UR_UNKNOWN as i32,
+    Unknown = cef_urlrequest_status_t::UR_UNKNOWN as isize,
     /// Request succeeded.
-    Success = cef_urlrequest_status_t::UR_SUCCESS as i32,
+    Success = cef_urlrequest_status_t::UR_SUCCESS as isize,
     /// An IO request is pending, and the caller will be informed when it is
     /// completed.
-    IOPending = cef_urlrequest_status_t::UR_IO_PENDING as i32,
+    IOPending = cef_urlrequest_status_t::UR_IO_PENDING as isize,
     /// Request was canceled programatically.
-    Canceled = cef_urlrequest_status_t::UR_CANCELED as i32,
+    Canceled = cef_urlrequest_status_t::UR_CANCELED as isize,
     /// Request failed for some reason.
-    Failed = cef_urlrequest_status_t::UR_FAILED as i32,
+    Failed = cef_urlrequest_status_t::UR_FAILED as isize,
 }
 
 ref_counted_ptr! {
@@ -428,12 +428,12 @@ cef_callback_impl! {
     }
 }
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, Debug, UnsafeFromPrimitive)]
 pub enum ResponseFilterStatus {
-    NeedMoreData = cef_response_filter_status_t::RESPONSE_FILTER_NEED_MORE_DATA as i32,
-    Done = cef_response_filter_status_t::RESPONSE_FILTER_DONE as i32,
-    Error = cef_response_filter_status_t::RESPONSE_FILTER_ERROR as i32,
+    NeedMoreData = cef_response_filter_status_t::RESPONSE_FILTER_NEED_MORE_DATA as isize,
+    Done = cef_response_filter_status_t::RESPONSE_FILTER_DONE as isize,
+    Error = cef_response_filter_status_t::RESPONSE_FILTER_ERROR as isize,
 }
 
 ref_counted_ptr!{

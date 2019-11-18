@@ -3,25 +3,25 @@ use cef_sys::{cef_alpha_type_t, cef_color_type_t, cef_image_create, cef_image_t}
 use crate::values::BinaryValue;
 
 /// Describes how to interpret the components of a pixel.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ColorType {
     /// RGBA with 8 bits per pixel (32bits total).
-    Rgba8888 = cef_color_type_t::CEF_COLOR_TYPE_RGBA_8888,
+    Rgba8888 = cef_color_type_t::CEF_COLOR_TYPE_RGBA_8888 as isize,
     /// BGRA with 8 bits per pixel (32bits total).
-    Bgra8888 = cef_color_type_t::CEF_COLOR_TYPE_BGRA_8888,
+    Bgra8888 = cef_color_type_t::CEF_COLOR_TYPE_BGRA_8888 as isize,
 }
 
 /// Describes how to interpret the alpha component of a pixel.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum AlphaType {
     /// No transparency. The alpha component is ignored.
-    Opaque = cef_alpha_type_t::CEF_ALPHA_TYPE_OPAQUE,
+    Opaque = cef_alpha_type_t::CEF_ALPHA_TYPE_OPAQUE as isize,
     /// Transparency with pre-multiplied alpha component.
-    Premultiplied = cef_alpha_type_t::CEF_ALPHA_TYPE_PREMULTIPLIED,
+    Premultiplied = cef_alpha_type_t::CEF_ALPHA_TYPE_PREMULTIPLIED as isize,
     /// Transparency with post-multiplied alpha component.
-    Postmultiplied = cef_alpha_type_t::CEF_ALPHA_TYPE_POSTMULTIPLIED,
+    Postmultiplied = cef_alpha_type_t::CEF_ALPHA_TYPE_POSTMULTIPLIED as isize,
 }
 
 ref_counted_ptr! {

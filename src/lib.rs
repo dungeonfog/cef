@@ -59,15 +59,13 @@ pub mod ssl;
 pub mod task;
 
 /// Return value types.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum ReturnValue {
     /// Cancel immediately.
-    Cancel = cef_sys::cef_return_value_t::RV_CANCEL as i32,
+    Cancel = cef_sys::cef_return_value_t::RV_CANCEL as isize,
     /// Continue immediately.
-    Continue = cef_sys::cef_return_value_t::RV_CONTINUE as i32,
+    Continue = cef_sys::cef_return_value_t::RV_CONTINUE as isize,
     /// Continue asynchronously (usually via a callback).
-    ContinueAsync = cef_sys::cef_return_value_t::RV_CONTINUE_ASYNC as i32,
+    ContinueAsync = cef_sys::cef_return_value_t::RV_CONTINUE_ASYNC as isize,
 }
-
-

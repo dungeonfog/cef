@@ -25,13 +25,13 @@ impl FocusHandler {
 }
 
 /// Focus sources.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum FocusSource {
     /// The source is explicit navigation via the API (LoadURL(), etc).
-    Navigation = cef_focus_source_t::FOCUS_SOURCE_NAVIGATION,
+    Navigation = cef_focus_source_t::FOCUS_SOURCE_NAVIGATION as isize,
     /// The source is a system-generated focus event.
-    System = cef_focus_source_t::FOCUS_SOURCE_SYSTEM,
+    System = cef_focus_source_t::FOCUS_SOURCE_SYSTEM as isize,
 }
 
 /// Implement this trait to handle events related to focus.

@@ -67,28 +67,28 @@ id!(pub struct CommandId);
 id!(pub struct GroupId);
 
 /// Supported color types for menu items.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum MenuColorType {
-    Text = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT,
-    TextHovered = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_HOVERED,
-    TextAccelerator = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_ACCELERATOR,
-    TextAcceleratorHovered = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_ACCELERATOR_HOVERED,
-    Background = cef_menu_color_type_t::CEF_MENU_COLOR_BACKGROUND,
-    BackgroundHovered = cef_menu_color_type_t::CEF_MENU_COLOR_BACKGROUND_HOVERED,
-    Count = cef_menu_color_type_t::CEF_MENU_COLOR_COUNT,
+    Text = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT as isize,
+    TextHovered = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_HOVERED as isize,
+    TextAccelerator = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_ACCELERATOR as isize,
+    TextAcceleratorHovered = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_ACCELERATOR_HOVERED as isize,
+    Background = cef_menu_color_type_t::CEF_MENU_COLOR_BACKGROUND as isize,
+    BackgroundHovered = cef_menu_color_type_t::CEF_MENU_COLOR_BACKGROUND_HOVERED as isize,
+    Count = cef_menu_color_type_t::CEF_MENU_COLOR_COUNT as isize,
 }
 
 /// Supported menu item types.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum MenuItemType {
-    None = cef_menu_item_type_t::MENUITEMTYPE_NONE,
-    Command = cef_menu_item_type_t::MENUITEMTYPE_COMMAND,
-    Check = cef_menu_item_type_t::MENUITEMTYPE_CHECK,
-    Radio = cef_menu_item_type_t::MENUITEMTYPE_RADIO,
-    Separator = cef_menu_item_type_t::MENUITEMTYPE_SEPARATOR,
-    Submenu = cef_menu_item_type_t::MENUITEMTYPE_SUBMENU,
+    None = cef_menu_item_type_t::MENUITEMTYPE_NONE as isize,
+    Command = cef_menu_item_type_t::MENUITEMTYPE_COMMAND as isize,
+    Check = cef_menu_item_type_t::MENUITEMTYPE_CHECK as isize,
+    Radio = cef_menu_item_type_t::MENUITEMTYPE_RADIO as isize,
+    Separator = cef_menu_item_type_t::MENUITEMTYPE_SEPARATOR as isize,
+    Submenu = cef_menu_item_type_t::MENUITEMTYPE_SUBMENU as isize,
 }
 
 bitflags!{

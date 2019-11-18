@@ -28,28 +28,28 @@ use crate::{
     url_request::{AuthCallback, RequestCallback},
 };
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum WindowOpenDisposition {
-    Unknown = cef_window_open_disposition_t::WOD_UNKNOWN,
-    CurrentTab = cef_window_open_disposition_t::WOD_CURRENT_TAB,
-    SingletonTab = cef_window_open_disposition_t::WOD_SINGLETON_TAB,
-    NewForegroundTab = cef_window_open_disposition_t::WOD_NEW_FOREGROUND_TAB,
-    NewBackgroundTab = cef_window_open_disposition_t::WOD_NEW_BACKGROUND_TAB,
-    NewPopup = cef_window_open_disposition_t::WOD_NEW_POPUP,
-    NewWindow = cef_window_open_disposition_t::WOD_NEW_WINDOW,
-    SaveToDisk = cef_window_open_disposition_t::WOD_SAVE_TO_DISK,
-    OffTheRecord = cef_window_open_disposition_t::WOD_OFF_THE_RECORD,
-    IgnoreAction = cef_window_open_disposition_t::WOD_IGNORE_ACTION,
+    Unknown = cef_window_open_disposition_t::WOD_UNKNOWN as isize,
+    CurrentTab = cef_window_open_disposition_t::WOD_CURRENT_TAB as isize,
+    SingletonTab = cef_window_open_disposition_t::WOD_SINGLETON_TAB as isize,
+    NewForegroundTab = cef_window_open_disposition_t::WOD_NEW_FOREGROUND_TAB as isize,
+    NewBackgroundTab = cef_window_open_disposition_t::WOD_NEW_BACKGROUND_TAB as isize,
+    NewPopup = cef_window_open_disposition_t::WOD_NEW_POPUP as isize,
+    NewWindow = cef_window_open_disposition_t::WOD_NEW_WINDOW as isize,
+    SaveToDisk = cef_window_open_disposition_t::WOD_SAVE_TO_DISK as isize,
+    OffTheRecord = cef_window_open_disposition_t::WOD_OFF_THE_RECORD as isize,
+    IgnoreAction = cef_window_open_disposition_t::WOD_IGNORE_ACTION as isize,
 }
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum TerminationStatus {
-    AbnormalTermination = cef_termination_status_t::TS_ABNORMAL_TERMINATION,
-    ProcessWasKilled = cef_termination_status_t::TS_PROCESS_WAS_KILLED,
-    ProcessCrashed = cef_termination_status_t::TS_PROCESS_CRASHED,
-    ProcessOom = cef_termination_status_t::TS_PROCESS_OOM,
+    AbnormalTermination = cef_termination_status_t::TS_ABNORMAL_TERMINATION as isize,
+    ProcessWasKilled = cef_termination_status_t::TS_PROCESS_WAS_KILLED as isize,
+    ProcessCrashed = cef_termination_status_t::TS_PROCESS_CRASHED as isize,
+    ProcessOom = cef_termination_status_t::TS_PROCESS_OOM as isize,
 }
 
 ref_counted_ptr!{

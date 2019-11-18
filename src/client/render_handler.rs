@@ -29,18 +29,18 @@ use libc::c_int;
 use std::os::raw::c_void;
 use std::ptr;
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum TextInputMode {
-    Default = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DEFAULT,
-    None = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_NONE,
-    Text = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_TEXT,
-    Tel = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_TEL,
-    URL = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_URL,
-    Email = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_EMAIL,
-    Numeric = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_NUMERIC,
-    Decimal = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DECIMAL,
-    Search = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_SEARCH,
+    Default = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DEFAULT as isize,
+    None = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_NONE as isize,
+    Text = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_TEXT as isize,
+    Tel = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_TEL as isize,
+    URL = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_URL as isize,
+    Email = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_EMAIL as isize,
+    Numeric = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_NUMERIC as isize,
+    Decimal = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DECIMAL as isize,
+    Search = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_SEARCH as isize,
 }
 
 #[derive(Copy, Clone, PartialEq)]

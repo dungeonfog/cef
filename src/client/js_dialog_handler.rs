@@ -27,12 +27,12 @@ ref_counted_ptr!{
 }
 
 /// Supported JavaScript dialog types.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum JsDialogType {
-    Alert = cef_jsdialog_type_t::JSDIALOGTYPE_ALERT,
-    Confirm = cef_jsdialog_type_t::JSDIALOGTYPE_CONFIRM,
-    Prompt = cef_jsdialog_type_t::JSDIALOGTYPE_PROMPT,
+    Alert = cef_jsdialog_type_t::JSDIALOGTYPE_ALERT as isize,
+    Confirm = cef_jsdialog_type_t::JSDIALOGTYPE_CONFIRM as isize,
+    Prompt = cef_jsdialog_type_t::JSDIALOGTYPE_PROMPT as isize,
 }
 
 impl JsDialogHandler {

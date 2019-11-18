@@ -30,11 +30,11 @@ use std::{
 };
 
 /// Paint element types.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum PaintElementType {
-    View = cef_paint_element_type_t::PET_VIEW,
-    Popup = cef_paint_element_type_t::PET_POPUP,
+    View = cef_paint_element_type_t::PET_VIEW as isize,
+    Popup = cef_paint_element_type_t::PET_POPUP as isize,
 }
 
 ref_counted_ptr! {

@@ -119,12 +119,12 @@ impl From<cef_key_event_t> for KeyEvent {
 }
 
 /// Mouse button types.
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum MouseButtonType {
-    Left = cef_mouse_button_type_t::MBT_LEFT,
-    Middle = cef_mouse_button_type_t::MBT_MIDDLE,
-    Right = cef_mouse_button_type_t::MBT_RIGHT,
+    Left = cef_mouse_button_type_t::MBT_LEFT as isize,
+    Middle = cef_mouse_button_type_t::MBT_MIDDLE as isize,
+    Right = cef_mouse_button_type_t::MBT_RIGHT as isize,
 }
 
 /// Structure representing mouse event information.

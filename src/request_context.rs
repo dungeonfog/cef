@@ -37,13 +37,13 @@ use crate::{
     web_plugin::WebPluginInfo,
 };
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
 pub enum PluginPolicy {
-    Allow = cef_plugin_policy_t::PLUGIN_POLICY_ALLOW as i32,
-    DetectImportant = cef_plugin_policy_t::PLUGIN_POLICY_DETECT_IMPORTANT as i32,
-    Block = cef_plugin_policy_t::PLUGIN_POLICY_BLOCK as i32,
-    Disable = cef_plugin_policy_t::PLUGIN_POLICY_DISABLE as i32,
+    Allow = cef_plugin_policy_t::PLUGIN_POLICY_ALLOW as isize,
+    DetectImportant = cef_plugin_policy_t::PLUGIN_POLICY_DETECT_IMPORTANT as isize,
+    Block = cef_plugin_policy_t::PLUGIN_POLICY_BLOCK as isize,
+    Disable = cef_plugin_policy_t::PLUGIN_POLICY_DISABLE as isize,
 }
 
 ref_counted_ptr!{

@@ -16,17 +16,17 @@ use std::{
 use crate::string::{CefString, CefStringList, CefStringListIntoIter};
 
 #[derive(Debug, Eq, PartialEq)]
-#[repr(i32)]
+#[repr(C)]
 pub(crate) enum ValueType {
-    Invalid = cef_value_type_t::VTYPE_INVALID as i32,
-    Null = cef_value_type_t::VTYPE_NULL as i32,
-    Bool = cef_value_type_t::VTYPE_BOOL as i32,
-    Int = cef_value_type_t::VTYPE_INT as i32,
-    Double = cef_value_type_t::VTYPE_DOUBLE as i32,
-    String = cef_value_type_t::VTYPE_STRING as i32,
-    Binary = cef_value_type_t::VTYPE_BINARY as i32,
-    Dictionary = cef_value_type_t::VTYPE_DICTIONARY as i32,
-    List = cef_value_type_t::VTYPE_LIST as i32,
+    Invalid = cef_value_type_t::VTYPE_INVALID as isize,
+    Null = cef_value_type_t::VTYPE_NULL as isize,
+    Bool = cef_value_type_t::VTYPE_BOOL as isize,
+    Int = cef_value_type_t::VTYPE_INT as isize,
+    Double = cef_value_type_t::VTYPE_DOUBLE as isize,
+    String = cef_value_type_t::VTYPE_STRING as isize,
+    Binary = cef_value_type_t::VTYPE_BINARY as isize,
+    Dictionary = cef_value_type_t::VTYPE_DICTIONARY as isize,
+    List = cef_value_type_t::VTYPE_LIST as isize,
 }
 
 #[derive(Debug, Clone)]

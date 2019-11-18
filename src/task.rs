@@ -5,16 +5,16 @@ use cef_sys::{
 };
 use parking_lot::Mutex;
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum ThreadId {
-    UI = cef_thread_id_t::TID_UI,
-    FileBackground = cef_thread_id_t::TID_FILE_BACKGROUND,
-    FileUserVisible = cef_thread_id_t::TID_FILE_USER_VISIBLE,
-    FileUserBlocking = cef_thread_id_t::TID_FILE_USER_BLOCKING,
-    ProcessLauncher = cef_thread_id_t::TID_PROCESS_LAUNCHER,
-    IO = cef_thread_id_t::TID_IO,
-    Renderer = cef_thread_id_t::TID_RENDERER,
+    UI = cef_thread_id_t::TID_UI as isize,
+    FileBackground = cef_thread_id_t::TID_FILE_BACKGROUND as isize,
+    FileUserVisible = cef_thread_id_t::TID_FILE_USER_VISIBLE as isize,
+    FileUserBlocking = cef_thread_id_t::TID_FILE_USER_BLOCKING as isize,
+    ProcessLauncher = cef_thread_id_t::TID_PROCESS_LAUNCHER as isize,
+    IO = cef_thread_id_t::TID_IO as isize,
+    Renderer = cef_thread_id_t::TID_RENDERER as isize,
 }
 
 ref_counted_ptr! {

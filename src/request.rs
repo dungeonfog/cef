@@ -12,37 +12,37 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 /// if the `--no-referrers` command-line flag is specified then the policy value
 /// will be ignored and the Referrer value will never be sent.
 /// Must be kept synchronized with `net::URLRequest::ReferrerPolicy` from Chromium.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ReferrerPolicy {
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
-    Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as i32,
+    Default = cef_referrer_policy_t::REFERRER_POLICY_DEFAULT as isize,
     /// A slight variant on CLEAR_REFERRER_ON_TRANSITION_FROM_SECURE_TO_INSECURE (Default):
     /// if the request destination is HTTP, an HTTPS referrer will be cleared. if
     /// the request's destination is cross-origin with the referrer (but does not
     /// downgrade), the referrer's granularity will be stripped down to an origin
     /// rather than a full URL. Same-origin requests will send the full referrer.
-    ReduceReferrerGranularityOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN as i32,
+    ReduceReferrerGranularityOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_REDUCE_REFERRER_GRANULARITY_ON_TRANSITION_CROSS_ORIGIN as isize,
     /// Strip the referrer down to an origin when the origin of the referrer is
     /// different from the destination's origin.
-    OriginOnlyOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN as i32,
+    OriginOnlyOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_ONLY_ON_TRANSITION_CROSS_ORIGIN as isize,
     /// Never change the referrer.
-    NeverClearReferrer = cef_referrer_policy_t::REFERRER_POLICY_NEVER_CLEAR_REFERRER as i32,
+    NeverClearReferrer = cef_referrer_policy_t::REFERRER_POLICY_NEVER_CLEAR_REFERRER as isize,
     /// Strip the referrer down to the origin regardless of the redirect location.
-    Origin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN as i32,
+    Origin = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN as isize,
     /// Clear the referrer when the request's referrer is cross-origin with the
     /// request's destination.
-    ClearReferrerOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN as i32,
+    ClearReferrerOnTransitionCrossOrigin = cef_referrer_policy_t::REFERRER_POLICY_CLEAR_REFERRER_ON_TRANSITION_CROSS_ORIGIN as isize,
     /// Strip the referrer down to the origin, but clear it entirely if the
     /// referrer value is HTTPS and the destination is HTTP.
-    OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE as i32,
+    OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE as isize,
     /// Always clear the referrer regardless of the request destination.
-    NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as i32,
+    NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as isize,
 }
 
 /// Flags used to customize the behavior of [URLRequest].
-#[repr(i32)]
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq)]
 pub enum URLRequestFlags {
     /// if set the cache will be skipped when handling the request. Setting this
@@ -102,54 +102,54 @@ impl URLRequestFlags {
 }
 
 /// Resource type for a request.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ResourceType {
     /// Top level page.
-    MainFrame = cef_resource_type_t::RT_MAIN_FRAME as i32,
+    MainFrame = cef_resource_type_t::RT_MAIN_FRAME as isize,
     /// Frame or iframe.
-    SubFrame = cef_resource_type_t::RT_SUB_FRAME as i32,
+    SubFrame = cef_resource_type_t::RT_SUB_FRAME as isize,
     /// CSS stylesheet.
-    Stylesheet = cef_resource_type_t::RT_STYLESHEET as i32,
+    Stylesheet = cef_resource_type_t::RT_STYLESHEET as isize,
     /// External script.
-    Script = cef_resource_type_t::RT_SCRIPT as i32,
+    Script = cef_resource_type_t::RT_SCRIPT as isize,
     /// Image (jpg/gif/png/etc).
-    Image = cef_resource_type_t::RT_IMAGE as i32,
+    Image = cef_resource_type_t::RT_IMAGE as isize,
     /// Font.
-    FontResource = cef_resource_type_t::RT_FONT_RESOURCE as i32,
+    FontResource = cef_resource_type_t::RT_FONT_RESOURCE as isize,
     /// Some other subresource. This is the default type if the actual type is
     /// unknown.
-    SubResource = cef_resource_type_t::RT_SUB_RESOURCE as i32,
+    SubResource = cef_resource_type_t::RT_SUB_RESOURCE as isize,
     /// Object (or embed) tag for a plugin, or a resource that a plugin requested.
-    Object = cef_resource_type_t::RT_OBJECT as i32,
+    Object = cef_resource_type_t::RT_OBJECT as isize,
     /// Media resource.
-    Media = cef_resource_type_t::RT_MEDIA as i32,
+    Media = cef_resource_type_t::RT_MEDIA as isize,
     /// Main resource of a dedicated worker.
-    Worker = cef_resource_type_t::RT_WORKER as i32,
+    Worker = cef_resource_type_t::RT_WORKER as isize,
     /// Main resource of a shared worker.
-    SharedWorker = cef_resource_type_t::RT_SHARED_WORKER as i32,
+    SharedWorker = cef_resource_type_t::RT_SHARED_WORKER as isize,
     /// Explicitly requested prefetch.
-    Prefetch = cef_resource_type_t::RT_PREFETCH as i32,
+    Prefetch = cef_resource_type_t::RT_PREFETCH as isize,
     /// Favicon.
-    Favicon = cef_resource_type_t::RT_FAVICON as i32,
+    Favicon = cef_resource_type_t::RT_FAVICON as isize,
     /// XMLHttpRequest.
-    XHR = cef_resource_type_t::RT_XHR as i32,
+    XHR = cef_resource_type_t::RT_XHR as isize,
     /// A request for a <ping>
-    Ping = cef_resource_type_t::RT_PING as i32,
+    Ping = cef_resource_type_t::RT_PING as isize,
     /// Main resource of a service worker.
-    ServiceWorker = cef_resource_type_t::RT_SERVICE_WORKER as i32,
+    ServiceWorker = cef_resource_type_t::RT_SERVICE_WORKER as isize,
     /// A report of Content Security Policy violations.
-    CSPReport = cef_resource_type_t::RT_CSP_REPORT as i32,
+    CSPReport = cef_resource_type_t::RT_CSP_REPORT as isize,
     /// A resource that a plugin requested.
-    PluginResource = cef_resource_type_t::RT_PLUGIN_RESOURCE as i32,
+    PluginResource = cef_resource_type_t::RT_PLUGIN_RESOURCE as isize,
 }
 
-#[repr(i32)]
+#[repr(C)]
 #[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum PostDataElementType {
-    Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY as i32,
-    Bytes = cef_postdataelement_type_t::PDE_TYPE_BYTES as i32,
-    File = cef_postdataelement_type_t::PDE_TYPE_FILE as i32,
+    Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY as isize,
+    Bytes = cef_postdataelement_type_t::PDE_TYPE_BYTES as isize,
+    File = cef_postdataelement_type_t::PDE_TYPE_FILE as isize,
 }
 
 ref_counted_ptr! {

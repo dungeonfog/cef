@@ -7,13 +7,13 @@ use crate::{
 };
 
 /// Existing process IDs.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
 pub enum ProcessId {
     /// Browser process.
-    Browser = cef_process_id_t::PID_BROWSER as i32,
+    Browser = cef_process_id_t::PID_BROWSER as isize,
     /// Renderer process.
-    Renderer = cef_process_id_t::PID_RENDERER as i32,
+    Renderer = cef_process_id_t::PID_RENDERER as isize,
 }
 
 ref_counted_ptr! {

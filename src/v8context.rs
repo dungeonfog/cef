@@ -420,15 +420,15 @@ impl From<V8StackTrace> for Vec<V8StackFrame> {
 }
 
 /// V8 property attribute values.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum V8PropertyAttribute {
     /// Not writeable
-    ReadOnly = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_READONLY.0,
+    ReadOnly = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_READONLY.0 as isize,
     /// Not enumerable
-    DontEnum = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTENUM.0,
+    DontEnum = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTENUM.0 as isize,
     /// Not configurable
-    DontDelete = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTDELETE.0,
+    DontDelete = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTDELETE.0 as isize,
 }
 
 impl V8PropertyAttribute {
@@ -451,12 +451,12 @@ impl V8PropertyAttribute {
 }
 
 /// V8 access control values.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum V8AccessControl {
-    AllCanRead = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_READ.0,
-    AllCanWrite = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_WRITE.0,
-    ProhibitsOverwriting = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING.0,
+    AllCanRead = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_READ.0 as isize,
+    AllCanWrite = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_WRITE.0 as isize,
+    ProhibitsOverwriting = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING.0 as isize,
 }
 
 impl V8AccessControl {

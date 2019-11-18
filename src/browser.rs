@@ -130,15 +130,15 @@ impl Browser {
 }
 
 /// Represents the state of a setting.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum State {
     /// Use the default state for the setting.
-    Default = cef_state_t::STATE_DEFAULT,
+    Default = cef_state_t::STATE_DEFAULT as isize,
     /// Enable or allow the setting.
-    Enabled = cef_state_t::STATE_ENABLED,
+    Enabled = cef_state_t::STATE_ENABLED as isize,
     /// Disable or disallow the setting.
-    Disabled = cef_state_t::STATE_DISABLED,
+    Disabled = cef_state_t::STATE_DISABLED as isize,
 }
 
 impl Into<cef_state_t::Type> for State {

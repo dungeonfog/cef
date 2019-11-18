@@ -33,17 +33,17 @@ bitflags!{
 
 // Supported SSL version values. See net/ssl/ssl_connection_status_flags.h
 // for more information.
-#[repr(i32)]
+#[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, UnsafeFromPrimitive)]
 pub enum SSLVersion {
-    Unknown = cef_ssl_version_t::SSL_CONNECTION_VERSION_UNKNOWN,
-    SSL2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL2,
-    SSL3 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL3,
-    TLS1 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1,
-    TLS1_1 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_1,
-    TLS1_2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_2,
-    TLS1_3 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_3,
-    QUIC = cef_ssl_version_t::SSL_CONNECTION_VERSION_QUIC,
+    Unknown = cef_ssl_version_t::SSL_CONNECTION_VERSION_UNKNOWN as isize,
+    SSL2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL2 as isize,
+    SSL3 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL3 as isize,
+    TLS1 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1 as isize,
+    TLS1_1 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_1 as isize,
+    TLS1_2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_2 as isize,
+    TLS1_3 = cef_ssl_version_t::SSL_CONNECTION_VERSION_TLS1_3 as isize,
+    QUIC = cef_ssl_version_t::SSL_CONNECTION_VERSION_QUIC as isize,
 }
 
 bitflags!{
