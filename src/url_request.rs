@@ -6,7 +6,6 @@ use cef_sys::{
     cef_response_filter_t, cef_response_t, cef_string_t, cef_urlrequest_client_t,
     cef_urlrequest_create, cef_urlrequest_status_t, cef_urlrequest_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use std::{
     convert::TryInto,
     ptr::null_mut,
@@ -27,7 +26,7 @@ use crate::{
 
 /// Flags that represent [URLRequest] status.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum URLRequestStatus {
     /// Unknown status.
     Unknown = cef_urlrequest_status_t::UR_UNKNOWN as isize,
@@ -40,6 +39,12 @@ pub enum URLRequestStatus {
     Canceled = cef_urlrequest_status_t::UR_CANCELED as isize,
     /// Request failed for some reason.
     Failed = cef_urlrequest_status_t::UR_FAILED as isize,
+}
+
+impl URLRequestStatus {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr! {
@@ -95,7 +100,7 @@ impl URLRequest {
     pub fn get_request_status(&self) -> URLRequestStatus {
         unsafe {
             URLRequestStatus::from_unchecked(
-                self.0.get_request_status.unwrap()(self.as_ptr()) as i32
+                self.0.get_request_status.unwrap()(self.as_ptr()) as crate::CEnumType
             )
         }
     }
@@ -429,11 +434,17 @@ cef_callback_impl! {
 }
 
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, Debug, UnsafeFromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq, Debug)]
 pub enum ResponseFilterStatus {
     NeedMoreData = cef_response_filter_status_t::RESPONSE_FILTER_NEED_MORE_DATA as isize,
     Done = cef_response_filter_status_t::RESPONSE_FILTER_DONE as isize,
     Error = cef_response_filter_status_t::RESPONSE_FILTER_ERROR as isize,
+}
+
+impl ResponseFilterStatus {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr!{

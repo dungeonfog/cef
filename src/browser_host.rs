@@ -1,3 +1,4 @@
+use cef_sys::cef_drag_operations_mask_t;
 use crate::{
     browser::{Browser, BrowserSettings, State},
     client::{Client},
@@ -21,7 +22,6 @@ use cef_sys::{
     cef_navigation_entry_visitor_t, cef_paint_element_type_t, cef_pdf_print_callback_t,
     cef_string_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use parking_lot::Mutex;
 use std::{
     collections::HashMap,
@@ -31,10 +31,16 @@ use std::{
 
 /// Paint element types.
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum PaintElementType {
     View = cef_paint_element_type_t::PET_VIEW as isize,
     Popup = cef_paint_element_type_t::PET_POPUP as isize,
+}
+
+impl PaintElementType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr! {
@@ -514,7 +520,7 @@ impl BrowserHost {
     pub fn invalidate(&self, element_type: PaintElementType) {
         if let Some(invalidate) = self.0.invalidate {
             unsafe {
-                invalidate(self.0.as_ptr(), element_type as i32);
+                invalidate(self.0.as_ptr(), element_type as crate::CEnumType);
             }
         }
     }
@@ -549,7 +555,7 @@ impl BrowserHost {
                 send_mouse_click_event(
                     self.0.as_ptr(),
                     event.as_cef(),
-                    button_type as i32,
+                    button_type as crate::CEnumType,
                     mouse_up as i32,
                     click_count,
                 );
@@ -733,7 +739,7 @@ impl BrowserHost {
         &self,
         drag_data: &DragData,
         event: &MouseEvent,
-        allowed_ops: &[DragOperation],
+        allowed_ops: DragOperation,
     ) {
         if let Some(drag_target_drag_enter) = self.0.drag_target_drag_enter {
             unsafe {
@@ -741,7 +747,7 @@ impl BrowserHost {
                     self.0.as_ptr(),
                     drag_data.as_ptr(),
                     event.as_cef(),
-                    DragOperation::as_mask(allowed_ops.iter()),
+                    cef_drag_operations_mask_t(allowed_ops.bits()),
                 );
             }
         }
@@ -750,13 +756,13 @@ impl BrowserHost {
     /// a drag operation (after calling [BrowserHost::drag_target_drag_enter] and before calling
     /// [BrowserHost::drag_target_drag_leave]/[BrowserHost::drag_target_drop]). This function is only used when window
     /// rendering is disabled.
-    pub fn drag_target_drag_over(&self, event: &MouseEvent, allowed_ops: &[DragOperation]) {
+    pub fn drag_target_drag_over(&self, event: &MouseEvent, allowed_ops: DragOperation) {
         if let Some(drag_target_drag_over) = self.0.drag_target_drag_over {
             unsafe {
                 drag_target_drag_over(
                     self.0.as_ptr(),
                     event.as_cef(),
-                    DragOperation::as_mask(allowed_ops.iter()),
+                    cef_drag_operations_mask_t(allowed_ops.bits()),
                 );
             }
         }
@@ -790,10 +796,10 @@ impl BrowserHost {
     /// drag target then all drag_target_* functions should be called before
     /// drag_source_* methods. This function is only used when window rendering is
     /// disabled.
-    pub fn drag_source_ended_at(&self, x: i32, y: i32, op: &[DragOperation]) {
+    pub fn drag_source_ended_at(&self, x: i32, y: i32, op: DragOperation) {
         if let Some(drag_source_ended_at) = self.0.drag_source_ended_at {
             unsafe {
-                drag_source_ended_at(self.0.as_ptr(), x, y, DragOperation::as_mask(op.iter()));
+                drag_source_ended_at(self.0.as_ptr(), x, y, cef_drag_operations_mask_t(op.bits()));
             }
         }
     }
@@ -843,7 +849,7 @@ impl BrowserHost {
     pub fn set_accessibility_state(&self, accessibility_state: State) {
         if let Some(set_accessibility_state) = self.0.set_accessibility_state {
             unsafe {
-                set_accessibility_state(self.0.as_ptr(), accessibility_state as i32);
+                set_accessibility_state(self.0.as_ptr(), accessibility_state as crate::CEnumType);
             }
         }
     }

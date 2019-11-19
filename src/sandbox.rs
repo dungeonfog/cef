@@ -1,3 +1,4 @@
+#[cfg(target_os = "windows")]
 use cef_sys::{cef_sandbox_info_create, cef_sandbox_info_destroy};
 
 /// The sandbox is used to restrict sub-processes (renderer, plugin, GPU, etc)
@@ -20,7 +21,14 @@ impl SandboxInfo {
     /// multiple of this object and to drop the object immediately after passing
     /// into the [App::execute_process] and/or [App::initialize] functions.
     pub fn new() -> Self {
-        Self(unsafe { cef_sandbox_info_create() })
+        #[cfg(target_os = "windows")]
+        {
+            Self(unsafe { cef_sandbox_info_create() })
+        }
+        #[cfg(not(target_os = "windows"))]
+        {
+            Self(std::ptr::null_mut())
+        }
     }
     pub(crate) fn get(&self) -> *mut std::os::raw::c_void {
         self.0
@@ -36,6 +44,7 @@ impl Default for SandboxInfo {
 impl Drop for SandboxInfo {
     /// Destroy the specified sandbox information object.
     fn drop(&mut self) {
+        #[cfg(target_os = "windows")]
         unsafe {
             cef_sandbox_info_destroy(self.0);
         }

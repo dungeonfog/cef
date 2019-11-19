@@ -2,7 +2,6 @@ use cef_sys::{
     cef_browser_t, cef_errorcode_t, cef_frame_t, cef_load_handler_t, cef_string_t,
     cef_transition_type_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use std::{convert::TryFrom};
 use bitflags::bitflags;
 use crate::{
@@ -15,7 +14,7 @@ use crate::{
 bitflags!{
     /// Any of the core values in [TransitionType] can be augmented by one or more qualifiers.
     /// These qualifiers further define the transition.
-    pub struct TransitionTypeQualifiers: i32 {
+    pub struct TransitionTypeQualifiers: crate::CEnumType {
         /// Attempted to visit a URL but was blocked.
         const BLOCKED = cef_transition_type_t::TT_BLOCKED_FLAG.0;
         /// Used the Forward or Back function to navigate among browsing history.
@@ -72,10 +71,11 @@ pub enum TransitionType {
     Reload(TransitionTypeQualifiers),
 }
 
-impl TryFrom<i32> for TransitionType {
+impl TryFrom<crate::CEnumType> for TransitionType {
     type Error = ();
-    fn try_from(value: i32) -> Result<Self, Self::Error> {
+    fn try_from(value: crate::CEnumType) -> Result<Self, Self::Error> {
         let flags = TransitionTypeQualifiers::from_bits_truncate(value);
+        let value = value as crate::CEnumType;
         match value & cef_transition_type_t::TT_SOURCE_MASK.0 {
             x if x == cef_transition_type_t::TT_LINK.0 => Ok(Self::Link(flags)),
             x if x == cef_transition_type_t::TT_EXPLICIT.0 => Ok(Self::Explicit(flags)),
@@ -108,7 +108,7 @@ fn test_c_enum_size() {
 ///   700-799 Certificate manager errors
 ///   800-899 DNS resolver errors
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash, UnsafeFromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ErrorCode {
     // this list is generated from cef_net_error_list.h using regex magic
     /// No error.
@@ -985,6 +985,12 @@ pub enum ErrorCode {
 
     /// Failed to resolve over HTTP, fallback to legacy
     DnsHttpFailed = cef_errorcode_t::ERR_DNS_HTTP_FAILED as isize,
+}
+
+impl ErrorCode {
+    pub unsafe fn from_unchecked(c: i32) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr!{

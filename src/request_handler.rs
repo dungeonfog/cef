@@ -13,7 +13,6 @@ use cef_sys::{
     cef_select_client_certificate_callback_t, cef_request_handler_t, cef_termination_status_t,
     cef_window_open_disposition_t, cef_errorcode_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use std::{ptr::null_mut};
 
 use crate::{
@@ -29,7 +28,7 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum WindowOpenDisposition {
     Unknown = cef_window_open_disposition_t::WOD_UNKNOWN as isize,
     CurrentTab = cef_window_open_disposition_t::WOD_CURRENT_TAB as isize,
@@ -43,13 +42,25 @@ pub enum WindowOpenDisposition {
     IgnoreAction = cef_window_open_disposition_t::WOD_IGNORE_ACTION as isize,
 }
 
+impl WindowOpenDisposition {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
+
 #[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Debug, Copy, Clone, PartialEq, Eq)]
 pub enum TerminationStatus {
     AbnormalTermination = cef_termination_status_t::TS_ABNORMAL_TERMINATION as isize,
     ProcessWasKilled = cef_termination_status_t::TS_PROCESS_WAS_KILLED as isize,
     ProcessCrashed = cef_termination_status_t::TS_PROCESS_CRASHED as isize,
     ProcessOom = cef_termination_status_t::TS_PROCESS_OOM as isize,
+}
+
+impl TerminationStatus {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr!{

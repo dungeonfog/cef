@@ -2,13 +2,12 @@ use cef_sys::{
     cef_event_flags_t, cef_key_event_t, cef_key_event_type_t, cef_mouse_button_type_t,
     cef_mouse_event_t, cef_pointer_type_t, cef_touch_event_t, cef_touch_event_type_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use bitflags::bitflags;
 use std::mem;
 
 bitflags!{
     #[derive(Default)]
-    pub struct EventFlags: u32 {
+    pub struct EventFlags: crate::CEnumType {
         const CAPS_LOCK_ON = cef_event_flags_t::EVENTFLAG_CAPS_LOCK_ON.0 as _;
         const SHIFT_DOWN = cef_event_flags_t::EVENTFLAG_SHIFT_DOWN.0 as _;
         const CONTROL_DOWN = cef_event_flags_t::EVENTFLAG_CONTROL_DOWN.0 as _;
@@ -25,8 +24,8 @@ bitflags!{
 }
 
 impl EventFlags {
-    pub unsafe fn from_unchecked(i: i32) -> EventFlags {
-        EventFlags::from_bits_unchecked(i as _)
+    pub unsafe fn from_unchecked(i: crate::CEnumType) -> EventFlags {
+        EventFlags::from_bits_unchecked(i)
     }
 }
 
@@ -63,7 +62,7 @@ impl KeyEvent {
         match *self {
             KeyEvent::KeyDown{modifiers, windows_key_code, is_system_key, focus_on_editable_field} => cef_key_event_t {
                 type_: cef_key_event_type_t::KEYEVENT_KEYDOWN,
-                modifiers: modifiers.bits(),
+                modifiers: modifiers.bits() as _,
                 windows_key_code: windows_key_code.0,
                 is_system_key: is_system_key as _,
                 focus_on_editable_field: focus_on_editable_field as _,
@@ -71,7 +70,7 @@ impl KeyEvent {
             },
             KeyEvent::KeyUp{modifiers, windows_key_code, is_system_key, focus_on_editable_field} => cef_key_event_t {
                 type_: cef_key_event_type_t::KEYEVENT_KEYUP,
-                modifiers: modifiers.bits(),
+                modifiers: modifiers.bits() as _,
                 windows_key_code: windows_key_code.0,
                 is_system_key: is_system_key as _,
                 focus_on_editable_field: focus_on_editable_field as _,
@@ -79,7 +78,7 @@ impl KeyEvent {
             },
             KeyEvent::Char{modifiers, char} => cef_key_event_t {
                 type_: cef_key_event_type_t::KEYEVENT_CHAR,
-                modifiers: modifiers.bits(),
+                modifiers: modifiers.bits() as _,
                 windows_key_code: char as _,
                 ..unsafe{ mem::zeroed() }
             }
@@ -98,19 +97,19 @@ impl From<cef_key_event_t> for KeyEvent {
         match event.type_ {
             cef_key_event_type_t::KEYEVENT_KEYDOWN |
             cef_key_event_type_t::KEYEVENT_RAWKEYDOWN => KeyEvent::KeyDown {
-                modifiers: EventFlags::from_bits_truncate(event.modifiers),
+                modifiers: EventFlags::from_bits_truncate(event.modifiers as _),
                 windows_key_code: WindowsKeyCode(event.windows_key_code),
                 is_system_key: event.is_system_key != 0,
                 focus_on_editable_field: event.focus_on_editable_field != 0,
             },
             cef_key_event_type_t::KEYEVENT_KEYUP => KeyEvent::KeyUp {
-                modifiers: EventFlags::from_bits_truncate(event.modifiers),
+                modifiers: EventFlags::from_bits_truncate(event.modifiers as _),
                 windows_key_code: WindowsKeyCode(event.windows_key_code),
                 is_system_key: event.is_system_key != 0,
                 focus_on_editable_field: event.focus_on_editable_field != 0,
             },
             cef_key_event_type_t::KEYEVENT_CHAR => KeyEvent::Char {
-                modifiers: EventFlags::from_bits_truncate(event.modifiers),
+                modifiers: EventFlags::from_bits_truncate(event.modifiers as _),
                 char: std::char::from_u32(event.windows_key_code as u32).unwrap_or('\0'),
             },
             _ => panic!("invalid event"),
@@ -120,11 +119,17 @@ impl From<cef_key_event_t> for KeyEvent {
 
 /// Mouse button types.
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MouseButtonType {
     Left = cef_mouse_button_type_t::MBT_LEFT as isize,
     Middle = cef_mouse_button_type_t::MBT_MIDDLE as isize,
     Right = cef_mouse_button_type_t::MBT_RIGHT as isize,
+}
+
+impl MouseButtonType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 /// Structure representing mouse event information.
@@ -155,7 +160,7 @@ impl Into<cef_mouse_event_t> for MouseEvent {
 
 bitflags!{
     #[derive(Default)]
-    pub struct TouchEventType: i32 {
+    pub struct TouchEventType: crate::CEnumType {
         const RELEASED = cef_touch_event_type_t::CEF_TET_RELEASED as _;
         const PRESSED = cef_touch_event_type_t::CEF_TET_PRESSED as _;
         const MOVED = cef_touch_event_type_t::CEF_TET_MOVED as _;
@@ -164,7 +169,7 @@ bitflags!{
 }
 
 impl TouchEventType {
-    pub unsafe fn from_unchecked(i: i32) -> TouchEventType {
+    pub unsafe fn from_unchecked(i: crate::CEnumType) -> TouchEventType {
         TouchEventType::from_bits_unchecked(i)
     }
 }
@@ -172,7 +177,7 @@ impl TouchEventType {
 bitflags!{
     /// The device type that caused the event.
     #[derive(Default)]
-    pub struct PointerType: i32 {
+    pub struct PointerType: crate::CEnumType {
         const TOUCH = cef_pointer_type_t::CEF_POINTER_TYPE_TOUCH as _;
         const MOUSE = cef_pointer_type_t::CEF_POINTER_TYPE_MOUSE as _;
         const PEN = cef_pointer_type_t::CEF_POINTER_TYPE_PEN as _;
@@ -182,7 +187,7 @@ bitflags!{
 }
 
 impl PointerType {
-    pub unsafe fn from_unchecked(i: i32) -> PointerType {
+    pub unsafe fn from_unchecked(i: crate::CEnumType) -> PointerType {
         PointerType::from_bits_unchecked(i)
     }
 }

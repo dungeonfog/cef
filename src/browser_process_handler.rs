@@ -83,8 +83,6 @@ impl BrowserProcessHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn BrowserProcessHandlerCallbacks>) -> BrowserProcessHandlerWrapper {
         Self {
             delegate,
-            #[cfg(target_os = "linux")]
-            print_handler: None,
         }
     }
 }
@@ -109,21 +107,8 @@ cef_callback_impl! {
         #[cfg(target_os = "linux")]
         fn get_print_handler(
             &self
-        ) -> *mut cef_print_handler_t {
-
-            if let Some(handler) = self.delegate.get_print_handler() {
-                let wrapper = PrintHandlerWrapper::new(handler);
-                this.print_handler = wrapper;
-                wrapper as *mut cef_print_handler_t
-            } else {
-                if !this.print_handler.is_null() {
-                    RefCounted::<cef_print_handler_t>::release(
-                        (*this).print_handler as *mut cef_base_ref_counted_t,
-                    );
-                    this.print_handler = null_mut();
-                }
-                null_mut()
-            }
+        ) -> *mut cef_sys::cef_print_handler_t {
+            self.delegate.get_print_handler().map(|h| h.into_raw()).unwrap_or(std::ptr::null_mut())
         }
         fn schedule_message_pump_work(
             &self,

@@ -11,7 +11,7 @@ use crate::{
 use bitflags::bitflags;
 
 bitflags!{
-    pub struct FileDialogModeFlags: i32 {
+    pub struct FileDialogModeFlags: crate::CEnumType {
         const OVERWRITE_PROMPT = cef_file_dialog_mode_t::FILE_DIALOG_OVERWRITEPROMPT_FLAG.0;
         const HIDE_READ_ONLY = cef_file_dialog_mode_t::FILE_DIALOG_HIDEREADONLY_FLAG.0;
     }

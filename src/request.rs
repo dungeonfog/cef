@@ -3,7 +3,6 @@ use cef_sys::{
     cef_postdataelement_type_t, cef_referrer_policy_t, cef_request_create, cef_request_t,
     cef_resource_type_t, cef_string_userfree_utf16_free,
 };
-use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap, convert::TryFrom, ptr::null_mut};
 
 use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString};
@@ -13,7 +12,7 @@ use crate::{load_handler::TransitionType, multimap::MultiMap, string::CefString}
 /// will be ignored and the Referrer value will never be sent.
 /// Must be kept synchronized with `net::URLRequest::ReferrerPolicy` from Chromium.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ReferrerPolicy {
     /// Clear the referrer header if the header value is HTTPS but the request
     /// destination is HTTP. This is the default behavior.1
@@ -39,6 +38,12 @@ pub enum ReferrerPolicy {
     OriginClearOnTransitionFromSecureToInsecure = cef_referrer_policy_t::REFERRER_POLICY_ORIGIN_CLEAR_ON_TRANSITION_FROM_SECURE_TO_INSECURE as isize,
     /// Always clear the referrer regardless of the request destination.
     NoReferrer = cef_referrer_policy_t::REFERRER_POLICY_NO_REFERRER as isize,
+}
+
+impl ReferrerPolicy {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 /// Flags used to customize the behavior of [URLRequest].
@@ -103,7 +108,7 @@ impl URLRequestFlags {
 
 /// Resource type for a request.
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum ResourceType {
     /// Top level page.
     MainFrame = cef_resource_type_t::RT_MAIN_FRAME as isize,
@@ -144,12 +149,24 @@ pub enum ResourceType {
     PluginResource = cef_resource_type_t::RT_PLUGIN_RESOURCE as isize,
 }
 
+impl ResourceType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
+
 #[repr(C)]
-#[derive(Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub enum PostDataElementType {
     Empty = cef_postdataelement_type_t::PDE_TYPE_EMPTY as isize,
     Bytes = cef_postdataelement_type_t::PDE_TYPE_BYTES as isize,
     File = cef_postdataelement_type_t::PDE_TYPE_FILE as isize,
+}
+
+impl PostDataElementType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr! {
@@ -245,7 +262,7 @@ impl Request {
         self.0
             .get_referrer_policy
             .map(|get_referrer_policy| unsafe {
-                ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as i32)
+                ReferrerPolicy::from_unchecked(get_referrer_policy(self.0.as_ptr()) as crate::CEnumType)
             })
             .unwrap_or(ReferrerPolicy::Default)
     }
@@ -375,7 +392,7 @@ impl Request {
         unsafe {
             ResourceType::from_unchecked(((*self.0.as_ptr()).get_resource_type).unwrap()(
                 self.0.as_ptr(),
-            ) as i32)
+            ) as crate::CEnumType)
         }
     }
     /// Get the transition type for this request. Only available in the browser
@@ -544,7 +561,7 @@ impl PostDataElement {
     /// Return the type of this post data element.
     pub fn get_type(&self) -> PostDataElementType {
         if let Some(get_type) = self.0.get_type {
-            unsafe { PostDataElementType::from_unchecked(get_type(self.as_ptr()) as i32) }
+            unsafe { PostDataElementType::from_unchecked(get_type(self.as_ptr()) as crate::CEnumType) }
         } else {
             PostDataElementType::Empty
         }

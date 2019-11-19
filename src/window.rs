@@ -1,6 +1,5 @@
 use crate::string::CefString;
 use cef_sys::{cef_window_info_t, cef_window_handle_t};
-use std::ptr;
 use raw_window_handle::{HasRawWindowHandle, RawWindowHandle};
 
 pub struct RawWindow(RawWindowHandle);
@@ -14,7 +13,7 @@ impl RawWindow {
         #[cfg(target_os = "windows")]
         {
             use raw_window_handle::windows::WindowsHandle;
-            if window != ptr::null_mut() {
+            if window != std::ptr::null_mut() {
                 Some(RawWindow(RawWindowHandle::Windows(WindowsHandle { hwnd: window as *mut _ as _, ..WindowsHandle::empty() })))
             } else {
                 None
@@ -27,6 +26,23 @@ impl RawWindow {
                 None
             } else {
                 Some(RawWindow(RawWindowHandle::Xlib(XlibHandle { window, ..XlibHandle::empty() })))
+            }
+        }
+    }
+
+    pub fn to_cef_handle(&self) -> cef_window_handle_t {
+        #[cfg(target_os = "windows")]
+        {
+            match self.0 {
+                RawWindowHandle::Windows(windows_handle) => windows_handle.hwnd as _,
+                _ => panic!(),
+            }
+        }
+        #[cfg(target_os = "linux")]
+        {
+            match self.0 {
+                RawWindowHandle::Xlib(xlib_handle) => xlib_handle.window as _,
+                _ => panic!(),
             }
         }
     }
@@ -119,7 +135,6 @@ impl WindowInfo {
 
         #[cfg(target_os = "linux")]
         {
-            use raw_window_handle::unix::XlibHandle;
             WindowInfo {
                 window_name: CefString::from_ptr_unchecked(&info.window_name).into(),
                 x: info.x as _,
@@ -140,10 +155,6 @@ impl WindowInfo {
 #[cfg(target_os = "windows")]
 impl<'a> From<&'a WindowInfo> for cef_window_info_t {
     fn from(info: &'a WindowInfo) -> cef_window_info_t {
-        let unwrap_hwnd = |r: &RawWindow| match r.0 {
-            RawWindowHandle::Windows(windows_handle) => windows_handle.hwnd,
-            _ => panic!(),
-        };
         cef_window_info_t {
             ex_style: info.platform_specific.ex_style,
             window_name: CefString::new(&info.window_name).into_raw(),
@@ -152,8 +163,8 @@ impl<'a> From<&'a WindowInfo> for cef_window_info_t {
             y: info.y as _,
             width: info.width as _,
             height: info.height as _,
-            parent_window: info.parent_window.as_ref().map(unwrap_hwnd).map(|h| h as _).unwrap_or(ptr::null_mut()),
-            window: info.window.as_ref().map(unwrap_hwnd).map(|h| h as _).unwrap_or(ptr::null_mut()),
+            parent_window: info.parent_window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(std::ptr::null_mut()),
+            window: info.window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(std::ptr::null_mut()),
             menu: info.platform_specific.menu as _,
             windowless_rendering_enabled: info.windowless_rendering_enabled as _,
             shared_texture_enabled: info.shared_texture_enabled as _,
@@ -165,18 +176,14 @@ impl<'a> From<&'a WindowInfo> for cef_window_info_t {
 #[cfg(target_os = "linux")]
 impl<'a> From<&'a WindowInfo> for cef_window_info_t {
     fn from(info: &'a WindowInfo) -> cef_window_info_t {
-        let unwrap_window = |r: &RawWindow| match r {
-            RawWindow(RawWindowHandle::Xlib(xlib_handle)) => xlib_handle.window,
-            _ => panic!(),
-        };
         cef_window_info_t {
             window_name: CefString::new(&info.window_name).into_raw(),
             x: info.x as _,
             y: info.y as _,
             width: info.width as _,
             height: info.height as _,
-            parent_window: info.parent_window.as_ref().map(unwrap_window).unwrap_or(0),
-            window: info.window.as_ref().map(unwrap_window).unwrap_or(0),
+            parent_window: info.parent_window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(0),
+            window: info.window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(0),
             windowless_rendering_enabled: info.windowless_rendering_enabled as _,
             shared_texture_enabled: info.shared_texture_enabled as _,
             external_begin_frame_enabled: info.external_begin_frame_enabled as _,

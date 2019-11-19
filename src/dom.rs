@@ -1,5 +1,4 @@
 use cef_sys::{cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t};
-use num_enum::UnsafeFromPrimitive;
 use std::{collections::HashMap};
 use parking_lot::Mutex;
 
@@ -11,7 +10,7 @@ use crate::{
 
 /// DOM node types.
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum DOMNodeType {
     Unsupported = cef_dom_node_type_t::DOM_NODE_TYPE_UNSUPPORTED as isize,
     Element = cef_dom_node_type_t::DOM_NODE_TYPE_ELEMENT as isize,
@@ -23,6 +22,12 @@ pub enum DOMNodeType {
     Document = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT as isize,
     DocumentType = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_TYPE as isize,
     DocumentFragment = cef_dom_node_type_t::DOM_NODE_TYPE_DOCUMENT_FRAGMENT as isize,
+}
+
+impl DOMNodeType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr! {

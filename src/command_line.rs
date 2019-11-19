@@ -62,8 +62,8 @@ impl CommandLine {
 
         unsafe {
             ((*instance).init_from_argv.unwrap())(instance, argv.len() as i32, argv.as_ptr());
+            CommandLine::from_ptr_unchecked(instance)
         }
-        Self(instance)
     }
     /// Initialize the command line with the string returned by calling
     /// GetCommandLineW(). This function is only supported on Windows.

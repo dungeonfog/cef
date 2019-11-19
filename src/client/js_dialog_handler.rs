@@ -12,7 +12,6 @@ use cef_sys::{
 };
 use std::os::raw::{c_int};
 use parking_lot::Mutex;
-use num_enum::UnsafeFromPrimitive;
 
 ref_counted_ptr!{
     /// Instantiate this structure to handle events related to JavaScript dialogs. The
@@ -28,11 +27,17 @@ ref_counted_ptr!{
 
 /// Supported JavaScript dialog types.
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum JsDialogType {
     Alert = cef_jsdialog_type_t::JSDIALOGTYPE_ALERT as isize,
     Confirm = cef_jsdialog_type_t::JSDIALOGTYPE_CONFIRM as isize,
     Prompt = cef_jsdialog_type_t::JSDIALOGTYPE_PROMPT as isize,
+}
+
+impl JsDialogType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 impl JsDialogHandler {

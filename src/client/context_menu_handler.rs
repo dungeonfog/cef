@@ -18,7 +18,6 @@ use cef_sys::{
     cef_menu_color_type_t,
     cef_menu_item_type_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use std::{
     os::raw::c_int,
 };
@@ -68,7 +67,7 @@ id!(pub struct GroupId);
 
 /// Supported color types for menu items.
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MenuColorType {
     Text = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT as isize,
     TextHovered = cef_menu_color_type_t::CEF_MENU_COLOR_TEXT_HOVERED as isize,
@@ -79,9 +78,15 @@ pub enum MenuColorType {
     Count = cef_menu_color_type_t::CEF_MENU_COLOR_COUNT as isize,
 }
 
+impl MenuColorType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
+
 /// Supported menu item types.
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MenuItemType {
     None = cef_menu_item_type_t::MENUITEMTYPE_NONE as isize,
     Command = cef_menu_item_type_t::MENUITEMTYPE_COMMAND as isize,
@@ -89,6 +94,12 @@ pub enum MenuItemType {
     Radio = cef_menu_item_type_t::MENUITEMTYPE_RADIO as isize,
     Separator = cef_menu_item_type_t::MENUITEMTYPE_SEPARATOR as isize,
     Submenu = cef_menu_item_type_t::MENUITEMTYPE_SUBMENU as isize,
+}
+
+impl MenuItemType {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 bitflags!{
@@ -136,7 +147,7 @@ impl Accelerator {
 
 bitflags!{
     /// Supported context menu type flags.
-    pub struct ContextMenuTypeFlags: i32 {
+    pub struct ContextMenuTypeFlags: crate::CEnumType {
         /// No node is selected.
         const NONE = cef_context_menu_type_flags_t::CM_TYPEFLAG_NONE.0;
         /// The top page is selected.
@@ -155,7 +166,7 @@ bitflags!{
 }
 bitflags!{
     /// Supported context menu media state bit flags.
-    pub struct ContextMenuMediaStateFlags: i32 {
+    pub struct ContextMenuMediaStateFlags: crate::CEnumType {
         const NONE = cef_context_menu_media_state_flags_t::CM_MEDIAFLAG_NONE.0;
         const ERROR = cef_context_menu_media_state_flags_t::CM_MEDIAFLAG_ERROR.0;
         const PAUSED = cef_context_menu_media_state_flags_t::CM_MEDIAFLAG_PAUSED.0;
@@ -171,7 +182,7 @@ bitflags!{
 }
 bitflags!{
     /// Supported context menu edit state bit flags.
-    pub struct ContextMenuEditStateFlags: i32 {
+    pub struct ContextMenuEditStateFlags: crate::CEnumType {
         const NONE = cef_context_menu_edit_state_flags_t::CM_EDITFLAG_NONE.0;
         const CAN_UNDO = cef_context_menu_edit_state_flags_t::CM_EDITFLAG_CAN_UNDO.0;
         const CAN_REDO = cef_context_menu_edit_state_flags_t::CM_EDITFLAG_CAN_REDO.0;

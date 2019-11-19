@@ -1,5 +1,4 @@
 use cef_sys::{cef_process_id_t, cef_process_message_t, cef_string_userfree_utf16_free};
-use num_enum::UnsafeFromPrimitive;
 
 use crate::{
     string::CefString,
@@ -8,12 +7,18 @@ use crate::{
 
 /// Existing process IDs.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum ProcessId {
     /// Browser process.
     Browser = cef_process_id_t::PID_BROWSER as isize,
     /// Renderer process.
     Renderer = cef_process_id_t::PID_RENDERER as isize,
+}
+
+impl ProcessId {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr! {

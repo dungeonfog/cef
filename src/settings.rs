@@ -1,11 +1,15 @@
-use crate::color::Color;
-use cef_sys::{cef_log_severity_t, cef_settings_t, cef_string_utf8_to_utf16};
-use num_enum::UnsafeFromPrimitive;
-use std::path::Path;
+use std::os::raw::c_int;
+use crate::{
+    color::Color,
+    string::CefString,
+};
+use cef_sys::{cef_log_severity_t, cef_settings_t};
+use std::path::PathBuf;
+use uuid::Uuid;
 
 /// Log severity levels.
 #[repr(C)]
-#[derive(Debug, PartialEq, Eq, Clone, Copy, UnsafeFromPrimitive)]
+#[derive(Debug, PartialEq, Eq, Clone, Copy)]
 pub enum LogSeverity {
     /// Default logging (currently INFO logging).
     Default = cef_log_severity_t::LOGSEVERITY_DEFAULT as isize,
@@ -24,56 +28,13 @@ pub enum LogSeverity {
     Disable = cef_log_severity_t::LOGSEVERITY_DISABLE as isize,
 }
 
-pub struct Settings(cef_settings_t);
+impl LogSeverity {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
 
-impl Settings {
-    pub fn new() -> Self {
-        Self(cef_settings_t {
-            size: std::mem::size_of::<cef_settings_t>(),
-            no_sandbox: 0,
-            browser_subprocess_path: unsafe { std::mem::zeroed() },
-            framework_dir_path: unsafe { std::mem::zeroed() },
-            main_bundle_path: unsafe { std::mem::zeroed() },
-            multi_threaded_message_loop: 0,
-            external_message_pump: 0,
-            windowless_rendering_enabled: 0,
-            command_line_args_disabled: 0,
-            cache_path: unsafe { std::mem::zeroed() },
-            root_cache_path: unsafe { std::mem::zeroed() },
-            user_data_path: unsafe { std::mem::zeroed() },
-            persist_session_cookies: 0,
-            persist_user_preferences: 0,
-            user_agent: unsafe { std::mem::zeroed() },
-            product_version: unsafe { std::mem::zeroed() },
-            locale: unsafe { std::mem::zeroed() },
-            log_file: unsafe { std::mem::zeroed() },
-            log_severity: cef_log_severity_t::LOGSEVERITY_DEFAULT,
-            javascript_flags: unsafe { std::mem::zeroed() },
-            resources_dir_path: unsafe { std::mem::zeroed() },
-            locales_dir_path: unsafe { std::mem::zeroed() },
-            pack_loading_disabled: 0,
-            remote_debugging_port: 0,
-            uncaught_exception_stack_size: 0,
-            ignore_certificate_errors: 0,
-            enable_net_security_expiration: 0,
-            background_color: 0,
-            accept_language_list: unsafe { std::mem::zeroed() },
-            application_client_id_for_file_scanning: unsafe { std::mem::zeroed() },
-        })
-    }
-    pub(crate) fn get(&self) -> *const cef_settings_t {
-        &self.0
-    }
-    pub(crate) fn get_mut(&mut self) -> *mut cef_settings_t {
-        &mut self.0
-    }
-
-    /// Call to disable the sandbox for sub-processes. See
-    /// [sandbox::SandboxInfo] for requirements to enable the sandbox on Windows. Also
-    /// configurable using the "no-sandbox" command-line switch.
-    pub fn disable_sandbox(&mut self) {
-        self.0.no_sandbox = 1;
-    }
+pub struct Settings {
     /// Set the path to a separate executable that will be launched for sub-processes.
     /// If this value is empty on Windows or Linux then the main process executable
     /// will be used. If this value is empty on macOS then a helper executable must
@@ -81,52 +42,26 @@ impl Settings {
     /// in the top-level app bundle. See the comments on [App::execute_process] for
     /// details. Also configurable using the "browser-subprocess-path" command-line
     /// switch.
-    pub fn set_browser_subprocess_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.browser_subprocess_path,
-            );
-        }
-    }
+    pub browser_subprocess_path: Option<PathBuf>,
     /// The path to the CEF framework directory on macOS. If this value is empty
     /// then the framework must exist at "Contents/Frameworks/Chromium Embedded
     /// Framework.framework" in the top-level app bundle. Also configurable using
     /// the "framework-dir-path" command-line switch.
-    #[cfg(target_os = "macos")]
-    pub fn set_framework_dir_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.framework_dir_path,
-            );
-        }
-    }
+    ///
+    /// Only applies on macOS.
+    pub framework_dir_path: Option<PathBuf>,
     /// The path to the main bundle on macOS. If this value is empty then it
     /// defaults to the top-level app bundle. Also configurable using
     /// the "main-bundle-path" command-line switch.
-    #[cfg(target_os = "macos")]
-    pub fn set_main_bundle_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.main_bundle_path,
-            );
-        }
-    }
+    ///
+    /// Only applies on macOS.
+    pub main_bundle_path: Option<PathBuf>,
     /// Call to have the browser process message loop run in a separate
     /// thread. If this is not set, the [App::do_message_loop_work] function must be
     /// called from your application message loop.
-    #[cfg(not(target_os = "macos"))]
-    pub fn enable_multi_threaded_message_loop(&mut self) {
-        self.0.multi_threaded_message_loop = 1;
-    }
+    ///
+    /// Doesn't apply on macOS.
+    pub multi_threaded_message_loop: bool,
     /// Call to control browser process main (UI) thread message pump
     /// scheduling via the [BrowserProcessHandlerCallbacks::on_schedule_message_pump_work]
     /// callback. This option is recommended for use in combination with the
@@ -135,22 +70,16 @@ impl Settings {
     /// comments and warnings on [App::do_message_loop_work]). Enabling this option is not
     /// recommended for most users; leave this option disabled and use either the
     /// [App::run_message_loop] function or [Settings::enable_multi_threaded_message_loop] if possible.
-    pub fn enable_external_message_pump(&mut self) {
-        self.0.external_message_pump = 1;
-    }
+    pub external_message_pump: bool,
     /// Call to enable windowless (off-screen) rendering support. Do not
     /// enable this value if the application does not use windowless rendering as
     /// it may reduce rendering performance on some systems.
-    pub fn enable_windowless_rendering(&mut self) {
-        self.0.windowless_rendering_enabled = 1;
-    }
+    pub windowless_rendering_enabled: bool,
     /// Call to disable configuration of browser process features using
     /// standard CEF and Chromium command-line arguments. Configuration can still
     /// be specified using CEF data structures or via the
     /// [App::on_before_command_line_processing] function.
-    pub fn disable_command_line_args(&mut self) {
-        self.0.command_line_args_disabled = 1;
-    }
+    pub command_line_args_disabled: bool,
     /// The location where data for the global browser cache will be stored on
     /// disk. If non-empty this must be either equal to or a child directory of
     /// [Settings::set_root_cache_path]. If empty then browsers will be created in
@@ -159,48 +88,21 @@ impl Settings {
     /// across sessions if a cache path is specified. Can be overridden for
     /// individual [RequestContext] instances via the
     /// [RequestContextSettings::cache_path] value.
-    pub fn set_cache_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.cache_path,
-            );
-        }
-    }
+    pub cache_path: Option<PathBuf>,
     /// The root directory that all [Settings::set_cache_path] and
     /// [RequestContextSettings::cache_path] values must have in common. If this
     /// value is empty and [Settings::set_cache_path] is non-empty then this value will
     /// default to the [Settings::set_cache_path] value. Failure to set this value
     /// correctly may result in the sandbox blocking read/write access to the
     /// cache_path directory.
-    pub fn set_root_cache_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.root_cache_path,
-            );
-        }
-    }
+    pub root_cache_path: Option<PathBuf>,
     /// The location where user data such as spell checking dictionary files will
     /// be stored on disk. If empty then the default platform-specific user data
     /// directory will be used ("~/.cef_user_data" directory on Linux,
     /// "~/Library/Application Support/CEF/User Data" directory on Mac OS X,
     /// "Local Settings\Application Data\CEF\User Data" directory under the user
     /// profile directory on Windows).
-    pub fn set_user_data_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.user_data_path,
-            );
-        }
-    }
+    pub user_data_path: Option<PathBuf>,
     /// To persist session cookies (cookies without an expiry date or validity
     /// interval) by default when using the global cookie manager call this function.
     /// Session cookies are generally intended to be transient and most
@@ -209,145 +111,75 @@ impl Settings {
     /// "persist-session-cookies" command-line switch. Can be overridden for
     /// individual [RequestContext] instances via the
     /// [RequestContextSettings::persist_session_cookies] value.
-    pub fn persist_session_cookies(&mut self) {
-        self.0.persist_session_cookies = 1;
-    }
+    pub persist_session_cookies: bool,
     /// To persist user preferences as a JSON file in the cache path directory call
     /// this function. A [Settings::set_cache_path] value must also be specified
     /// to enable this feature. Also configurable using the
     /// "persist-user-preferences" command-line switch. Can be overridden for
     /// individual CefRequestContext instances via the
     /// [RequestContextSettings::persist_user_preferences] value.
-    pub fn persist_user_preferences(&mut self) {
-        self.0.persist_user_preferences = 1;
-    }
+    pub persist_user_preferences: bool,
     /// Value that will be returned as the User-Agent HTTP header. If empty the
     /// default User-Agent string will be used. Also configurable using the
     /// "user-agent" command-line switch.
-    pub fn set_user_agent(&mut self, agent: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                agent.as_ptr() as *const std::os::raw::c_char,
-                agent.len(),
-                &mut self.0.user_agent,
-            );
-        }
-    }
+    pub user_agent: Option<String>,
     /// Value that will be inserted as the product portion of the default
     /// User-Agent string. If empty the Chromium product version will be used. If
     /// [Settings::set_user_agent] is specified this value will be ignored. Also configurable
     /// using the "product-version" command-line switch.
-    pub fn set_product_version(&mut self, version: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                version.as_ptr() as *const std::os::raw::c_char,
-                version.len(),
-                &mut self.0.product_version,
-            );
-        }
-    }
+    pub product_version: Option<String>,
     /// The locale string that will be passed to WebKit. If empty the default
     /// locale of "en-US" will be used. This value is ignored on Linux where locale
     /// is determined using environment variable parsing with the precedence order:
     /// LANGUAGE, LC_ALL, LC_MESSAGES and LANG. Also configurable using the "lang"
     /// command-line switch.
-    pub fn set_locale(&mut self, locale: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                locale.as_ptr() as *const std::os::raw::c_char,
-                locale.len(),
-                &mut self.0.locale,
-            );
-        }
-    }
+    pub locale: Option<String>,
     /// The directory and file name to use for the debug log. If empty a default
     /// log file name and location will be used. On Windows and Linux a "debug.log"
     /// file will be written in the main executable directory. On Mac OS X a
     /// "~/Library/Logs/<app name>_debug.log" file will be written where <app name>
     /// is the name of the main app executable. Also configurable using the
     /// "log-file" command-line switch.
-    pub fn set_log_file(&mut self, file: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                file.as_ptr() as *const std::os::raw::c_char,
-                file.len(),
-                &mut self.0.log_file,
-            );
-        }
-    }
+    pub log_file: Option<PathBuf>,
     /// The log severity. Only messages of this severity level or higher will be
     /// logged. When set to DISABLE no messages will be written to the log file,
     /// but FATAL messages will still be output to stderr. Also configurable using
     /// the "log-severity" command-line switch with a value of "verbose", "info",
     /// "warning", "error", "fatal" or "disable".
-    pub fn set_log_severity(&mut self, severity: LogSeverity) {
-        self.0.log_severity = severity as cef_log_severity_t::Type;
-    }
+    pub log_severity: LogSeverity,
     /// Custom flags that will be used when initializing the V8 JavaScript engine.
     /// The consequences of using custom flags may not be well tested. Also
     /// configurable using the "js-flags" command-line switch.
-    pub fn set_javascript_flags(&mut self, flags: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                flags.as_ptr() as *const std::os::raw::c_char,
-                flags.len(),
-                &mut self.0.javascript_flags,
-            );
-        }
-    }
+    pub javascript_flags: Option<String>,
     /// The fully qualified path for the resources directory. If this value is
     /// empty the cef.pak and/or devtools_resources.pak files must be located in
     /// the module directory on Windows/Linux or the app bundle Resources directory
     /// on Mac OS X. Also configurable using the "resources-dir-path" command-line
     /// switch.
-    pub fn set_resources_dir_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.resources_dir_path,
-            );
-        }
-    }
+    pub resources_dir_path: PathBuf,
     /// The fully qualified path for the locales directory. If this value is empty
     /// the locales directory must be located in the module directory. This value
     /// is ignored on Mac OS X where pack files are always loaded from the app
     /// bundle Resources directory. Also configurable using the "locales-dir-path"
     /// command-line switch.
-    pub fn set_locales_dir_path<P: AsRef<Path>>(&mut self, path: P) {
-        unsafe {
-            let path = path.as_ref().to_str().expect("Invalid UTF8");
-            cef_string_utf8_to_utf16(
-                path.as_ptr() as *const std::os::raw::c_char,
-                path.len(),
-                &mut self.0.locales_dir_path,
-            );
-        }
-    }
+    pub locales_dir_path: Option<PathBuf>,
     /// Call to disable loading of pack files for resources and locales.
     /// A resource bundle handler must be provided for the browser and render
     /// processes via [App::get_resource_bundle_handler] if loading of pack files
     /// is disabled. Also configurable using the "disable-pack-loading" command-
     /// line switch.
-    pub fn disable_pack_loading(&mut self) {
-        self.0.pack_loading_disabled = 1;
-    }
+    pub pack_loading_disabled: bool,
     /// Set to a value between 1024 and 65535 to enable remote debugging on the
     /// specified port. For example, if 8080 is specified the remote debugging URL
     /// will be http://localhost:8080. CEF can be remotely debugged from any CEF or
     /// Chrome browser window. Also configurable using the "remote-debugging-port"
     /// command-line switch.
-    pub fn set_remote_debugging_port(&mut self, port: u16) {
-        self.0.remote_debugging_port = port as i32;
-    }
+    pub remote_debugging_port: u16,
     /// The number of stack trace frames to capture for uncaught exceptions.
     /// Specify a positive value to enable the [RenderProcessHandlerCallbacks::on_uncaught_exception] callback. Specify 0 (default value) and
     /// [RenderProcessHandlerCallbacks::on_uncaught_exception] will not be called. Also configurable using the
     /// "uncaught-exception-stack-size" command-line switch.
-    pub fn set_uncaught_exception_stack_size(&mut self, stack_size: i32) {
-        self.0.uncaught_exception_stack_size = stack_size;
-    }
+    pub uncaught_exception_stack_size: u32,
     /// Call to ignore errors related to invalid SSL certificates.
     /// Enabling this setting can lead to potential security vulnerabilities like
     /// "man in the middle" attacks. Applications that load content from the
@@ -355,9 +187,7 @@ impl Settings {
     /// "ignore-certificate-errors" command-line switch. Can be overridden for
     /// individual [RequestContext] instances via the
     /// [RequestContextSettings::ignore_certificate_errors] value.
-    pub fn ignore_certificate_errors(&mut self) {
-        self.0.ignore_certificate_errors = 1;
-    }
+    pub ignore_certificate_errors: bool,
     /// Call to enable date-based expiration of built in network
     /// security information (i.e. certificate transparency logs, HSTS preloading
     /// and pinning information). Enabling this option improves network security
@@ -367,9 +197,7 @@ impl Settings {
     /// "enable-net-security-expiration" command-line switch. Can be overridden for
     /// individual [RequestContext] instances via the
     /// [RequestContextSettings::enable_net_security_expiration] value.
-    pub fn enable_net_security_expiration(&mut self) {
-        self.0.enable_net_security_expiration = 1;
-    }
+    pub enable_net_security_expiration: bool,
     /// Background color used for the browser before a document is loaded and when
     /// no document color is specified. The alpha component must be either fully
     /// opaque (0xFF) or fully transparent (0x00). If the alpha component is fully
@@ -378,70 +206,220 @@ impl Settings {
     /// default value of opaque white be used. If the alpha component is fully
     /// transparent for a windowless (off-screen) browser then transparent painting
     /// will be enabled.
-    pub fn set_background_color(&mut self, color: Color) {
-        self.0.background_color = color.get();
-    }
+    pub background_color: Color,
     /// Comma delimited ordered list of language codes without any whitespace that
     /// will be used in the "Accept-Language" HTTP header. May be overridden on a
     /// per-browser basis using the [BrowserSettings::accept_language_list] value.
     /// If both values are empty then "en-US,en" will be used. Can be overridden
     /// for individual [RequestContext] instances via the
     /// [RequestContextSettings::accept_language_list] value.
-    pub fn set_accept_language_list(&mut self, list: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                list.as_ptr() as *const std::os::raw::c_char,
-                list.len(),
-                &mut self.0.accept_language_list,
-            );
-        }
-    }
+    pub accept_language_list: Option<String>,
     /// GUID string used for identifying the application. This is passed to the
     /// system AV function for scanning downloaded files. By default, the GUID
     /// will be an empty string and the file will be treated as an untrusted
     /// file when the GUID is empty.
-    pub fn set_application_client_id_for_file_scanning(&mut self, guid: &str) {
-        unsafe {
-            cef_string_utf8_to_utf16(
-                guid.as_ptr() as *const std::os::raw::c_char,
-                guid.len(),
-                &mut self.0.application_client_id_for_file_scanning,
-            );
+    pub application_client_id_for_file_scanning: Option<Uuid>,
+}
+
+impl Settings {
+    pub fn new<T: Into<PathBuf>>(resources_dir_path: T) -> Result<Settings, std::io::Error> {
+        Ok(Settings {
+            browser_subprocess_path: None,
+            framework_dir_path: None,
+            main_bundle_path: None,
+            multi_threaded_message_loop: false,
+            external_message_pump: false,
+            windowless_rendering_enabled: false,
+            command_line_args_disabled: false,
+            cache_path: None,
+            root_cache_path: None,
+            user_data_path: None,
+            persist_session_cookies: false,
+            persist_user_preferences: false,
+            user_agent: None,
+            product_version: None,
+            locale: None,
+            log_file: None,
+            log_severity: LogSeverity::Default,
+            javascript_flags: None,
+            resources_dir_path: resources_dir_path.into().canonicalize()?,
+            locales_dir_path: None,
+            pack_loading_disabled: false,
+            remote_debugging_port: 0,
+            uncaught_exception_stack_size: 0,
+            ignore_certificate_errors: false,
+            enable_net_security_expiration: false,
+            background_color: Color::wrap(0),
+            accept_language_list: None,
+            application_client_id_for_file_scanning: None,
+        })
+    }
+    pub(crate) fn to_cef(&self, use_sandbox: bool) -> cef_settings_t {
+        let string_to_cef = |s: Option<&String>| s.map(|s| &**s).map(CefString::new).unwrap_or_else(CefString::null).into_raw();
+        let path_to_cef = |path: Option<&PathBuf>| path.map(|p| p.to_str().unwrap()).map(CefString::new).unwrap_or_else(CefString::null).into_raw();
+        cef_settings_t {
+            size: std::mem::size_of::<cef_settings_t>(),
+            no_sandbox: !use_sandbox as c_int,
+            browser_subprocess_path: path_to_cef(self.browser_subprocess_path.as_ref()),
+            framework_dir_path: path_to_cef(self.framework_dir_path.as_ref()),
+            main_bundle_path: path_to_cef(self.main_bundle_path.as_ref()),
+            multi_threaded_message_loop: self.multi_threaded_message_loop as c_int,
+            external_message_pump: self.external_message_pump as c_int,
+            windowless_rendering_enabled: self.windowless_rendering_enabled as c_int,
+            command_line_args_disabled: self.command_line_args_disabled as c_int,
+            cache_path: path_to_cef(self.cache_path.as_ref()),
+            root_cache_path: path_to_cef(self.root_cache_path.as_ref()),
+            user_data_path: path_to_cef(self.user_data_path.as_ref()),
+            persist_session_cookies: self.persist_session_cookies as c_int,
+            persist_user_preferences: self.persist_user_preferences as c_int,
+            user_agent: string_to_cef(self.user_agent.as_ref()),
+            product_version: string_to_cef(self.product_version.as_ref()),
+            locale: string_to_cef(self.locale.as_ref()),
+            log_file: path_to_cef(self.log_file.as_ref()),
+            log_severity: cef_log_severity_t::LOGSEVERITY_DEFAULT,
+            javascript_flags: string_to_cef(self.javascript_flags.as_ref()),
+            resources_dir_path: path_to_cef(Some(&self.resources_dir_path)),
+            locales_dir_path: path_to_cef(self.locales_dir_path.as_ref()),
+            pack_loading_disabled: self.pack_loading_disabled as c_int,
+            remote_debugging_port: self.remote_debugging_port as c_int,
+            uncaught_exception_stack_size: self.uncaught_exception_stack_size as c_int,
+            ignore_certificate_errors: self.ignore_certificate_errors as c_int,
+            enable_net_security_expiration: self.enable_net_security_expiration as c_int,
+            background_color: self.background_color.0,
+            accept_language_list: string_to_cef(self.accept_language_list.as_ref()),
+            application_client_id_for_file_scanning: string_to_cef(self.application_client_id_for_file_scanning.map(|u| u.to_string()).as_ref()),
         }
     }
-}
-
-impl Default for Settings {
-    fn default() -> Self {
-        Self::new()
+    pub fn browser_subprocess_path<T: Into<PathBuf>>(mut self, browser_subprocess_path: T) -> Result<Self, std::io::Error> {
+        self.browser_subprocess_path = Some(browser_subprocess_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn framework_dir_path<T: Into<PathBuf>>(mut self, framework_dir_path: T) -> Result<Self, std::io::Error> {
+        self.framework_dir_path = Some(framework_dir_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn main_bundle_path<T: Into<PathBuf>>(mut self, main_bundle_path: T) -> Result<Self, std::io::Error> {
+        self.main_bundle_path = Some(main_bundle_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn multi_threaded_message_loop(mut self, multi_threaded_message_loop: bool) -> Self {
+        self.multi_threaded_message_loop = multi_threaded_message_loop;
+        self
+    }
+    pub fn external_message_pump(mut self, external_message_pump: bool) -> Self {
+        self.external_message_pump = external_message_pump;
+        self
+    }
+    pub fn windowless_rendering_enabled(mut self, windowless_rendering_enabled: bool) -> Self {
+        self.windowless_rendering_enabled = windowless_rendering_enabled;
+        self
+    }
+    pub fn command_line_args_disabled(mut self, command_line_args_disabled: bool) -> Self {
+        self.command_line_args_disabled = command_line_args_disabled;
+        self
+    }
+    pub fn cache_path<T: Into<PathBuf>>(mut self, cache_path: T) -> Result<Self, std::io::Error> {
+        self.cache_path = Some(cache_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn root_cache_path<T: Into<PathBuf>>(mut self, root_cache_path: T) -> Result<Self, std::io::Error> {
+        self.root_cache_path = Some(root_cache_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn user_data_path<T: Into<PathBuf>>(mut self, user_data_path: T) -> Result<Self, std::io::Error> {
+        self.user_data_path = Some(user_data_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn persist_session_cookies(mut self, persist_session_cookies: bool) -> Self {
+        self.persist_session_cookies = persist_session_cookies;
+        self
+    }
+    pub fn persist_user_preferences(mut self, persist_user_preferences: bool) -> Self {
+        self.persist_user_preferences = persist_user_preferences;
+        self
+    }
+    pub fn user_agent<T: Into<String>>(mut self, user_agent: T) -> Self {
+        self.user_agent = Some(user_agent.into());
+        self
+    }
+    pub fn product_version<T: Into<String>>(mut self, product_version: T) -> Self {
+        self.product_version = Some(product_version.into());
+        self
+    }
+    pub fn locale<T: Into<String>>(mut self, locale: T) -> Self {
+        self.locale = Some(locale.into());
+        self
+    }
+    pub fn log_file<T: Into<PathBuf>>(mut self, log_file: T) -> Result<Self, std::io::Error> {
+        self.log_file = Some(log_file.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn log_severity(mut self, log_severity: LogSeverity) -> Self {
+        self.log_severity = log_severity;
+        self
+    }
+    pub fn javascript_flags<T: Into<String>>(mut self, javascript_flags: T) -> Self {
+        self.javascript_flags = Some(javascript_flags.into());
+        self
+    }
+    pub fn locales_dir_path<T: Into<PathBuf>>(mut self, locales_dir_path: T) -> Result<Self, std::io::Error> {
+        self.locales_dir_path = Some(locales_dir_path.into().canonicalize()?);
+        Ok(self)
+    }
+    pub fn pack_loading_disabled(mut self, pack_loading_disabled: bool) -> Self {
+        self.pack_loading_disabled = pack_loading_disabled;
+        self
+    }
+    pub fn remote_debugging_port(mut self, remote_debugging_port: u16) -> Self {
+        self.remote_debugging_port = remote_debugging_port;
+        self
+    }
+    pub fn uncaught_exception_stack_size(mut self, uncaught_exception_stack_size: u32) -> Self {
+        self.uncaught_exception_stack_size = uncaught_exception_stack_size;
+        self
+    }
+    pub fn ignore_certificate_errors(mut self, ignore_certificate_errors: bool) -> Self {
+        self.ignore_certificate_errors = ignore_certificate_errors;
+        self
+    }
+    pub fn enable_net_security_expiration(mut self, enable_net_security_expiration: bool) -> Self {
+        self.enable_net_security_expiration = enable_net_security_expiration;
+        self
+    }
+    pub fn background_color(mut self, background_color: Color) -> Self {
+        self.background_color = background_color;
+        self
+    }
+    pub fn accept_language_list<T: Into<String>>(mut self, accept_language_list: T) -> Self {
+        self.accept_language_list = Some(accept_language_list.into());
+        self
+    }
+    pub fn application_client_id_for_file_scanning<T: Into<Uuid>>(mut self, application_client_id_for_file_scanning: T) -> Self {
+        self.application_client_id_for_file_scanning = Some(application_client_id_for_file_scanning.into());
+        self
     }
 }
 
-impl Drop for Settings {
-    fn drop(&mut self) {
-        let settings = &self.0;
-        for cefstr in &[
-            &settings.browser_subprocess_path,
-            &settings.framework_dir_path,
-            &settings.main_bundle_path,
-            &settings.cache_path,
-            &settings.root_cache_path,
-            &settings.user_data_path,
-            &settings.user_agent,
-            &settings.product_version,
-            &settings.locale,
-            &settings.log_file,
-            &settings.javascript_flags,
-            &settings.resources_dir_path,
-            &settings.locales_dir_path,
-            &settings.accept_language_list,
-            &settings.application_client_id_for_file_scanning,
-        ] {
-            if let Some(dtor) = cefstr.dtor {
-                unsafe {
-                    dtor(cefstr.str);
-                }
-            }
+pub(crate) unsafe fn drop_settings(settings: cef_settings_t) {
+    for cefstr in &[
+        &settings.browser_subprocess_path,
+        &settings.framework_dir_path,
+        &settings.main_bundle_path,
+        &settings.cache_path,
+        &settings.root_cache_path,
+        &settings.user_data_path,
+        &settings.user_agent,
+        &settings.product_version,
+        &settings.locale,
+        &settings.log_file,
+        &settings.javascript_flags,
+        &settings.resources_dir_path,
+        &settings.locales_dir_path,
+        &settings.accept_language_list,
+        &settings.application_client_id_for_file_scanning,
+    ] {
+        if let Some(dtor) = cefstr.dtor {
+            dtor(cefstr.str);
         }
     }
 }

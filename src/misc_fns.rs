@@ -9,12 +9,11 @@ use crate::{
     settings::Settings,
 };
 use cef_sys::{
-    cef_do_message_loop_work, cef_enable_highdpi_support, cef_execute_process,
-    cef_initialize, cef_quit_message_loop, cef_run_message_loop, cef_set_osmodal_loop, cef_shutdown,
+    cef_do_message_loop_work, cef_execute_process,
+    cef_initialize, cef_quit_message_loop, cef_run_message_loop, cef_shutdown,
 };
 use std::{ptr::null_mut};
 
-#[cfg(target_os = "windows")]
 use crate::sandbox::SandboxInfo;
 
 
@@ -22,10 +21,40 @@ use crate::sandbox::SandboxInfo;
 ///
 /// Older versions of Windows should be left DPI-unaware because they do not
 /// support DirectWrite and GDI fonts are kerned very badly.
-#[cfg(target_os = "windows")]
-pub fn enable_highdpi_support() {
-    unsafe {
-        cef_enable_highdpi_support();
+fn enable_highdpi_support() {
+    #[cfg(target_os = "windows")]
+    {
+        use std::sync::atomic::{AtomicBool, Ordering};
+        static ENABLED: AtomicBool = AtomicBool::new(false);
+        if !ENABLED.swap(true, Ordering::SeqCst) {
+            use winapi::um::{winbase, winnt};
+            unsafe {
+                let windows_7_or_greater = {
+                    let mut version_info = winnt::OSVERSIONINFOEXA {
+                        dwOSVersionInfoSize: std::mem::size_of::<winnt::OSVERSIONINFOEXA>() as _,
+                        // yes this is 6.1 for Windows 7. The windows headers have the following definition:
+                        // #define _WIN32_WINNT_WIN7 0x0601 // Windows 7
+                        dwMajorVersion: 6,
+                        dwMinorVersion: 1,
+                        dwBuildNumber: 0,
+                        dwPlatformId: 0,
+                        szCSDVersion: [0; 128],
+                        wServicePackMajor: 0,
+                        wServicePackMinor: 0,
+                        wSuiteMask: 0,
+                        wProductType: 0,
+                        wReserved: 0,
+                    };
+                    let c = winnt::VerSetConditionMask(0, winnt::VER_MAJORVERSION, winnt::VER_GREATER_EQUAL);
+                    let c = winnt::VerSetConditionMask(c, winnt::VER_MINORVERSION, winnt::VER_GREATER_EQUAL);
+                    let c = winnt::VerSetConditionMask(c, winnt::VER_SERVICEPACKMAJOR, winnt::VER_GREATER_EQUAL);
+                    winbase::VerifyVersionInfoA(&mut version_info, winnt::VER_MAJORVERSION | winnt::VER_MINORVERSION | winnt::VER_SERVICEPACKMAJOR, c) != 0
+                };
+                if windows_7_or_greater {
+                    cef_sys::cef_enable_highdpi_support();
+                }
+            }
+        }
     }
 }
 /// This function should be called from the application entry point function to
@@ -38,42 +67,20 @@ pub fn enable_highdpi_support() {
 /// it will return immediately with a value of -1. If called for a recognized
 /// secondary process it will block until the process should exit and then return
 /// the process exit code. The `application` parameter may be None. The
-/// `windows_sandbox_info` parameter may be None (see [SandboxInfo] for details).
-#[cfg(target_os = "windows")]
+/// `sandbox_info` parameter may be None (see [SandboxInfo] for details).
 pub fn execute_process(
     args: &MainArgs,
     application: Option<App>,
-    windows_sandbox_info: Option<&SandboxInfo>,
+    sandbox_info: Option<&SandboxInfo>,
 ) -> i32 {
+    enable_highdpi_support();
     unsafe {
         cef_execute_process(
             args.get(),
             application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-            windows_sandbox_info
+            sandbox_info
                 .map(|wsi| wsi.get())
                 .unwrap_or_else(null_mut),
-        )
-    }
-}
-/// This function should be called from the application entry point function to
-/// execute a secondary process.
-///
-/// It can be used to run secondary processes from
-/// the browser client executable (default behavior) or from a separate
-/// executable specified by the [CefSettings::browser_subprocess_path] value. If
-/// called for the browser process (identified by no "type" command-line value)
-/// it will return immediately with a value of -1. If called for a recognized
-/// secondary process it will block until the process should exit and then return
-/// the process exit code. The `application` parameter may be None.
-#[cfg(not(target_os = "windows"))]
-pub fn execute_process(args: &[&str], application: Option<App>) -> i32 {
-    unsafe {
-        cef_execute_process(
-            args.get(),
-            application
-                .and_then(|app| Some(app.into_raw()))
-                .unwrap_or_else(null_mut),
-            null_mut(),
         )
     }
 }
@@ -89,43 +96,24 @@ impl Context {
     /// value of true indicates that it succeeded and false indicates that it
     /// failed. The `windows_sandbox_info` parameter is only used on Windows and may
     /// be None (see [SandboxInfo] for details).
-    #[cfg(target_os = "windows")]
     pub fn initialize(
         args: &MainArgs,
         settings: &Settings,
         application: Option<App>,
-        windows_sandbox_info: Option<&SandboxInfo>,
+        sandbox_info: Option<&SandboxInfo>,
     ) -> Option<Context> {
+        enable_highdpi_support();
         unsafe {
+            let settings = settings.to_cef(sandbox_info.is_some());
             let worked = cef_initialize(
                 args.get(),
-                settings.get(),
+                &settings,
                 application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-                windows_sandbox_info
+                sandbox_info
                     .map(|wsi| wsi.get())
                     .unwrap_or_else(null_mut),
             ) != 0;
-            match worked {
-                true => Some(Context(())),
-                false => None,
-            }
-        }
-    }
-    /// This function should be called on the main application thread to initialize
-    /// the CEF browser process.
-    ///
-    /// The `application` parameter may be None. A return
-    /// value of true indicates that it succeeded and false indicates that it
-    /// failed.
-    #[cfg(not(target_os = "windows"))]
-    pub fn initialize(args: &[&str], settings: &Settings, application: Option<App>) -> Option<Context> {
-        unsafe {
-            let worked = cef_initialize(
-                args.get(),
-                settings.get(),
-                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-                null_mut(),
-            ) != 0;
+            crate::settings::drop_settings(settings);
             match worked {
                 true => Some(Context(())),
                 false => None,
@@ -193,6 +181,6 @@ impl Drop for Context {
 #[cfg(target_os = "windows")]
 pub fn set_osmodal_loop(os_modal_loop: bool) {
     unsafe {
-        cef_set_osmodal_loop(os_modal_loop as i32);
+        cef_sys::cef_set_osmodal_loop(os_modal_loop as i32);
     }
 }

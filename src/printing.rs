@@ -71,7 +71,7 @@ impl PDFPrintSettings {
 
     /// Margin type.
     pub fn set_margin_type(&mut self, margin_type: PDFPrintMargin) {
-        self.0.margin_type = margin_type as i32;
+        self.0.margin_type = margin_type as crate::CEnumType;
     }
 
     /// Call this to print headers and footers.

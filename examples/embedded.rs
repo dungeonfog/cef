@@ -24,12 +24,11 @@ use cef::{
     events::{EventFlags, MouseEvent, MouseButtonType},
     main_args::MainArgs,
     settings::{Settings, LogSeverity},
-    window::WindowInfo,
+    window::{WindowInfo, RawWindow},
 };
 use winit::{
     event::{Event, WindowEvent, StartCause, MouseButton, ElementState, MouseScrollDelta, KeyboardInput, VirtualKeyCode},
     dpi::LogicalPosition,
-    platform::windows::WindowExtWindows,
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
     window::{CursorIcon, Window, WindowBuilder},
 };
@@ -292,21 +291,16 @@ fn main() {
             true => None,
         }
     });
-    #[cfg(windows)]
-    cef::enable_highdpi_support();
     let args = MainArgs::new();
     println!("{:?}", event_loop.is_some());
     let result = cef::execute_process(&args, Some(app.clone()), None);
     if result >= 0 {
         std::process::exit(result);
     }
-    let mut settings = Settings::new();
-    settings.enable_windowless_rendering();
-    settings.set_log_severity(LogSeverity::Verbose);
-    settings.enable_external_message_pump();
-    settings.disable_sandbox();
-    let resources_folder = std::path::Path::new("./Resources").canonicalize().unwrap();
-    settings.set_resources_dir_path(&resources_folder);
+    let settings = Settings::new("./Resources").unwrap()
+        .windowless_rendering_enabled(true)
+        .log_severity(LogSeverity::Verbose)
+        .external_message_pump(true);
 
     let event_loop = event_loop.unwrap();
 
@@ -322,7 +316,7 @@ fn main() {
 
     let window_info = WindowInfo {
         windowless_rendering_enabled: true,
-        parent_window: window.hwnd() as _,
+        parent_window: Some(unsafe{ RawWindow::from_window(&window) }),
         width: width as _,
         height: height as _,
         ..WindowInfo::new()

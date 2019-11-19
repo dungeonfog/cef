@@ -37,7 +37,7 @@ impl TaskRunner {
     }
     /// Returns the task runner for the specified CEF thread.
     pub fn get_for_thread(thread_id: ThreadId) -> Option<Self> {
-        unsafe { Self::from_ptr(cef_task_runner_get_for_thread(thread_id as i32)) }
+        unsafe { Self::from_ptr(cef_task_runner_get_for_thread(thread_id as crate::CEnumType)) }
     }
     /// Returns true if called on the specified thread. Equivalent to using
     /// `TaskRunner::get_for_thread(thread_id).belongs_to_current_thread()`.

@@ -24,13 +24,12 @@ use cef_sys::{
     cef_drag_data_t,
     cef_cursor_handle_t,
 };
-use num_enum::UnsafeFromPrimitive;
 use libc::c_int;
 use std::os::raw::c_void;
 use std::ptr;
 
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum TextInputMode {
     Default = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DEFAULT as isize,
     None = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_NONE as isize,
@@ -41,6 +40,12 @@ pub enum TextInputMode {
     Numeric = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_NUMERIC as isize,
     Decimal = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_DECIMAL as isize,
     Search = cef_text_input_mode_t::CEF_TEXT_INPUT_MODE_SEARCH as isize,
+}
+
+impl TextInputMode {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 #[derive(Copy, Clone, PartialEq)]

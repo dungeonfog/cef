@@ -20,7 +20,6 @@ use cef_sys::{
     cef_web_plugin_info_t, cef_errorcode_t,
 };
 
-use num_enum::UnsafeFromPrimitive;
 use std::{
     path::Path,
     ptr::{null, null_mut},
@@ -38,12 +37,18 @@ use crate::{
 };
 
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum PluginPolicy {
     Allow = cef_plugin_policy_t::PLUGIN_POLICY_ALLOW as isize,
     DetectImportant = cef_plugin_policy_t::PLUGIN_POLICY_DETECT_IMPORTANT as isize,
     Block = cef_plugin_policy_t::PLUGIN_POLICY_BLOCK as isize,
     Disable = cef_plugin_policy_t::PLUGIN_POLICY_DISABLE as isize,
+}
+
+impl PluginPolicy {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 ref_counted_ptr!{

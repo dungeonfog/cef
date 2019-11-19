@@ -9,7 +9,6 @@ use cef_sys::{
 };
 use std::os::raw::{c_int};
 use parking_lot::Mutex;
-use num_enum::UnsafeFromPrimitive;
 
 ref_counted_ptr!{
     /// Instantiate this structure to handle events related to focus.
@@ -26,12 +25,18 @@ impl FocusHandler {
 
 /// Focus sources.
 #[repr(C)]
-#[derive(Copy, Clone, PartialEq, Eq, UnsafeFromPrimitive)]
+#[derive(Copy, Clone, PartialEq, Eq)]
 pub enum FocusSource {
     /// The source is explicit navigation via the API (LoadURL(), etc).
     Navigation = cef_focus_source_t::FOCUS_SOURCE_NAVIGATION as isize,
     /// The source is a system-generated focus event.
     System = cef_focus_source_t::FOCUS_SOURCE_SYSTEM as isize,
+}
+
+impl FocusSource {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
 }
 
 /// Implement this trait to handle events related to focus.

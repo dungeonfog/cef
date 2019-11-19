@@ -435,7 +435,7 @@ impl V8PropertyAttribute {
     pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
         attributes: I,
     ) -> cef_v8_propertyattribute_t {
-        cef_v8_propertyattribute_t(attributes.fold(0, |mask, attr| mask | (*attr as i32)))
+        cef_v8_propertyattribute_t(attributes.fold(0, |mask, attr| mask | (*attr as crate::CEnumType)))
     }
     pub(crate) fn as_vec(mask: cef_v8_propertyattribute_t) -> HashSet<Self> {
         [
@@ -444,7 +444,7 @@ impl V8PropertyAttribute {
             V8PropertyAttribute::DontDelete,
         ]
         .iter()
-        .filter(|flag| (**flag as i32) & mask.0 != 0)
+        .filter(|flag| (**flag as crate::CEnumType) & mask.0 != 0)
         .cloned()
         .collect()
     }
@@ -463,7 +463,7 @@ impl V8AccessControl {
     pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
         attributes: I,
     ) -> cef_v8_accesscontrol_t {
-        cef_v8_accesscontrol_t(attributes.fold(0, |mask, attr| mask | (*attr as i32)))
+        cef_v8_accesscontrol_t(attributes.fold(0, |mask, attr| mask | (*attr as crate::CEnumType)))
     }
     pub(crate) fn as_vec(mask: cef_v8_accesscontrol_t) -> HashSet<Self> {
         [
@@ -472,7 +472,7 @@ impl V8AccessControl {
             V8AccessControl::ProhibitsOverwriting,
         ]
         .iter()
-        .filter(|flag| (**flag as i32) & mask.0 != 0)
+        .filter(|flag| (**flag as crate::CEnumType) & mask.0 != 0)
         .cloned()
         .collect()
     }

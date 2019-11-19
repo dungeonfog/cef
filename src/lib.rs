@@ -37,7 +37,6 @@ pub mod image;
 pub mod command_line;
 pub mod app;
 
-#[cfg(target_os = "windows")]
 pub mod sandbox;
 pub mod main_args;
 pub mod scheme;
@@ -49,7 +48,6 @@ pub mod file_dialog;
 pub mod printing;
 pub mod window;
 pub mod x509_certificate;
-use num_enum::UnsafeFromPrimitive;
 pub mod ime;
 pub mod navigation;
 pub mod extension;
@@ -60,7 +58,7 @@ pub mod task;
 
 /// Return value types.
 #[repr(C)]
-#[derive(PartialEq, Eq, Clone, Copy, Debug, UnsafeFromPrimitive)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ReturnValue {
     /// Cancel immediately.
     Cancel = cef_sys::cef_return_value_t::RV_CANCEL as isize,
@@ -69,3 +67,14 @@ pub enum ReturnValue {
     /// Continue asynchronously (usually via a callback).
     ContinueAsync = cef_sys::cef_return_value_t::RV_CONTINUE_ASYNC as isize,
 }
+
+impl ReturnValue {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
+
+#[cfg(target_os = "windows")]
+pub type CEnumType = i32;
+#[cfg(target_os = "linux")]
+pub type CEnumType = u32;

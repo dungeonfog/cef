@@ -1,7 +1,6 @@
 use cef_sys::cef_sslstatus_t;
 use cef_sys::{_cef_sslinfo_t, cef_cert_status_t, cef_is_cert_status_error, cef_ssl_version_t, cef_ssl_content_status_t};
 use bitflags::bitflags;
-use num_enum::UnsafeFromPrimitive;
 use crate::x509_certificate::X509Certificate;
 
 bitflags!{
@@ -9,7 +8,7 @@ bitflags!{
     /// for more information. CERT_STATUS_NONE is new in CEF because we use an
     /// enum while cert_status_flags.h uses a typedef and static const variables.
     #[derive(Default)]
-    pub struct CertStatus: i32 {
+    pub struct CertStatus: crate::CEnumType {
         const NONE = cef_cert_status_t::CERT_STATUS_NONE.0;
         const COMMON_NAME_INVALID = cef_cert_status_t::CERT_STATUS_COMMON_NAME_INVALID.0;
         const DATE_INVALID = cef_cert_status_t::CERT_STATUS_DATE_INVALID.0;
@@ -34,7 +33,7 @@ bitflags!{
 // Supported SSL version values. See net/ssl/ssl_connection_status_flags.h
 // for more information.
 #[repr(C)]
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord, UnsafeFromPrimitive)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
 pub enum SSLVersion {
     Unknown = cef_ssl_version_t::SSL_CONNECTION_VERSION_UNKNOWN as isize,
     SSL2 = cef_ssl_version_t::SSL_CONNECTION_VERSION_SSL2 as isize,
@@ -46,13 +45,19 @@ pub enum SSLVersion {
     QUIC = cef_ssl_version_t::SSL_CONNECTION_VERSION_QUIC as isize,
 }
 
+impl SSLVersion {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
+
 bitflags!{
     // Supported SSL content status flags. See content/public/common/ssl_status.h
     // for more information.
-    pub struct ContentStatus: i32 {
-        const NORMAL = cef_ssl_content_status_t::SSL_CONTENT_NORMAL_CONTENT;
-        const DISPLAYED_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_DISPLAYED_INSECURE_CONTENT;
-        const RAN_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_RAN_INSECURE_CONTENT;
+    pub struct ContentStatus: crate::CEnumType {
+        const NORMAL = cef_ssl_content_status_t::SSL_CONTENT_NORMAL_CONTENT.0;
+        const DISPLAYED_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_DISPLAYED_INSECURE_CONTENT.0;
+        const RAN_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_RAN_INSECURE_CONTENT.0;
     }
 }
 
@@ -98,7 +103,7 @@ impl SSLStatus {
         unsafe{ SSLVersion::from_unchecked(self.0.get_sslversion.unwrap()(self.as_ptr())) }
     }
     pub fn get_content_status(&self) -> ContentStatus {
-        unsafe{ ContentStatus::from_bits_truncate(self.0.get_content_status.unwrap()(self.as_ptr())) }
+        unsafe{ ContentStatus::from_bits_truncate(self.0.get_content_status.unwrap()(self.as_ptr()).0) }
     }
     pub fn get_x509certificate(&self) -> X509Certificate {
         unsafe{ X509Certificate::from_ptr_unchecked(self.0.get_x509certificate.unwrap()(self.as_ptr())) }
