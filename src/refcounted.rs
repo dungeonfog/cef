@@ -26,16 +26,16 @@ pub(crate) trait Wrapper: Sized + Send + Sync {
 }
 
 macro_rules! ref_counter {
-    ($cef:ident) => {
+    ($cef:ty) => {
         ref_counter!($cef, false);
     };
-    ($cef:ident, $poisonable:expr) => {
-        unsafe impl RefCounter for cef_sys::$cef {
+    ($cef:ty, $poisonable:expr) => {
+        unsafe impl crate::refcounted::RefCounter for $cef {
             const POISONABLE: bool = $poisonable;
-            fn base(&self) -> &cef_base_ref_counted_t {
+            fn base(&self) -> &cef_sys::cef_base_ref_counted_t {
                 &self.base
             }
-            fn base_mut(&mut self) -> &mut cef_base_ref_counted_t {
+            fn base_mut(&mut self) -> &mut cef_sys::cef_base_ref_counted_t {
                 &mut self.base
             }
         }
@@ -68,6 +68,7 @@ impl<C: RefCounter> RefCountedPtr<C> {
     }
 
     pub(crate) unsafe fn from_ptr_unchecked(ptr: *mut C) -> RefCountedPtr<C> {
+        debug_assert!(ptr != std::ptr::null_mut());
         let cef = NonNull::new_unchecked(ptr);
         RefCountedPtr { cef }
     }
@@ -115,6 +116,8 @@ macro_rules! ref_counted_ptr {
 
         unsafe impl$(<$($generic $(: $bound)?),+>)? Send for $Struct$(<$($generic),+>)? {}
         unsafe impl$(<$($generic $(: $bound)?),+>)? Sync for $Struct$(<$($generic),+>)? {}
+
+        ref_counter!($cef);
 
         impl$(<$($generic $(: $bound)?),+>)? $Struct$(<$($generic),+>)? {
             pub(crate) unsafe fn from_ptr_add_ref(ptr: *mut $cef) -> Option<Self> {
@@ -264,105 +267,105 @@ unsafe impl RefCounter for cef_base_ref_counted_t {
     }
 }
 
-ref_counter!(cef_app_t);
-ref_counter!(cef_browser_process_handler_t);
-ref_counter!(cef_client_t);
-ref_counter!(cef_domvisitor_t);
-ref_counter!(cef_run_file_dialog_callback_t);
-ref_counter!(cef_load_handler_t);
-ref_counter!(cef_render_process_handler_t);
-ref_counter!(cef_request_context_handler_t);
-ref_counter!(cef_resource_bundle_handler_t);
-ref_counter!(cef_resource_request_handler_t);
-ref_counter!(cef_string_visitor_t);
-ref_counter!(cef_urlrequest_client_t);
-ref_counter!(cef_cookie_access_filter_t);
-ref_counter!(cef_response_filter_t);
-ref_counter!(cef_resource_handler_t);
-ref_counter!(cef_download_image_callback_t);
-ref_counter!(cef_pdf_print_callback_t);
-ref_counter!(cef_navigation_entry_visitor_t);
-ref_counter!(cef_task_runner_t);
-ref_counter!(cef_v8handler_t);
-ref_counter!(cef_v8accessor_t);
-ref_counter!(cef_v8interceptor_t);
-ref_counter!(cef_v8array_buffer_release_callback_t);
-ref_counter!(cef_command_line_t);
-ref_counter!(cef_value_t);
-ref_counter!(cef_binary_value_t);
-ref_counter!(cef_dictionary_value_t);
-ref_counter!(cef_list_value_t);
-ref_counter!(cef_image_t);
-ref_counter!(_cef_stream_reader_t);
-ref_counter!(_cef_stream_writer_t);
-ref_counter!(cef_drag_data_t);
-ref_counter!(cef_domdocument_t);
-ref_counter!(cef_domnode_t);
-ref_counter!(cef_process_message_t);
-ref_counter!(cef_request_t);
-ref_counter!(cef_post_data_t);
-ref_counter!(cef_post_data_element_t);
-ref_counter!(cef_frame_t);
-ref_counter!(_cef_x509cert_principal_t);
-ref_counter!(_cef_x509certificate_t);
-ref_counter!(_cef_sslstatus_t);
-ref_counter!(cef_navigation_entry_t);
-ref_counter!(cef_callback_t);
-ref_counter!(_cef_completion_callback_t);
-ref_counter!(_cef_cookie_manager_t);
-ref_counter!(_cef_cookie_visitor_t);
-ref_counter!(_cef_set_cookie_callback_t);
-ref_counter!(_cef_delete_cookies_callback_t);
-ref_counter!(cef_extension_t);
-ref_counter!(_cef_get_extension_resource_callback_t);
-ref_counter!(_cef_extension_handler_t);
-ref_counter!(_cef_resolve_callback_t);
-ref_counter!(cef_request_context_t);
-ref_counter!(cef_browser_t, true);
-ref_counter!(cef_browser_host_t);
-ref_counter!(_cef_print_settings_t);
-ref_counter!(_cef_print_dialog_callback_t);
-ref_counter!(_cef_print_job_callback_t);
-ref_counter!(cef_print_handler_t);
-ref_counter!(_cef_task_t);
-ref_counter!(cef_v8context_t);
-ref_counter!(cef_v8exception_t);
-ref_counter!(cef_v8value_t);
-ref_counter!(cef_v8stack_trace_t);
-ref_counter!(cef_v8stack_frame_t);
-ref_counter!(cef_response_t);
-ref_counter!(cef_resource_skip_callback_t);
-ref_counter!(cef_resource_read_callback_t);
-// ref_counter!(cef_scheme_registrar_t); // doesn't seem to be ref-counted; investigate further as it also has base field
-ref_counter!(_cef_scheme_handler_factory_t);
-ref_counter!(_cef_menu_model_t);
-ref_counter!(_cef_run_context_menu_callback_t);
-ref_counter!(cef_context_menu_handler_t);
-ref_counter!(_cef_context_menu_params_t);
-ref_counter!(_cef_file_dialog_callback_t);
-ref_counter!(cef_dialog_handler_t);
-ref_counter!(cef_display_handler_t);
-ref_counter!(_cef_download_item_t);
-ref_counter!(_cef_before_download_callback_t);
-ref_counter!(_cef_download_item_callback_t);
-ref_counter!(cef_download_handler_t);
-ref_counter!(cef_drag_handler_t);
-ref_counter!(cef_find_handler_t);
-ref_counter!(cef_focus_handler_t);
-ref_counter!(_cef_jsdialog_callback_t);
-ref_counter!(cef_jsdialog_handler_t);
-ref_counter!(cef_keyboard_handler_t);
-ref_counter!(cef_life_span_handler_t);
-ref_counter!(cef_accessibility_handler_t);
-ref_counter!(cef_render_handler_t);
-ref_counter!(cef_auth_callback_t);
-ref_counter!(cef_request_callback_t);
-ref_counter!(_cef_sslinfo_t);
-ref_counter!(_cef_select_client_certificate_callback_t);
-ref_counter!(cef_request_handler_t);
-ref_counter!(cef_urlrequest_t);
-ref_counter!(cef_web_plugin_info_t);
-ref_counter!(cef_web_plugin_info_visitor_t);
-ref_counter!(cef_web_plugin_unstable_callback_t);
-ref_counter!(cef_register_cdm_callback_t);
-ref_counter!(_cef_menu_model_delegate_t);
+// ref_counter!(cef_app_t);
+// ref_counter!(cef_browser_process_handler_t);
+// ref_counter!(cef_client_t);
+// ref_counter!(cef_domvisitor_t);
+// ref_counter!(cef_run_file_dialog_callback_t);
+// ref_counter!(cef_load_handler_t);
+// ref_counter!(cef_render_process_handler_t);
+// ref_counter!(cef_request_context_handler_t);
+// ref_counter!(cef_resource_bundle_handler_t);
+// ref_counter!(cef_resource_request_handler_t);
+// ref_counter!(cef_string_visitor_t);
+// ref_counter!(cef_urlrequest_client_t);
+// ref_counter!(cef_cookie_access_filter_t);
+// ref_counter!(cef_response_filter_t);
+// ref_counter!(cef_resource_handler_t);
+// ref_counter!(cef_download_image_callback_t);
+// ref_counter!(cef_pdf_print_callback_t);
+// ref_counter!(cef_navigation_entry_visitor_t);
+// ref_counter!(cef_task_runner_t);
+// ref_counter!(cef_v8handler_t);
+// ref_counter!(cef_v8accessor_t);
+// ref_counter!(cef_v8interceptor_t);
+// ref_counter!(cef_v8array_buffer_release_callback_t);
+// ref_counter!(cef_command_line_t);
+// ref_counter!(cef_value_t);
+// ref_counter!(cef_binary_value_t);
+// ref_counter!(cef_dictionary_value_t);
+// ref_counter!(cef_list_value_t);
+// ref_counter!(cef_image_t);
+// ref_counter!(_cef_stream_reader_t);
+// ref_counter!(_cef_stream_writer_t);
+// ref_counter!(cef_drag_data_t);
+// ref_counter!(cef_domdocument_t);
+// ref_counter!(cef_domnode_t);
+// ref_counter!(cef_process_message_t);
+// ref_counter!(cef_request_t);
+// ref_counter!(cef_post_data_t);
+// ref_counter!(cef_post_data_element_t);
+// ref_counter!(cef_frame_t);
+// ref_counter!(_cef_x509cert_principal_t);
+// ref_counter!(_cef_x509certificate_t);
+// ref_counter!(_cef_sslstatus_t);
+// ref_counter!(cef_navigation_entry_t);
+// ref_counter!(cef_callback_t);
+// ref_counter!(_cef_completion_callback_t);
+// ref_counter!(_cef_cookie_manager_t);
+// ref_counter!(_cef_cookie_visitor_t);
+// ref_counter!(_cef_set_cookie_callback_t);
+// ref_counter!(_cef_delete_cookies_callback_t);
+// ref_counter!(cef_extension_t);
+// ref_counter!(_cef_get_extension_resource_callback_t);
+// ref_counter!(_cef_extension_handler_t);
+// ref_counter!(_cef_resolve_callback_t);
+// ref_counter!(cef_request_context_t);
+// ref_counter!(cef_browser_t, true);
+// ref_counter!(cef_browser_host_t);
+// ref_counter!(_cef_print_settings_t);
+// ref_counter!(_cef_print_dialog_callback_t);
+// ref_counter!(_cef_print_job_callback_t);
+// ref_counter!(cef_print_handler_t);
+// ref_counter!(_cef_task_t);
+// ref_counter!(cef_v8context_t);
+// ref_counter!(cef_v8exception_t);
+// ref_counter!(cef_v8value_t);
+// ref_counter!(cef_v8stack_trace_t);
+// ref_counter!(cef_v8stack_frame_t);
+// ref_counter!(cef_response_t);
+// ref_counter!(cef_resource_skip_callback_t);
+// ref_counter!(cef_resource_read_callback_t);
+// // ref_counter!(cef_scheme_registrar_t); // doesn't seem to be ref-counted; investigate further as it also has base field
+// ref_counter!(_cef_scheme_handler_factory_t);
+// ref_counter!(_cef_menu_model_t);
+// ref_counter!(_cef_run_context_menu_callback_t);
+// ref_counter!(cef_context_menu_handler_t);
+// ref_counter!(_cef_context_menu_params_t);
+// ref_counter!(_cef_file_dialog_callback_t);
+// ref_counter!(cef_dialog_handler_t);
+// ref_counter!(cef_display_handler_t);
+// ref_counter!(_cef_download_item_t);
+// ref_counter!(_cef_before_download_callback_t);
+// ref_counter!(_cef_download_item_callback_t);
+// ref_counter!(cef_download_handler_t);
+// ref_counter!(cef_drag_handler_t);
+// ref_counter!(cef_find_handler_t);
+// ref_counter!(cef_focus_handler_t);
+// ref_counter!(_cef_jsdialog_callback_t);
+// ref_counter!(cef_jsdialog_handler_t);
+// ref_counter!(cef_keyboard_handler_t);
+// ref_counter!(cef_life_span_handler_t);
+// ref_counter!(cef_accessibility_handler_t);
+// ref_counter!(cef_render_handler_t);
+// ref_counter!(cef_auth_callback_t);
+// ref_counter!(cef_request_callback_t);
+// ref_counter!(_cef_sslinfo_t);
+// ref_counter!(_cef_select_client_certificate_callback_t);
+// ref_counter!(cef_request_handler_t);
+// ref_counter!(cef_urlrequest_t);
+// ref_counter!(cef_web_plugin_info_t);
+// ref_counter!(cef_web_plugin_info_visitor_t);
+// ref_counter!(cef_web_plugin_unstable_callback_t);
+// ref_counter!(cef_register_cdm_callback_t);
+// ref_counter!(_cef_menu_model_delegate_t);

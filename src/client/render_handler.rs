@@ -338,7 +338,7 @@ pub trait RenderHandlerCallbacks: 'static + Send + Sync {
     fn on_cursor_change(
         &self,
         browser: Browser,
-        cursor: cef_cursor_handle_t, // TODO: GENERALIZE TO CROSS-PLATFORM CURSOR TYPE
+        cursor: cef_cursor_handle_t,
         type_: CursorType<'_>,
     );
     /// Called when the user starts dragging content in the web view. Contextual

@@ -978,7 +978,7 @@ impl V8Value {
         self.0
             .set_user_data
             .map(|set_user_data| unsafe {
-                set_user_data(self.as_ptr(), UserData::new(user_data).into_raw()) != 0
+                set_user_data(self.as_ptr(), UserData::new(user_data).into_raw() as _) != 0
             })
             .unwrap_or(false)
     }
@@ -986,7 +986,7 @@ impl V8Value {
     pub fn get_user_data(&self) -> Option<UserData> {
         self.0.get_user_data.and_then(|get_user_data| {
             let ptr = unsafe { get_user_data(self.as_ptr()) };
-            unsafe { UserData::from_ptr(ptr) }
+            unsafe { UserData::from_ptr(ptr as _) }
         })
     }
     /// Returns the amount of externally allocated memory registered for the
@@ -1423,6 +1423,7 @@ impl V8ArrayBufferReleaseCallbackWrapper {
     }
 }
 
+ref_counter!(cef_v8array_buffer_release_callback_t);
 impl Wrapper for V8ArrayBufferReleaseCallbackWrapper {
     type Cef = cef_v8array_buffer_release_callback_t;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
@@ -1568,10 +1569,15 @@ impl FnOnce<(&str, V8Value, &[V8Value])> for V8Handler {
     }
 }
 
+#[doc(hidden)]
+pub struct CefUserData {
+    base: cef_base_ref_counted_t,
+}
+
 ref_counted_ptr!{
     /// User Data wrapper used for storing in V8Value objects that takes care of
     /// memory management between CEF and Rust.
-    pub struct UserData(*mut cef_base_ref_counted_t);
+    pub struct UserData(*mut CefUserData);
 }
 
 impl UserData {
@@ -1583,7 +1589,7 @@ impl UserData {
 struct UserDataInner(Box<dyn Any + Sync + Send>);
 
 impl Wrapper for UserDataInner {
-    type Cef = cef_base_ref_counted_t;
+    type Cef = CefUserData;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
         RefCountedPtr::wrap(
             unsafe{ std::mem::zeroed() },

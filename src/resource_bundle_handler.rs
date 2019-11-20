@@ -8,17 +8,18 @@ use crate::{
 /// Supported UI scale factors for the platform. None is used for
 /// density independent resources such as string, html/js files or an image that
 /// can be used for any scale factors (such as wallpapers).
+#[repr(C)]
 #[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
 pub enum ScaleFactor {
-    Factor100p,
-    Factor125p,
-    Factor133p,
-    Factor140p,
-    Factor150p,
-    Factor180p,
-    Factor200p,
-    Factor250p,
-    Factor300p,
+    Factor100p = cef_scale_factor_t::SCALE_FACTOR_100P as isize,
+    Factor125p = cef_scale_factor_t::SCALE_FACTOR_125P as isize,
+    Factor133p = cef_scale_factor_t::SCALE_FACTOR_133P as isize,
+    Factor140p = cef_scale_factor_t::SCALE_FACTOR_140P as isize,
+    Factor150p = cef_scale_factor_t::SCALE_FACTOR_150P as isize,
+    Factor180p = cef_scale_factor_t::SCALE_FACTOR_180P as isize,
+    Factor200p = cef_scale_factor_t::SCALE_FACTOR_200P as isize,
+    Factor250p = cef_scale_factor_t::SCALE_FACTOR_250P as isize,
+    Factor300p = cef_scale_factor_t::SCALE_FACTOR_300P as isize,
 }
 
 impl ScaleFactor {

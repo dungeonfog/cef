@@ -911,6 +911,7 @@ pub(crate) struct DownloadImageCallbackWrapper {
     callback: Mutex<Option<Box<dyn Send + FnOnce(&str, u16, Option<Image>)>>>,
 }
 
+ref_counter!(cef_download_image_callback_t);
 impl Wrapper for DownloadImageCallbackWrapper {
     type Cef = cef_download_image_callback_t;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {
@@ -953,6 +954,7 @@ pub(crate) struct PDFPrintCallbackWrapper {
     callback: Mutex<Option<Box<dyn Send + FnOnce(&str, bool)>>>,
 }
 
+ref_counter!(cef_pdf_print_callback_t);
 impl Wrapper for PDFPrintCallbackWrapper {
     type Cef = cef_pdf_print_callback_t;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {

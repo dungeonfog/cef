@@ -14,6 +14,7 @@ pub mod string;
 pub mod multimap;
 pub mod values;
 pub mod scheme_registrar;
+pub mod resource_bundle;
 pub mod resource_bundle_handler;
 pub mod browser_process_handler;
 pub mod browser;
