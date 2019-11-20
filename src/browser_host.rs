@@ -17,7 +17,7 @@ use crate::{
     window::{RawWindow, WindowInfo},
 };
 use cef_sys::{
-    cef_browser_host_create_browser, cef_browser_host_create_browser_sync, cef_browser_host_t,
+    cef_browser_host_create_browser_sync, cef_browser_host_t,
     cef_download_image_callback_t, cef_image_t, cef_navigation_entry_t,
     cef_navigation_entry_visitor_t, cef_paint_element_type_t, cef_pdf_print_callback_t,
     cef_string_t,
@@ -52,37 +52,41 @@ ref_counted_ptr! {
 }
 
 impl BrowserHost {
-    /// Create a new browser window using the window parameters specified by
-    /// `window_info`. All values will be copied internally and the actual window will
-    /// be created on the UI thread. If `request_context` is None the global request
-    /// context will be used. This function can be called on any browser process
-    /// thread and will not block. The optional `extra_info` parameter provides an
-    /// opportunity to specify extra information specific to the created browser that
-    /// will be passed to [RenderProcessHandlerCallbacks::on_browser_created] in the
-    /// render process.
-    pub fn create_browser(
-        window_info: &WindowInfo,
-        client: Client,
-        url: &str,
-        settings: &BrowserSettings,
-        extra_info: Option<&HashMap<String, StoredValue>>,
-        request_context: Option<&RequestContext>,
-    ) -> bool {
-        let extra_info = extra_info.map(DictionaryValue::from);
+    // TODO: HOW CAN WE MAKE THIS SAFE?
+    // We've run into memory issues when using this function and `BrowserHost::invalidate`. It's
+    // difficult to guarantee that everything was initialized properly before `invalidate` gets
+    // called, and while we don't know how to do that it seems safer to just disable this function.
+    // /// Create a new browser window using the window parameters specified by
+    // /// `window_info`. All values will be copied internally and the actual window will
+    // /// be created on the UI thread. If `request_context` is None the global request
+    // /// context will be used. This function can be called on any browser process
+    // /// thread and will not block. The optional `extra_info` parameter provides an
+    // /// opportunity to specify extra information specific to the created browser that
+    // /// will be passed to [RenderProcessHandlerCallbacks::on_browser_created] in the
+    // /// render process.
+    // pub fn create_browser(
+    //     window_info: &WindowInfo,
+    //     client: Client,
+    //     url: &str,
+    //     settings: &BrowserSettings,
+    //     extra_info: Option<&HashMap<String, StoredValue>>,
+    //     request_context: Option<&RequestContext>,
+    // ) -> bool {
+    //     let extra_info = extra_info.map(DictionaryValue::from);
 
-        unsafe {
-            cef_browser_host_create_browser(
-                &window_info.into_raw(),
-                client.into_raw(),
-                CefString::new(url).as_ptr(),
-                &settings.into_raw(),
-                extra_info.map(|ei| ei.as_ptr()).unwrap_or_else(null_mut),
-                request_context
-                    .map(|rc| rc.as_ptr())
-                    .unwrap_or_else(null_mut),
-            ) != 0
-        }
-    }
+    //     unsafe {
+    //         cef_browser_host_create_browser(
+    //             &window_info.into_raw(),
+    //             client.into_raw(),
+    //             CefString::new(url).as_ptr(),
+    //             &settings.into_raw(),
+    //             extra_info.map(|ei| ei.as_ptr()).unwrap_or_else(null_mut),
+    //             request_context
+    //                 .map(|rc| rc.as_ptr())
+    //                 .unwrap_or_else(null_mut),
+    //         ) != 0
+    //     }
+    // }
     /// Create a new browser window using the window parameters specified by
     /// `windowInfo`. If `request_context` is None the global request context will be
     /// used. This function can only be called on the browser process UI thread. The
@@ -96,6 +100,7 @@ impl BrowserHost {
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<&RequestContext>,
+        context: &crate::Context,
     ) -> Browser {
         let extra_info = extra_info.map(DictionaryValue::from);
 

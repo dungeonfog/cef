@@ -93,7 +93,7 @@ pub struct Settings {
     /// [RequestContextSettings::cache_path] values must have in common. If this
     /// value is empty and [Settings::set_cache_path] is non-empty then this value will
     /// default to the [Settings::set_cache_path] value. Failure to set this value
-    /// correctly may result in the sandbox blocking read/write access to the
+    /// correctly may in the sandbox blocking read/he
     /// cache_path directory.
     pub root_cache_path: Option<PathBuf>,
     /// The location where user data such as spell checking dictionary files will
@@ -222,8 +222,8 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new<T: Into<PathBuf>>(resources_dir_path: T) -> Result<Settings, std::io::Error> {
-        Ok(Settings {
+    pub fn new<T: Into<PathBuf>>(resources_dir_path: T) -> Settings {
+        Settings {
             browser_subprocess_path: None,
             framework_dir_path: None,
             main_bundle_path: None,
@@ -242,7 +242,7 @@ impl Settings {
             log_file: None,
             log_severity: LogSeverity::Default,
             javascript_flags: None,
-            resources_dir_path: resources_dir_path.into().canonicalize()?,
+            resources_dir_path: resources_dir_path.into(),
             locales_dir_path: None,
             pack_loading_disabled: false,
             remote_debugging_port: 0,
@@ -252,34 +252,34 @@ impl Settings {
             background_color: Color::wrap(0),
             accept_language_list: None,
             application_client_id_for_file_scanning: None,
-        })
+        }
     }
-    pub(crate) fn to_cef(&self, use_sandbox: bool) -> cef_settings_t {
+    pub(crate) fn to_cef(&self, use_sandbox: bool) -> Result<cef_settings_t, std::io::Error> {
         let string_to_cef = |s: Option<&String>| s.map(|s| &**s).map(CefString::new).unwrap_or_else(CefString::null).into_raw();
-        let path_to_cef = |path: Option<&PathBuf>| path.map(|p| p.to_str().unwrap()).map(CefString::new).unwrap_or_else(CefString::null).into_raw();
-        cef_settings_t {
+        let path_to_cef = |path: Option<&PathBuf>| -> Result<_, std::io::Error> {Ok(path.map(|p| p.canonicalize()).transpose()?.as_ref().map(|p| p.to_str().unwrap()).map(CefString::new).unwrap_or_else(CefString::null).into_raw())};
+        Ok(cef_settings_t {
             size: std::mem::size_of::<cef_settings_t>(),
             no_sandbox: !use_sandbox as c_int,
-            browser_subprocess_path: path_to_cef(self.browser_subprocess_path.as_ref()),
-            framework_dir_path: path_to_cef(self.framework_dir_path.as_ref()),
-            main_bundle_path: path_to_cef(self.main_bundle_path.as_ref()),
+            browser_subprocess_path: path_to_cef(self.browser_subprocess_path.as_ref())?,
+            framework_dir_path: path_to_cef(self.framework_dir_path.as_ref())?,
+            main_bundle_path: path_to_cef(self.main_bundle_path.as_ref())?,
             multi_threaded_message_loop: self.multi_threaded_message_loop as c_int,
             external_message_pump: self.external_message_pump as c_int,
             windowless_rendering_enabled: self.windowless_rendering_enabled as c_int,
             command_line_args_disabled: self.command_line_args_disabled as c_int,
-            cache_path: path_to_cef(self.cache_path.as_ref()),
-            root_cache_path: path_to_cef(self.root_cache_path.as_ref()),
-            user_data_path: path_to_cef(self.user_data_path.as_ref()),
+            cache_path: path_to_cef(self.cache_path.as_ref())?,
+            root_cache_path: path_to_cef(self.root_cache_path.as_ref())?,
+            user_data_path: path_to_cef(self.user_data_path.as_ref())?,
             persist_session_cookies: self.persist_session_cookies as c_int,
             persist_user_preferences: self.persist_user_preferences as c_int,
             user_agent: string_to_cef(self.user_agent.as_ref()),
             product_version: string_to_cef(self.product_version.as_ref()),
             locale: string_to_cef(self.locale.as_ref()),
-            log_file: path_to_cef(self.log_file.as_ref()),
+            log_file: path_to_cef(self.log_file.as_ref())?,
             log_severity: cef_log_severity_t::LOGSEVERITY_DEFAULT,
             javascript_flags: string_to_cef(self.javascript_flags.as_ref()),
-            resources_dir_path: path_to_cef(Some(&self.resources_dir_path)),
-            locales_dir_path: path_to_cef(self.locales_dir_path.as_ref()),
+            resources_dir_path: path_to_cef(Some(&self.resources_dir_path))?,
+            locales_dir_path: path_to_cef(self.locales_dir_path.as_ref())?,
             pack_loading_disabled: self.pack_loading_disabled as c_int,
             remote_debugging_port: self.remote_debugging_port as c_int,
             uncaught_exception_stack_size: self.uncaught_exception_stack_size as c_int,
@@ -288,19 +288,19 @@ impl Settings {
             background_color: self.background_color.0,
             accept_language_list: string_to_cef(self.accept_language_list.as_ref()),
             application_client_id_for_file_scanning: string_to_cef(self.application_client_id_for_file_scanning.map(|u| u.to_string()).as_ref()),
-        }
+        })
     }
-    pub fn browser_subprocess_path<T: Into<PathBuf>>(mut self, browser_subprocess_path: T) -> Result<Self, std::io::Error> {
-        self.browser_subprocess_path = Some(browser_subprocess_path.into().canonicalize()?);
-        Ok(self)
+    pub fn browser_subprocess_path<T: Into<PathBuf>>(mut self, browser_subprocess_path: T) -> Self {
+        self.browser_subprocess_path = Some(browser_subprocess_path.into());
+        self
     }
-    pub fn framework_dir_path<T: Into<PathBuf>>(mut self, framework_dir_path: T) -> Result<Self, std::io::Error> {
-        self.framework_dir_path = Some(framework_dir_path.into().canonicalize()?);
-        Ok(self)
+    pub fn framework_dir_path<T: Into<PathBuf>>(mut self, framework_dir_path: T) -> Self {
+        self.framework_dir_path = Some(framework_dir_path.into());
+        self
     }
-    pub fn main_bundle_path<T: Into<PathBuf>>(mut self, main_bundle_path: T) -> Result<Self, std::io::Error> {
-        self.main_bundle_path = Some(main_bundle_path.into().canonicalize()?);
-        Ok(self)
+    pub fn main_bundle_path<T: Into<PathBuf>>(mut self, main_bundle_path: T) -> Self {
+        self.main_bundle_path = Some(main_bundle_path.into());
+        self
     }
     pub fn multi_threaded_message_loop(mut self, multi_threaded_message_loop: bool) -> Self {
         self.multi_threaded_message_loop = multi_threaded_message_loop;
@@ -318,17 +318,17 @@ impl Settings {
         self.command_line_args_disabled = command_line_args_disabled;
         self
     }
-    pub fn cache_path<T: Into<PathBuf>>(mut self, cache_path: T) -> Result<Self, std::io::Error> {
-        self.cache_path = Some(cache_path.into().canonicalize()?);
-        Ok(self)
+    pub fn cache_path<T: Into<PathBuf>>(mut self, cache_path: T) -> Self {
+        self.cache_path = Some(cache_path.into());
+        self
     }
-    pub fn root_cache_path<T: Into<PathBuf>>(mut self, root_cache_path: T) -> Result<Self, std::io::Error> {
-        self.root_cache_path = Some(root_cache_path.into().canonicalize()?);
-        Ok(self)
+    pub fn root_cache_path<T: Into<PathBuf>>(mut self, root_cache_path: T) -> Self {
+        self.root_cache_path = Some(root_cache_path.into());
+        self
     }
-    pub fn user_data_path<T: Into<PathBuf>>(mut self, user_data_path: T) -> Result<Self, std::io::Error> {
-        self.user_data_path = Some(user_data_path.into().canonicalize()?);
-        Ok(self)
+    pub fn user_data_path<T: Into<PathBuf>>(mut self, user_data_path: T) -> Self {
+        self.user_data_path = Some(user_data_path.into());
+        self
     }
     pub fn persist_session_cookies(mut self, persist_session_cookies: bool) -> Self {
         self.persist_session_cookies = persist_session_cookies;
@@ -350,9 +350,9 @@ impl Settings {
         self.locale = Some(locale.into());
         self
     }
-    pub fn log_file<T: Into<PathBuf>>(mut self, log_file: T) -> Result<Self, std::io::Error> {
-        self.log_file = Some(log_file.into().canonicalize()?);
-        Ok(self)
+    pub fn log_file<T: Into<PathBuf>>(mut self, log_file: T) -> Self {
+        self.log_file = Some(log_file.into());
+        self
     }
     pub fn log_severity(mut self, log_severity: LogSeverity) -> Self {
         self.log_severity = log_severity;
@@ -362,9 +362,9 @@ impl Settings {
         self.javascript_flags = Some(javascript_flags.into());
         self
     }
-    pub fn locales_dir_path<T: Into<PathBuf>>(mut self, locales_dir_path: T) -> Result<Self, std::io::Error> {
-        self.locales_dir_path = Some(locales_dir_path.into().canonicalize()?);
-        Ok(self)
+    pub fn locales_dir_path<T: Into<PathBuf>>(mut self, locales_dir_path: T) -> Self {
+        self.locales_dir_path = Some(locales_dir_path.into());
+        self
     }
     pub fn pack_loading_disabled(mut self, pack_loading_disabled: bool) -> Self {
         self.pack_loading_disabled = pack_loading_disabled;

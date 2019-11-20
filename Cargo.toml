@@ -6,7 +6,6 @@ edition = "2018"
 
 [dependencies]
 cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
-num_enum = "0.4"
 parking_lot = "0.9"
 downcast-rs = "1.1"
 libc = "0.2"
@@ -20,6 +19,11 @@ uuid = "0.8"
 [dev-dependencies]
 winit = "=0.20.0-alpha4"
 winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
+wgpu = "0.4"
+vk-shader-macros = "0.2.2"
+
+[features]
+sandbox = []
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3" }

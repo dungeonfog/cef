@@ -1,6 +1,3 @@
-#[cfg(target_os = "windows")]
-use cef_sys::{cef_sandbox_info_create, cef_sandbox_info_destroy};
-
 /// The sandbox is used to restrict sub-processes (renderer, plugin, GPU, etc)
 /// from directly accessing system resources. This helps to protect the user
 /// from untrusted and potentially malicious Web content.
@@ -20,10 +17,11 @@ impl SandboxInfo {
     /// Create the sandbox information object for this process. It is safe to create
     /// multiple of this object and to drop the object immediately after passing
     /// into the [App::execute_process] and/or [App::initialize] functions.
+    #[cfg(feature = "sandbox")]
     pub fn new() -> Self {
         #[cfg(target_os = "windows")]
         {
-            Self(unsafe { cef_sandbox_info_create() })
+            Self(unsafe { cef_sys::cef_sandbox_info_create() })
         }
         #[cfg(not(target_os = "windows"))]
         {
@@ -35,18 +33,12 @@ impl SandboxInfo {
     }
 }
 
-impl Default for SandboxInfo {
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
 impl Drop for SandboxInfo {
     /// Destroy the specified sandbox information object.
     fn drop(&mut self) {
-        #[cfg(target_os = "windows")]
+        #[cfg(all(target_os = "windows", feature = "sandbox"))]
         unsafe {
-            cef_sandbox_info_destroy(self.0);
+            cef_sys::cef_sandbox_info_destroy(self.0);
         }
     }
 }

@@ -24,8 +24,8 @@ ref_counted_ptr! {
 impl CommandLine {
     /// Returns the singleton global CommandLine object. The returned object
     /// will be read-only.
-    pub fn get_global() -> Self {
-        unsafe { CommandLine::from_ptr_unchecked(cef_command_line_get_global()) }
+    pub fn get_global() -> Option<Self> {
+        unsafe { CommandLine::from_ptr(cef_command_line_get_global()) }
     }
     /// Create a new CommandLine instance.
     pub fn new() -> Self {
@@ -87,6 +87,8 @@ impl CommandLine {
     /// Retrieve the original command line string as a vector of strings. The argv
     /// array: `{ program, [(--|-|/)switch[=value]]*, [--], [argument]* }`
     pub fn get_argv(&self) -> Vec<String> {
+        println!("{:?}", self.0.as_ptr());
+        println!("{:?}", self.0.get_argv);
         let mut list = CefStringList::new();
         unsafe {
             (self.0.get_argv.unwrap())(self.as_ptr(), list.as_mut_ptr());

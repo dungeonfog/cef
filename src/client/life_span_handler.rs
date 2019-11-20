@@ -68,6 +68,7 @@ pub trait LifeSpanHandlerCallbacks: 'static + Send + Sync {
         extra_info: &mut DictionaryValue, // *mut *mut _cef_dictionary_value_t,
         no_javascript_access: &mut bool // *mut c_int
     ) -> bool {
+        println!("popup window");
         false
     }
     /// Called after a new browser is created. This callback will be the first

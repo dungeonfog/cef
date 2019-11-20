@@ -1,5 +1,5 @@
 #![allow(dead_code, unused_variables)]
-#![feature(fn_traits, unboxed_closures, trait_alias)]
+#![feature(fn_traits, unboxed_closures, trait_alias, optin_builtin_traits)]
 #[macro_use]
 mod refcounted;
 #[macro_use]
@@ -38,7 +38,7 @@ pub mod command_line;
 pub mod app;
 
 pub mod sandbox;
-pub mod main_args;
+mod main_args;
 pub mod scheme;
 pub mod settings;
 pub mod color;

@@ -6,15 +6,17 @@
 use crate::{
     app::App,
     main_args::MainArgs,
+    sandbox::SandboxInfo,
     settings::Settings,
 };
 use cef_sys::{
     cef_do_message_loop_work, cef_execute_process,
     cef_initialize, cef_quit_message_loop, cef_run_message_loop, cef_shutdown,
 };
-use std::{ptr::null_mut};
-
-use crate::sandbox::SandboxInfo;
+use std::{
+    ptr::null_mut,
+    sync::atomic::{AtomicBool, Ordering},
+};
 
 
 /// Call during process startup to enable High-DPI support on Windows 7 or newer.
@@ -24,7 +26,6 @@ use crate::sandbox::SandboxInfo;
 fn enable_highdpi_support() {
     #[cfg(target_os = "windows")]
     {
-        use std::sync::atomic::{AtomicBool, Ordering};
         static ENABLED: AtomicBool = AtomicBool::new(false);
         if !ENABLED.swap(true, Ordering::SeqCst) {
             use winapi::um::{winbase, winnt};
@@ -69,10 +70,10 @@ fn enable_highdpi_support() {
 /// the process exit code. The `application` parameter may be None. The
 /// `sandbox_info` parameter may be None (see [SandboxInfo] for details).
 pub fn execute_process(
-    args: &MainArgs,
     application: Option<App>,
     sandbox_info: Option<&SandboxInfo>,
 ) -> i32 {
+    let args = MainArgs::new();
     enable_highdpi_support();
     unsafe {
         cef_execute_process(
@@ -85,8 +86,33 @@ pub fn execute_process(
     }
 }
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum ProcessType {
+    Browser,
+    Renderer,
+    Gpu,
+    Utility,
+    Other,
+}
+
+pub fn process_type() -> ProcessType {
+    let flag = "--type=";
+    let arg = std::env::args().find(|s| s.starts_with(flag));
+    let arg = arg.as_ref().map(|s| &s[flag.len()..]);
+    match arg {
+        None => ProcessType::Browser,
+        Some("renderer") => ProcessType::Renderer,
+        Some("gpu-process") => ProcessType::Gpu,
+        Some("utility") => ProcessType::Utility,
+        _ => ProcessType::Other,
+    }
+}
 
 pub struct Context(());
+
+impl !Send for Context {}
+impl !Sync for Context {}
+static CONTEXT_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 impl Context {
     /// This function should be called on the main application thread to initialize
@@ -97,14 +123,15 @@ impl Context {
     /// failed. The `windows_sandbox_info` parameter is only used on Windows and may
     /// be None (see [SandboxInfo] for details).
     pub fn initialize(
-        args: &MainArgs,
         settings: &Settings,
         application: Option<App>,
         sandbox_info: Option<&SandboxInfo>,
-    ) -> Option<Context> {
+    ) -> Result<Context, std::io::Error> {
+        let args = MainArgs::new();
         enable_highdpi_support();
+        CONTEXT_INITIALIZED.swap(true, Ordering::SeqCst);
         unsafe {
-            let settings = settings.to_cef(sandbox_info.is_some());
+            let settings = settings.to_cef(sandbox_info.is_some())?;
             let worked = cef_initialize(
                 args.get(),
                 &settings,
@@ -115,8 +142,8 @@ impl Context {
             ) != 0;
             crate::settings::drop_settings(settings);
             match worked {
-                true => Some(Context(())),
-                false => None,
+                true => Ok(Context(())),
+                false => Err(std::io::Error::new(std::io::ErrorKind::Other, "context creation failed!")),
             }
         }
     }
@@ -167,6 +194,7 @@ impl Context {
 
 impl Drop for Context {
     fn drop(&mut self) {
+        CONTEXT_INITIALIZED.swap(false, Ordering::SeqCst);
         unsafe {
             println!("drop context");
             cef_shutdown();
@@ -184,3 +212,24 @@ pub fn set_osmodal_loop(os_modal_loop: bool) {
         cef_sys::cef_set_osmodal_loop(os_modal_loop as i32);
     }
 }
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum QuitMessageLoopError {
+    NotOnMainThread,
+    ContextNotInitialized,
+}
+
+/// Quit the CEF message loop that was started by calling [App::run_message_loop].
+pub fn quit_message_loop() -> Result<(), QuitMessageLoopError> {
+    if !crate::task::TaskRunner::currently_on(crate::task::ThreadId::UI) {
+        return Err(QuitMessageLoopError::NotOnMainThread);
+    }
+    if !CONTEXT_INITIALIZED.load(Ordering::SeqCst) {
+        return Err(QuitMessageLoopError::ContextNotInitialized);
+    }
+    unsafe {
+        cef_quit_message_loop();
+    }
+    Ok(())
+}
+
