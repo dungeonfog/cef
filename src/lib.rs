@@ -79,3 +79,5 @@ impl ReturnValue {
 pub type CEnumType = i32;
 #[cfg(target_os = "linux")]
 pub type CEnumType = u32;
+#[cfg(target_os = "macos")]
+pub type CEnumType = u32;
