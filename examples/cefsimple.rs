@@ -40,7 +40,13 @@ fn main() {
     if result >= 0 {
         std::process::exit(result);
     }
+
+    // TODO(yanchith): aren't we missing browser_subprocess_path on macos?
+    #[cfg(not(target_os = "macos"))]
     let settings = Settings::new("./Resources");
+    #[cfg(target_os = "macos")]
+    let settings = Settings::new("./Chromium Embedded Framework.framework/Resources")
+        .framework_dir_path("./Chromium Embedded Framework.framework");
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 
