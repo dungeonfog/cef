@@ -41,7 +41,6 @@ fn main() {
         std::process::exit(result);
     }
 
-    // TODO(yanchith): aren't we missing browser_subprocess_path on macos?
     #[cfg(not(target_os = "macos"))]
     let settings = Settings::new("./Resources")
         .log_severity(LogSeverity::Verbose);
