@@ -45,9 +45,9 @@ fn main() {
     let settings = Settings::new("./Resources")
         .log_severity(LogSeverity::Verbose);
     #[cfg(target_os = "macos")]
-    let settings = Settings::new("./Chromium Embedded Framework.framework/Resources")
+    let settings = Settings::new("./Resources")
         .log_severity(LogSeverity::Verbose)
-        .framework_dir_path("./Chromium Embedded Framework.framework");
+        .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 

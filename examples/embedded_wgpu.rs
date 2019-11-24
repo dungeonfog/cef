@@ -554,11 +554,11 @@ fn main() {
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true);
             #[cfg(target_os = "macos")]
-            let settings = Settings::new("./Chromium Embedded Framework.framework/Resources")
+            let settings = Settings::new("./Resources")
                 .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true)
-                .framework_dir_path("./Chromium Embedded Framework.framework");
+                .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
 
             let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 
