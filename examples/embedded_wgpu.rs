@@ -257,16 +257,13 @@ impl Renderer {
     const OUTPUT_ATTACHMENT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Bgra8Unorm;
 
     pub fn new(window: &Window) -> Renderer {
-        // static SHADER_BLIT_VERT: &[u8] = include_bytes!("blit.vert.spv");
-        // static SHADER_BLIT_FRAG: &[u8] = include_bytes!("blit.frag.spv");
-
         static SHADER_BLIT_VERT: &[u32] = vk_shader_macros::include_glsl!("examples/blit.vert");
         static SHADER_BLIT_FRAG: &[u32] = vk_shader_macros::include_glsl!("examples/blit.frag");
 
         let surface = wgpu::Surface::create(window);
         let adapter = wgpu::Adapter::request(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
-            backends: wgpu::BackendBit::VULKAN, // FIXME: primary instead?
+            backends: wgpu::BackendBit::PRIMARY,
         })
         .expect("Failed to find adapter satisfying the options"); // FIXME: handle gracefully
         let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
@@ -281,10 +278,6 @@ impl Renderer {
 
         let swap_chain = Self::create_swap_chain(&device, &surface, width, height);
 
-        // let vs_words =
-        //     wgpu::read_spirv(io::Cursor::new(SHADER_BLIT_VERT)).expect("Failed to read SPIR-V");
-        // let fs_words =
-        //     wgpu::read_spirv(io::Cursor::new(SHADER_BLIT_FRAG)).expect("Failed to read SPIR-V");
         let vs_module = device.create_shader_module(&SHADER_BLIT_VERT);
         let fs_module = device.create_shader_module(&SHADER_BLIT_FRAG);
 
