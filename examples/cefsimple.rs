@@ -8,7 +8,7 @@ use cef::{
         Client, ClientCallbacks,
         life_span_handler::{LifeSpanHandler, LifeSpanHandlerCallbacks}
     },
-    settings::{Settings},
+    settings::{Settings, LogSeverity},
     window::WindowInfo,
 };
 
@@ -43,9 +43,11 @@ fn main() {
 
     // TODO(yanchith): aren't we missing browser_subprocess_path on macos?
     #[cfg(not(target_os = "macos"))]
-    let settings = Settings::new("./Resources");
+    let settings = Settings::new("./Resources")
+        .log_severity(LogSeverity::Verbose);
     #[cfg(target_os = "macos")]
     let settings = Settings::new("./Chromium Embedded Framework.framework/Resources")
+        .log_severity(LogSeverity::Verbose)
         .framework_dir_path("./Chromium Embedded Framework.framework");
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();

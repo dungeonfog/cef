@@ -550,10 +550,12 @@ fn main() {
 
             #[cfg(not(target_os = "macos"))]
             let settings = Settings::new("./Resources")
+                .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true);
             #[cfg(target_os = "macos")]
             let settings = Settings::new("./Chromium Embedded Framework.framework/Resources")
+                .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true)
                 .framework_dir_path("./Chromium Embedded Framework.framework");
@@ -589,7 +591,6 @@ fn main() {
                     popup_rect: Mutex::new(None),
                 })
             });
-
 
             let browser = BrowserHost::create_browser_sync(
                 &window_info,
