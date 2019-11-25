@@ -25,9 +25,3 @@ Some platform specific setup is required to make the examples runnable.
 
 - Copy the `Chromium Embedded Framework.framework/Resources` directory
   to this directory (so that it can be accessed by the executable)
-
-- Copy `libswiftshader_libEGL.dylib` and
-  `libswiftshader_libGLESv2.dylib` from `Chromium Embedded
-  Framework.framework/Libraries` to `./target/debug/examples/` in this
-  directory (so that the runtime gl implementation loader in chromium
-  can find them)
