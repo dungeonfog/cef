@@ -48,6 +48,8 @@ impl TextInputMode {
     }
 }
 
+pub type CursorHandle = cef_sys::cef_cursor_handle_t;
+
 #[derive(Copy, Clone, PartialEq)]
 pub enum CursorType<'a> {
     Pointer,
@@ -338,7 +340,7 @@ pub trait RenderHandlerCallbacks: 'static + Send + Sync {
     fn on_cursor_change(
         &self,
         browser: Browser,
-        cursor: cef_cursor_handle_t,
+        cursor: CursorHandle,
         type_: CursorType<'_>,
     );
     /// Called when the user starts dragging content in the web view. Contextual
