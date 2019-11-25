@@ -36,8 +36,7 @@ impl RawWindow {
             if window == std::ptr::null_mut() {
                 None
             } else {
-                // TODO(yanchith): Does cef_window_handle_t represent window or view here?
-                Some(RawWindow(RawWindowHandle::MacOS(MacOSHandle { ns_window: window, ..MacOSHandle::empty() })))
+                Some(RawWindow(RawWindowHandle::MacOS(MacOSHandle { ns_view: window, ..MacOSHandle::empty() })))
             }
         }
     }
@@ -62,8 +61,7 @@ impl RawWindow {
         #[cfg(target_os = "macos")]
         {
             match self.0 {
-                // TODO(yanchith): ns_window or ns_view???
-                RawWindowHandle::MacOS(macos_handle) => macos_handle.ns_window as _,
+                RawWindowHandle::MacOS(macos_handle) => macos_handle.ns_view as _,
                 _ => panic!(),
             }
         }
@@ -129,14 +127,19 @@ pub mod linux {
 use macos::PlatformSpecificWindowInfo;
 #[cfg(target_os = "macos")]
 pub mod macos {
+    use std::os::raw;
+
     pub struct PlatformSpecificWindowInfo {
-        pub hidden: i32,
+        /// Whether to create the view initially hidden.
+        ///
+        /// Set to true (1) to create the view initially hidden.
+        pub hidden: raw::c_int,
     }
 
     impl Default for PlatformSpecificWindowInfo {
         fn default() -> Self {
             PlatformSpecificWindowInfo {
-                hidden: 0, // TODO(yanchith): what is the correct default for this?
+                hidden: 0,
             }
         }
     }
@@ -197,7 +200,6 @@ impl WindowInfo {
                 y: info.y as _,
                 width: info.width as _,
                 height: info.height as _,
-                // TODO(yanchith): verify that raw_window_handle uses views instead of windows too
                 parent_window: RawWindow::from_cef_handle(info.parent_view),
                 window: RawWindow::from_cef_handle(info.view),
                 windowless_rendering_enabled: info.windowless_rendering_enabled != 0,
