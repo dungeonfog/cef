@@ -28,7 +28,7 @@ bitflags!{
         /// canonicalized. The remainder of the URL will be passed to the handler as-
         /// is. For example, "scheme:///some%20text" will remain the same. Non-standard
         /// scheme URLs cannot be used as a target for form submission.
-        const STANDARD = cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD as crate::CEnumType;
+        const STANDARD = cef_scheme_options_t::CEF_SCHEME_OPTION_STANDARD.0;
         /// If `Local` is set the scheme will be treated with the same
         /// security rules as those applied to "file" URLs. Normal pages cannot link to
         /// or access local URLs. Also, by default, local URLs can only perform
@@ -38,29 +38,29 @@ bitflags!{
         /// value to true. To allow XMLHttpRequest calls from a local URL to all
         /// origins set the CefSettings.universal_access_from_file_urls_allowed value
         /// to true.
-        const LOCAL = cef_scheme_options_t::CEF_SCHEME_OPTION_LOCAL as crate::CEnumType;
+        const LOCAL = cef_scheme_options_t::CEF_SCHEME_OPTION_LOCAL.0;
         /// If `DisplayIsolated` is set the scheme can only be
         /// displayed from other content hosted with the same scheme. For example,
         /// pages in other origins cannot create iframes or hyperlinks to URLs with the
         /// scheme. For schemes that must be accessible from other schemes don't set
         /// this, set `CORSEnabled`, and use CORS
         /// "Access-Control-Allow-Origin" headers to further restrict access.
-        const DISPLAY_ISOLATED = cef_scheme_options_t::CEF_SCHEME_OPTION_DISPLAY_ISOLATED as crate::CEnumType;
+        const DISPLAY_ISOLATED = cef_scheme_options_t::CEF_SCHEME_OPTION_DISPLAY_ISOLATED.0;
         /// If `Secure` is set the scheme will be treated with the same
         /// security rules as those applied to "https" URLs. For example, loading this
         /// scheme from other secure schemes will not trigger mixed content warnings.
-        const SECURE = cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE as crate::CEnumType;
+        const SECURE = cef_scheme_options_t::CEF_SCHEME_OPTION_SECURE.0;
         /// If `CORSEnabled` is set the scheme can be sent CORS
         /// requests. This value should be set in most cases where
         /// `Standard` is set.
-        const CORS_ENABLED = cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED as crate::CEnumType;
+        const CORS_ENABLED = cef_scheme_options_t::CEF_SCHEME_OPTION_CORS_ENABLED.0;
         /// If `CSPBypassing` is set the scheme can bypass Content-
         /// Security-Policy (CSP) checks. This value should not be set in most cases
         /// where `Standard` is set.
-        const CSP_BYPASSING = cef_scheme_options_t::CEF_SCHEME_OPTION_CSP_BYPASSING as crate::CEnumType;
+        const CSP_BYPASSING = cef_scheme_options_t::CEF_SCHEME_OPTION_CSP_BYPASSING.0;
         /// If `FetchEnabled` is set the scheme can perform Fetch API
         /// requests.
-        const FETCH_ENABLED = cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED as crate::CEnumType;
+        const FETCH_ENABLED = cef_scheme_options_t::CEF_SCHEME_OPTION_FETCH_ENABLED.0;
     }
 }
 
