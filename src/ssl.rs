@@ -55,9 +55,9 @@ bitflags!{
     // Supported SSL content status flags. See content/public/common/ssl_status.h
     // for more information.
     pub struct ContentStatus: crate::CEnumType {
-        const NORMAL = cef_ssl_content_status_t::SSL_CONTENT_NORMAL_CONTENT.0;
-        const DISPLAYED_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_DISPLAYED_INSECURE_CONTENT.0;
-        const RAN_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_RAN_INSECURE_CONTENT.0;
+        const NORMAL = cef_ssl_content_status_t::SSL_CONTENT_NORMAL_CONTENT as crate::CEnumType;
+        const DISPLAYED_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_DISPLAYED_INSECURE_CONTENT as crate::CEnumType;
+        const RAN_INSECURE = cef_ssl_content_status_t::SSL_CONTENT_RAN_INSECURE_CONTENT as crate::CEnumType;
     }
 }
 
@@ -103,7 +103,7 @@ impl SSLStatus {
         unsafe{ SSLVersion::from_unchecked(self.0.get_sslversion.unwrap()(self.as_ptr())) }
     }
     pub fn get_content_status(&self) -> ContentStatus {
-        unsafe{ ContentStatus::from_bits_truncate(self.0.get_content_status.unwrap()(self.as_ptr()).0) }
+        unsafe{ ContentStatus::from_bits_truncate(self.0.get_content_status.unwrap()(self.as_ptr())) }
     }
     pub fn get_x509certificate(&self) -> X509Certificate {
         unsafe{ X509Certificate::from_ptr_unchecked(self.0.get_x509certificate.unwrap()(self.as_ptr())) }
