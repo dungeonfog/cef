@@ -1,3 +1,5 @@
+use winit::event::{Touch, TouchPhase};
+use cef::events::{TouchEvent, TouchEventType, PointerType};
 use cef::events::WindowsKeyCode;
 use cef::events::KeyEvent;
 use cef::client::render_handler::CursorType;
@@ -422,6 +424,25 @@ fn main() {
                                     );
                                 }
                             },
+                            WindowEvent::Touch(Touch{phase, location, force, id, ..}) => {
+                                browser.get_host().send_touch_event(&TouchEvent {
+                                    touch_id: id as i32,
+                                    x: location.x as f32,
+                                    y: location.y as f32,
+                                    radius_x: 1.0,
+                                    radius_y: 1.0,
+                                    rotation_angle: 0.0,
+                                    pressure: force.map(|f| f.normalized() as f32).unwrap_or(1.0),
+                                    event_type: match phase {
+                                        TouchPhase::Started => TouchEventType::Pressed,
+                                        TouchPhase::Moved => TouchEventType::Moved,
+                                        TouchPhase::Ended => TouchEventType::Released,
+                                        TouchPhase::Cancelled => TouchEventType::Cancelled,
+                                    },
+                                    modifiers: mouse_event.modifiers,
+                                    pointer_type: PointerType::Touch,
+                                })
+                            }
                             WindowEvent::KeyboardInput{input: KeyboardInput {state, virtual_keycode, modifiers, ..}, ..} => {
                                 mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
                                 mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);

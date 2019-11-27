@@ -158,43 +158,41 @@ impl Into<cef_mouse_event_t> for MouseEvent {
     }
 }
 
-bitflags!{
-    #[derive(Default)]
-    pub struct TouchEventType: crate::CEnumType {
-        const RELEASED = cef_touch_event_type_t::CEF_TET_RELEASED as _;
-        const PRESSED = cef_touch_event_type_t::CEF_TET_PRESSED as _;
-        const MOVED = cef_touch_event_type_t::CEF_TET_MOVED as _;
-        const CANCELLED = cef_touch_event_type_t::CEF_TET_CANCELLED as _;
-    }
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum TouchEventType {
+    Released = cef_touch_event_type_t::CEF_TET_RELEASED as _,
+    Pressed = cef_touch_event_type_t::CEF_TET_PRESSED as _,
+    Moved = cef_touch_event_type_t::CEF_TET_MOVED as _,
+    Cancelled = cef_touch_event_type_t::CEF_TET_CANCELLED as _,
 }
 
 impl TouchEventType {
     pub unsafe fn from_unchecked(i: crate::CEnumType) -> TouchEventType {
-        TouchEventType::from_bits_unchecked(i)
+        std::mem::transmute(i)
     }
 }
 
-bitflags!{
-    /// The device type that caused the event.
-    #[derive(Default)]
-    pub struct PointerType: crate::CEnumType {
-        const TOUCH = cef_pointer_type_t::CEF_POINTER_TYPE_TOUCH as _;
-        const MOUSE = cef_pointer_type_t::CEF_POINTER_TYPE_MOUSE as _;
-        const PEN = cef_pointer_type_t::CEF_POINTER_TYPE_PEN as _;
-        const ERASER = cef_pointer_type_t::CEF_POINTER_TYPE_ERASER as _;
-        const UNKNOWN = cef_pointer_type_t::CEF_POINTER_TYPE_UNKNOWN as _;
-    }
+/// The device type that caused the event.
+#[repr(C)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, PartialOrd, Ord)]
+pub enum PointerType {
+    Touch = cef_pointer_type_t::CEF_POINTER_TYPE_TOUCH as _,
+    Mouse = cef_pointer_type_t::CEF_POINTER_TYPE_MOUSE as _,
+    Pen = cef_pointer_type_t::CEF_POINTER_TYPE_PEN as _,
+    Eraser = cef_pointer_type_t::CEF_POINTER_TYPE_ERASER as _,
+    Unknown = cef_pointer_type_t::CEF_POINTER_TYPE_UNKNOWN as _,
 }
 
 impl PointerType {
     pub unsafe fn from_unchecked(i: crate::CEnumType) -> PointerType {
-        PointerType::from_bits_unchecked(i)
+        std::mem::transmute(i)
     }
 }
 
 /// Structure representing touch event information.
 #[repr(C)]
-#[derive(Default, Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub struct TouchEvent {
     pub touch_id: i32,
     pub x: f32,
