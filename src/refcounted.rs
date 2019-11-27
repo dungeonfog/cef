@@ -4,7 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
     os::raw::c_int,
     ptr::NonNull,
-    sync::Arc,
+    sync::{Arc, atomic::{AtomicUsize, Ordering}},
 };
 use chashmap::CHashMap;
 use lazy_static::lazy_static;
@@ -205,6 +205,7 @@ impl<C: RefCounter> Clone for RefCountedPtr<C> {
 #[repr(C)]
 pub(crate) struct RefCounted<W: Wrapper> {
     cefobj: W::Cef,
+    ref_count: AtomicUsize,
     object: W,
 }
 
@@ -216,7 +217,7 @@ impl<W: Wrapper> RefCounted<W> {
         &(*(ptr as *const W::Cef as *const Self)).object
     }
 
-    pub unsafe fn to_arc(ptr: *mut W::Cef) -> ManuallyDrop<Arc<Self>> {
+    unsafe fn to_arc(ptr: *mut W::Cef) -> ManuallyDrop<Arc<Self>> {
         ManuallyDrop::new(Arc::from_raw(ptr as *mut Self))
     }
 
@@ -231,29 +232,37 @@ impl<W: Wrapper> RefCounted<W> {
 
         // TODO: SHOULD WE GIT RID OF THE POINTER CAST? THIS IS BEING SHARED ACROSS THREADS AFTER
         // ALL
-        Arc::into_raw(Arc::new(Self { cefobj, object })) as *mut Self
+        Box::into_raw(Box::new(Self {
+            cefobj,
+            ref_count: AtomicUsize::new(1),
+            object,
+        }))
     }
 
     pub(crate) extern "C" fn add_ref(ref_counted: *mut cef_base_ref_counted_t) {
-        let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
-        std::mem::forget(Arc::clone(&*this));
-        let _: ManuallyDrop<Arc<Self>> = this;
+        let this = unsafe{ &*(ref_counted as *const Self) };
+        let old_size = this.ref_count.fetch_add(1, Ordering::Relaxed);
+        if old_size == usize::max_value() {
+            panic!("ref_count too big!");
+        }
     }
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let strong_count = {
-            let this: Arc<Self> =
-                ManuallyDrop::into_inner(unsafe { Self::to_arc(ref_counted as *mut W::Cef) });
-            Arc::strong_count(&this) - 1
-        };
-        (strong_count == 0) as c_int
+        let this = unsafe{ &*(ref_counted as *const Self) };
+        let strong_count = this.ref_count.fetch_sub(1, Ordering::Release);
+        if strong_count == 1 {
+            unsafe{ Box::from_raw(ref_counted as *mut Self); }
+            1
+        } else {
+            0
+        }
     }
     extern "C" fn has_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
-        (Arc::strong_count(&this) == 1) as c_int
+        let this = unsafe{ &*(ref_counted as *const Self) };
+        (this.ref_count.load(Ordering::SeqCst) == 1) as c_int
     }
     extern "C" fn has_at_least_one_ref(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
-        let this = unsafe { Self::to_arc(ref_counted as *mut W::Cef) };
-        (Arc::strong_count(&this) >= 1) as c_int
+        let this = unsafe{ &*(ref_counted as *const Self) };
+        (this.ref_count.load(Ordering::SeqCst) >= 1) as c_int
     }
 }
 
