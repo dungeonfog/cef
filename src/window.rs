@@ -19,6 +19,7 @@ impl RawWindow {
                 None
             }
         }
+
         #[cfg(target_os = "linux")]
         {
             use raw_window_handle::unix::XlibHandle;
@@ -26,6 +27,16 @@ impl RawWindow {
                 None
             } else {
                 Some(RawWindow(RawWindowHandle::Xlib(XlibHandle { window, ..XlibHandle::empty() })))
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            use raw_window_handle::macos::MacOSHandle;
+            if window == std::ptr::null_mut() {
+                None
+            } else {
+                Some(RawWindow(RawWindowHandle::MacOS(MacOSHandle { ns_view: window, ..MacOSHandle::empty() })))
             }
         }
     }
@@ -38,10 +49,19 @@ impl RawWindow {
                 _ => panic!(),
             }
         }
+
         #[cfg(target_os = "linux")]
         {
             match self.0 {
                 RawWindowHandle::Xlib(xlib_handle) => xlib_handle.window as _,
+                _ => panic!(),
+            }
+        }
+
+        #[cfg(target_os = "macos")]
+        {
+            match self.0 {
+                RawWindowHandle::MacOS(macos_handle) => macos_handle.ns_view as _,
                 _ => panic!(),
             }
         }
@@ -95,12 +115,34 @@ pub mod windows {
     }
 }
 
-#[cfg(not(target_os = "windows"))]
-use not_windows::PlatformSpecificWindowInfo;
-#[cfg(not(target_os = "windows"))]
-pub mod not_windows {
+#[cfg(target_os = "linux")]
+use linux::PlatformSpecificWindowInfo;
+#[cfg(target_os = "linux")]
+pub mod linux {
     #[derive(Default)]
     pub struct PlatformSpecificWindowInfo;
+}
+
+#[cfg(target_os = "macos")]
+use macos::PlatformSpecificWindowInfo;
+#[cfg(target_os = "macos")]
+pub mod macos {
+    use std::os::raw;
+
+    pub struct PlatformSpecificWindowInfo {
+        /// Whether to create the view initially hidden.
+        ///
+        /// Set to true (1) to create the view initially hidden.
+        pub hidden: raw::c_int,
+    }
+
+    impl Default for PlatformSpecificWindowInfo {
+        fn default() -> Self {
+            PlatformSpecificWindowInfo {
+                hidden: 0,
+            }
+        }
+    }
 }
 
 impl WindowInfo {
@@ -149,6 +191,25 @@ impl WindowInfo {
                 platform_specific: PlatformSpecificWindowInfo
             }
         }
+
+        #[cfg(target_os = "macos")]
+        {
+            WindowInfo {
+                window_name: CefString::from_ptr_unchecked(&info.window_name).into(),
+                x: info.x as _,
+                y: info.y as _,
+                width: info.width as _,
+                height: info.height as _,
+                parent_window: RawWindow::from_cef_handle(info.parent_view),
+                window: RawWindow::from_cef_handle(info.view),
+                windowless_rendering_enabled: info.windowless_rendering_enabled != 0,
+                shared_texture_enabled: info.shared_texture_enabled != 0,
+                external_begin_frame_enabled: info.external_begin_frame_enabled != 0,
+                platform_specific: PlatformSpecificWindowInfo {
+                    hidden: info.hidden,
+                }
+            }
+        }
     }
 }
 
@@ -184,6 +245,25 @@ impl<'a> From<&'a WindowInfo> for cef_window_info_t {
             height: info.height as _,
             parent_window: info.parent_window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(0),
             window: info.window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(0),
+            windowless_rendering_enabled: info.windowless_rendering_enabled as _,
+            shared_texture_enabled: info.shared_texture_enabled as _,
+            external_begin_frame_enabled: info.external_begin_frame_enabled as _,
+        }
+    }
+}
+
+#[cfg(target_os = "macos")]
+impl<'a> From<&'a WindowInfo> for cef_window_info_t {
+    fn from(info: &'a WindowInfo) -> cef_window_info_t {
+        cef_window_info_t {
+            window_name: CefString::new(&info.window_name).into_raw(),
+            x: info.x as _,
+            y: info.y as _,
+            width: info.width as _,
+            height: info.height as _,
+            hidden: info.platform_specific.hidden,
+            parent_view: info.parent_window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(std::ptr::null_mut()),
+            view: info.window.as_ref().map(|h| h.to_cef_handle()).unwrap_or(std::ptr::null_mut()),
             windowless_rendering_enabled: info.windowless_rendering_enabled as _,
             shared_texture_enabled: info.shared_texture_enabled as _,
             external_begin_frame_enabled: info.external_begin_frame_enabled as _,

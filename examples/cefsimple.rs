@@ -8,7 +8,7 @@ use cef::{
         Client, ClientCallbacks,
         life_span_handler::{LifeSpanHandler, LifeSpanHandlerCallbacks}
     },
-    settings::{Settings},
+    settings::{Settings, LogSeverity},
     window::WindowInfo,
 };
 
@@ -40,7 +40,14 @@ fn main() {
     if result >= 0 {
         std::process::exit(result);
     }
-    let settings = Settings::new("./Resources");
+
+    #[cfg(not(target_os = "macos"))]
+    let settings = Settings::new("./Resources")
+        .log_severity(LogSeverity::Verbose);
+    #[cfg(target_os = "macos")]
+    let settings = Settings::new("./Resources")
+        .log_severity(LogSeverity::Verbose)
+        .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 

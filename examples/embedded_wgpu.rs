@@ -257,16 +257,13 @@ impl Renderer {
     const OUTPUT_ATTACHMENT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Bgra8Unorm;
 
     pub fn new(window: &Window) -> Renderer {
-        // static SHADER_BLIT_VERT: &[u8] = include_bytes!("blit.vert.spv");
-        // static SHADER_BLIT_FRAG: &[u8] = include_bytes!("blit.frag.spv");
-
         static SHADER_BLIT_VERT: &[u32] = vk_shader_macros::include_glsl!("examples/blit.vert");
         static SHADER_BLIT_FRAG: &[u32] = vk_shader_macros::include_glsl!("examples/blit.frag");
 
         let surface = wgpu::Surface::create(window);
         let adapter = wgpu::Adapter::request(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
-            backends: wgpu::BackendBit::VULKAN, // FIXME: primary instead?
+            backends: wgpu::BackendBit::PRIMARY,
         })
         .expect("Failed to find adapter satisfying the options"); // FIXME: handle gracefully
         let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {
@@ -281,10 +278,6 @@ impl Renderer {
 
         let swap_chain = Self::create_swap_chain(&device, &surface, width, height);
 
-        // let vs_words =
-        //     wgpu::read_spirv(io::Cursor::new(SHADER_BLIT_VERT)).expect("Failed to read SPIR-V");
-        // let fs_words =
-        //     wgpu::read_spirv(io::Cursor::new(SHADER_BLIT_FRAG)).expect("Failed to read SPIR-V");
         let vs_module = device.create_shader_module(&SHADER_BLIT_VERT);
         let fs_module = device.create_shader_module(&SHADER_BLIT_FRAG);
 
@@ -555,10 +548,17 @@ fn main() {
                 })
             });
 
+            #[cfg(not(target_os = "macos"))]
             let settings = Settings::new("./Resources")
+                .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
-                .log_severity(LogSeverity::Disable)
                 .external_message_pump(true);
+            #[cfg(target_os = "macos")]
+            let settings = Settings::new("./Resources")
+                .log_severity(LogSeverity::Verbose)
+                .windowless_rendering_enabled(true)
+                .external_message_pump(true)
+                .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
 
             let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 
@@ -591,7 +591,6 @@ fn main() {
                     popup_rect: Mutex::new(None),
                 })
             });
-
 
             let browser = BrowserHost::create_browser_sync(
                 &window_info,
