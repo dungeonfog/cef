@@ -4,7 +4,7 @@ use std::{
     ops::{Deref, DerefMut},
     os::raw::c_int,
     ptr::NonNull,
-    sync::{Arc, atomic::{AtomicUsize, Ordering}},
+    sync::{Arc, atomic::{self, AtomicUsize, Ordering}},
 };
 use chashmap::CHashMap;
 use lazy_static::lazy_static;
@@ -205,6 +205,11 @@ impl<C: RefCounter> Clone for RefCountedPtr<C> {
 #[repr(C)]
 pub(crate) struct RefCounted<W: Wrapper> {
     cefobj: W::Cef,
+    /// The ref-counting implementation here is blatantly stolen from `std::sync::Arc`, since it's
+    /// a well-tested and robust design. There's lots of good documentation in the standard
+    /// library source on the rationale for the various atomic operations, so reference that code for
+    /// explanations. See https://github.com/anlumo/cef/issues/1 for why we aren't just using `Arc`
+    /// directly.
     ref_count: AtomicUsize,
     object: W,
 }
@@ -249,6 +254,8 @@ impl<W: Wrapper> RefCounted<W> {
     pub(crate) extern "C" fn release(ref_counted: *mut cef_base_ref_counted_t) -> c_int {
         let this = unsafe{ &*(ref_counted as *const Self) };
         let strong_count = this.ref_count.fetch_sub(1, Ordering::Release);
+        atomic::fence(Ordering::Acquire);
+
         if strong_count == 1 {
             unsafe{ Box::from_raw(ref_counted as *mut Self); }
             1
