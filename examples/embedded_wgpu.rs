@@ -4,6 +4,7 @@ use cef::client::render_handler::ScreenInfo;
 use cef::drag::DragOperation;
 use cef::events::KeyEvent;
 use cef::events::WindowsKeyCode;
+use cef::events::{PointerType, TouchEvent, TouchEventType};
 use cef::values::{Point, Rect};
 use cef::{
     app::{App, AppCallbacks},
@@ -24,8 +25,10 @@ use cef_sys::cef_cursor_handle_t;
 use parking_lot::Mutex;
 use std::{
     ffi::c_void,
+    sync::Arc,
     time::{Duration, Instant},
 };
+use winit::event::{Touch, TouchPhase};
 use winit::{
     dpi::LogicalPosition,
     event::{
@@ -51,7 +54,7 @@ pub struct BrowserProcessHandlerCallbacksImpl {
 }
 pub struct RenderHandlerCallbacksImpl {
     window: Window,
-    renderer: Mutex<Renderer>,
+    renderer: Arc<Mutex<Renderer>>,
     popup_rect: Mutex<Option<Rect>>,
 }
 
@@ -166,19 +169,18 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         height: i32,
     ) {
         println!("paint");
-        println!("buffer len {:?} dirty rects: {:?}", buffer.len(), dirty_rects);
+        println!(
+            "buffer len {:?} dirty rects: {:?}",
+            buffer.len(),
+            dirty_rects
+        );
 
         // FIXME: this completely ignores dirty rects for now and only
         // just re-uploads and re-renders everything anew
         assert_eq!(buffer.len(), 4 * (width * height) as usize);
 
         let mut renderer = self.renderer.lock();
-
-        // FIXME: Ideally don't set the window size from CEF callback,
-        // but as a response to a winit event
-        renderer.set_window_size(width as u32, height as u32);
         renderer.set_blit_texture(width as u32, height as u32, buffer);
-        renderer.blit();
     }
     fn on_accelerated_paint(
         &self,
@@ -607,6 +609,8 @@ fn main() {
                 .build(&event_loop)
                 .unwrap();
 
+            let hidpi_factor = window.hidpi_factor();
+
             let width = window
                 .inner_size()
                 .to_physical(window.hidpi_factor())
@@ -627,14 +631,14 @@ fn main() {
             };
 
             let browser_settings = BrowserSettings::new();
-            let renderer = Mutex::new(Renderer::new(&window));
+            let renderer = Arc::new(Mutex::new(Renderer::new(&window)));
 
             let client = Client::new(ClientCallbacksImpl {
                 life_span_handler: LifeSpanHandler::new(LifeSpanHandlerImpl {
                     proxy: Mutex::new(event_loop.create_proxy()),
                 }),
                 render_handler: RenderHandler::new(RenderHandlerCallbacksImpl {
-                    renderer,
+                    renderer: Arc::clone(&renderer),
                     window,
                     popup_rect: Mutex::new(None),
                 }),
@@ -677,8 +681,15 @@ fn main() {
                         WindowEvent::RedrawRequested => {
                             browser.get_host().invalidate(PaintElementType::View);
                         }
-                        WindowEvent::Resized(_) => {
+                        WindowEvent::Resized(logical_size) => {
                             browser.get_host().was_resized();
+
+                            let physical_size = logical_size.to_physical(hidpi_factor);
+                            let mut renderer = renderer.lock();
+                            renderer.set_window_size(
+                                physical_size.width as u32,
+                                physical_size.height as u32,
+                            );
                         }
                         WindowEvent::CursorMoved {
                             position,
@@ -756,6 +767,29 @@ fn main() {
                                 );
                             }
                         }
+                        WindowEvent::Touch(Touch {
+                            phase,
+                            location,
+                            force,
+                            id,
+                            ..
+                        }) => browser.get_host().send_touch_event(&TouchEvent {
+                            touch_id: id as i32,
+                            x: location.x as f32,
+                            y: location.y as f32,
+                            radius_x: 1.0,
+                            radius_y: 1.0,
+                            rotation_angle: 0.0,
+                            pressure: force.map(|f| f.normalized() as f32).unwrap_or(1.0),
+                            event_type: match phase {
+                                TouchPhase::Started => TouchEventType::Pressed,
+                                TouchPhase::Moved => TouchEventType::Moved,
+                                TouchPhase::Ended => TouchEventType::Released,
+                                TouchPhase::Cancelled => TouchEventType::Cancelled,
+                            },
+                            modifiers: mouse_event.modifiers,
+                            pointer_type: PointerType::Touch,
+                        }),
                         WindowEvent::KeyboardInput {
                             input:
                                 KeyboardInput {
@@ -814,6 +848,10 @@ fn main() {
                             context.quit_message_loop();
                         }
                     },
+                    Event::EventsCleared => {
+                        let mut renderer = renderer.lock();
+                        renderer.blit();
+                    }
                     _ => (), //*control_flow = ControlFlow::Wait,
                 }
             });
