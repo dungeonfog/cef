@@ -8,9 +8,11 @@ use cef::{
         Client, ClientCallbacks,
         life_span_handler::{LifeSpanHandler, LifeSpanHandlerCallbacks}
     },
-    settings::{Settings, LogSeverity},
+    settings::{Settings},
     window::WindowInfo,
+    logging::Logger,
 };
+use log::info;
 
 pub struct AppCallbacksImpl {}
 
@@ -34,6 +36,8 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     }
 }
 
+static LOGGER: Logger = Logger;
+
 fn main() {
     let app = App::new(AppCallbacksImpl {});
     let result = cef::execute_process(Some(app.clone()), None);
@@ -41,15 +45,13 @@ fn main() {
         std::process::exit(result);
     }
 
-    #[cfg(not(target_os = "macos"))]
     let settings = Settings::new("./Resources")
-        .log_severity(LogSeverity::Verbose);
-    #[cfg(target_os = "macos")]
-    let settings = Settings::new("./Resources")
-        .log_severity(LogSeverity::Verbose)
-        .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
+    .log_severity(cef::settings::LogSeverity::Info)
+    .locales_dir_path("./Resources/locales");
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
+    log::set_logger(&LOGGER).map(|()| log::set_max_level(log::LevelFilter::Info)).unwrap();
+    info!("Startup"); // This is the earliest you can use logging!
 
     let mut window_info = WindowInfo::new();
     #[cfg(windows)] {
@@ -64,6 +66,8 @@ fn main() {
         life_span_handler: LifeSpanHandler::new(LifeSpanHandlerImpl {})
     });
 
+    info!("Opening browser window");
+
     let _browser = BrowserHost::create_browser_sync(
         &window_info,
         client,
@@ -74,5 +78,9 @@ fn main() {
         &context,
     );
 
+    info!("Running message loop");
+
     context.run_message_loop();
+
+    info!("Quit");
 }

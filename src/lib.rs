@@ -56,6 +56,7 @@ pub mod request_handler;
 pub mod stream;
 pub mod ssl;
 pub mod task;
+pub mod logging;
 
 /// Return value types.
 #[repr(C)]
