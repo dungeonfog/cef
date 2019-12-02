@@ -168,9 +168,8 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         width: i32,
         height: i32,
     ) {
-        println!("paint");
         println!(
-            "buffer len {:?} dirty rects: {:?}",
+            "paint: buffer len {:?} dirty rects: {:?}",
             buffer.len(),
             dirty_rects
         );
@@ -481,7 +480,7 @@ impl Renderer {
                 format: Self::OUTPUT_ATTACHMENT_FORMAT,
                 width,
                 height,
-                present_mode: wgpu::PresentMode::NoVsync,
+                present_mode: wgpu::PresentMode::Vsync,
             },
         )
     }
@@ -679,7 +678,7 @@ fn main() {
                     } => match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
                         WindowEvent::RedrawRequested => {
-                            browser.get_host().invalidate(PaintElementType::View);
+                            // Ignored because of VSYNC
                         }
                         WindowEvent::Resized(logical_size) => {
                             browser.get_host().was_resized();
@@ -851,6 +850,7 @@ fn main() {
                     Event::EventsCleared => {
                         let mut renderer = renderer.lock();
                         renderer.blit();
+                        // This blocks on VSYNC
                     }
                     _ => (), //*control_flow = ControlFlow::Wait,
                 }
