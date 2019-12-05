@@ -101,9 +101,8 @@ impl Response {
         }
     }
     pub fn get_header_by_name(&self, name: &str) -> String {
-        // apparently this API changed between Chromium 77 and 78
         self.0
-            .get_header
+            .get_header_by_name
             .and_then(|get_header_by_name| unsafe { get_header_by_name(self.as_ptr(), CefString::new(name).as_ptr()).as_mut() })
             .map(|value| unsafe {
                 let s = String::from(CefString::from_ptr_unchecked(value));
@@ -113,8 +112,11 @@ impl Response {
             .unwrap_or_default()
     }
     pub fn set_header_by_name(&mut self, name: &str, value: &str, overwrite: bool) {
-        // apparently this API appeared in Chromium 78
-        unimplemented!()
+        if let Some(set_header_by_name) = self.0.set_header_by_name {
+            unsafe {
+                set_header_by_name(self.0.as_ptr(), CefString::new(name).as_ptr(), CefString::new(value).as_ptr(), overwrite as _);
+            }
+        }
     }
     pub fn get_header_map(&self) -> HashMap<String, Vec<String>> {
         self.0

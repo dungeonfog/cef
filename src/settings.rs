@@ -188,16 +188,6 @@ pub struct Settings {
     /// individual [RequestContext] instances via the
     /// [RequestContextSettings::ignore_certificate_errors] value.
     pub ignore_certificate_errors: bool,
-    /// Call to enable date-based expiration of built in network
-    /// security information (i.e. certificate transparency logs, HSTS preloading
-    /// and pinning information). Enabling this option improves network security
-    /// but may cause HTTPS load failures when using CEF binaries built more than
-    /// 10 weeks in the past. See https://www.certificate-transparency.org/ and
-    /// https://www.chromium.org/hsts for details. Also configurable using the
-    /// "enable-net-security-expiration" command-line switch. Can be overridden for
-    /// individual [RequestContext] instances via the
-    /// [RequestContextSettings::enable_net_security_expiration] value.
-    pub enable_net_security_expiration: bool,
     /// Background color used for the browser before a document is loaded and when
     /// no document color is specified. The alpha component must be either fully
     /// opaque (0xFF) or fully transparent (0x00). If the alpha component is fully
@@ -248,7 +238,6 @@ impl Settings {
             remote_debugging_port: 0,
             uncaught_exception_stack_size: 0,
             ignore_certificate_errors: false,
-            enable_net_security_expiration: false,
             background_color: Color::wrap(0),
             accept_language_list: None,
             application_client_id_for_file_scanning: None,
@@ -284,7 +273,6 @@ impl Settings {
             remote_debugging_port: self.remote_debugging_port as c_int,
             uncaught_exception_stack_size: self.uncaught_exception_stack_size as c_int,
             ignore_certificate_errors: self.ignore_certificate_errors as c_int,
-            enable_net_security_expiration: self.enable_net_security_expiration as c_int,
             background_color: self.background_color.0,
             accept_language_list: string_to_cef(self.accept_language_list.as_ref()),
             application_client_id_for_file_scanning: string_to_cef(self.application_client_id_for_file_scanning.map(|u| u.to_string()).as_ref()),
@@ -380,10 +368,6 @@ impl Settings {
     }
     pub fn ignore_certificate_errors(mut self, ignore_certificate_errors: bool) -> Self {
         self.ignore_certificate_errors = ignore_certificate_errors;
-        self
-    }
-    pub fn enable_net_security_expiration(mut self, enable_net_security_expiration: bool) -> Self {
-        self.enable_net_security_expiration = enable_net_security_expiration;
         self
     }
     pub fn background_color(mut self, background_color: Color) -> Self {

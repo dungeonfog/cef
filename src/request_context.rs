@@ -624,7 +624,6 @@ impl RequestContextBuilder {
                 persist_session_cookies: 0,
                 persist_user_preferences: 0,
                 ignore_certificate_errors: 0,
-                enable_net_security_expiration: 0,
                 accept_language_list: unsafe { std::mem::zeroed() },
             })
     }
@@ -688,19 +687,6 @@ impl RequestContextBuilder {
     pub fn ignore_certificate_errors(mut self, flag: bool) -> Self {
         let settings = self.get_settings();
         settings.ignore_certificate_errors = flag as i32;
-        self
-    }
-
-    /// Set to true to enable date-based expiration of built in network
-    /// security information (i.e. certificate transparency logs, HSTS preloading
-    /// and pinning information). Enabling this option improves network security
-    /// but may cause HTTPS load failures when using CEF binaries built more than
-    /// 10 weeks in the past. See https://www.certificate-transparency.org/ and
-    /// https://www.chromium.org/hsts for details. Can be set globally using the
-    /// [CefSettings::enable_net_security_expiration] value.
-    pub fn enable_net_security_expiration(mut self, flag: bool) -> Self {
-        let settings = self.get_settings();
-        settings.enable_net_security_expiration = flag as i32;
         self
     }
 

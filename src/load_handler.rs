@@ -207,10 +207,6 @@ pub enum ErrorCode {
     /// checks and 'Cross-Origin-Resource-Policy', for instance).
     BlockedByResponse = cef_errorcode_t::ERR_BLOCKED_BY_RESPONSE as isize,
 
-    /// The request failed after the response was received, based on client-side
-    /// heuristics that point to the possiblility of a cross-site scripting attack.
-    BlockedByXssAuditor = cef_errorcode_t::ERR_BLOCKED_BY_XSS_AUDITOR as isize,
-
     /// The request was blocked by system policy disallowing some or all cleartext
     /// requests. Used for NetworkSecurityPolicy on Android.
     CleartextNotPermitted = cef_errorcode_t::ERR_CLEARTEXT_NOT_PERMITTED as isize,
@@ -601,6 +597,11 @@ pub enum ErrorCode {
     /// https:///g.co/chrome/symantecpkicerts
     CertSymantecLegacy = cef_errorcode_t::ERR_CERT_SYMANTEC_LEGACY as isize,
 
+    /// The certificate presented on a QUIC connection does not chain to a known root
+    /// and the origin connected to is not on a list of domains where unknown roots
+    /// are allowed.
+    QuicCertRootNotKnown = cef_errorcode_t::ERR_QUIC_CERT_ROOT_NOT_KNOWN as isize,
+
     /// The URL is invalid.
     InvalidUrl = cef_errorcode_t::ERR_INVALID_URL as isize,
 
@@ -644,9 +645,6 @@ pub enum ErrorCode {
 
     /// The headers section of the response is too large.
     ResponseHeadersTooBig = cef_errorcode_t::ERR_RESPONSE_HEADERS_TOO_BIG as isize,
-
-    /// The PAC requested by HTTP did not have a valid status code (non-200).
-    PacStatusNotOk = cef_errorcode_t::ERR_PAC_STATUS_NOT_OK as isize,
 
     /// The evaluation of the PAC script failed.
     PacScriptFailed = cef_errorcode_t::ERR_PAC_SCRIPT_FAILED as isize,
@@ -816,6 +814,13 @@ pub enum ErrorCode {
     /// request headers, but the pushed response headers do not match the request.
     Http2PushedResponseDoesNotMatch = cef_errorcode_t::ERR_HTTP2_PUSHED_RESPONSE_DOES_NOT_MATCH as isize,
 
+    /// The server returned a non-2xx HTTP response code.
+    ///
+    /// Note that this error is only used by certain APIs that interpret the HTTP
+    /// response itself. [URLRequest] for instance just passes most non-2xx
+    /// response back as success.
+    HttpResponseCodeFailure = cef_errorcode_t::ERR_HTTP_RESPONSE_CODE_FAILURE as isize,
+
     /// The cache does not have the requested entry.
     CacheMiss = cef_errorcode_t::ERR_CACHE_MISS as isize,
 
@@ -881,6 +886,9 @@ pub enum ErrorCode {
 
     /// An error occurred while handling a signed exchange.
     InvalidSignedExchange = cef_errorcode_t::ERR_INVALID_SIGNED_EXCHANGE as isize,
+
+    /// An error occurred while handling a bundled-exchanges source.
+    InvalidBundledExchanges = cef_errorcode_t::ERR_INVALID_BUNDLED_EXCHANGES as isize,
 
     /// A generic error for failed FTP control connection command.
     /// If possible, please use or add a more specific error code.

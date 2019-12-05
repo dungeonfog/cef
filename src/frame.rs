@@ -124,20 +124,6 @@ impl Frame {
             }
         }
     }
-    /// Load the contents of `string_val` with the specified dummy `url`. `url`
-    /// should have a standard scheme (for example, http scheme) or behaviors like
-    /// link clicks and web security restrictions may not behave as expected.
-    pub fn load_string(&self, string_val: &str, url: &str) {
-        if let Some(load_string) = self.0.load_string {
-            unsafe {
-                load_string(
-                    self.0.as_ptr(),
-                    CefString::new(string_val).as_ptr(),
-                    CefString::new(url).as_ptr(),
-                );
-            }
-        }
-    }
     /// Execute a string of JavaScript code in this frame. The `script_url`
     /// parameter is the URL where the script in question can be found, if any. The
     /// renderer may request this URL to show the developer the source of the
