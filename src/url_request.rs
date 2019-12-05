@@ -10,6 +10,7 @@ use std::{
     convert::TryInto,
     ptr::null_mut,
     os::raw::{c_int, c_void},
+    cell::RefCell,
 };
 
 use crate::{
@@ -572,7 +573,7 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// to continue or cancel the request. To cancel the request immediately set
     /// `handle_request` to true and return false. This function will be
     /// called in sequence but not from a dedicated thread.
-    fn open(&self, request: Request, handle_request: &mut bool, callback: Callback) -> bool {
+    fn open(&mut self, request: Request, handle_request: &mut bool, callback: Callback) -> bool {
         (*handle_request) = true;
         false
     }
@@ -603,7 +604,7 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// execute `callback` when the data is available. To indicate failure return
     /// `Err(ErrorCode::$Error)`. This function will be called in sequence but not
     /// from a dedicated thread.
-    fn skip(&self, bytes_to_skip: u64, bytes_skipped: &mut u64, callback: ResourceSkipCallback) -> Result<(), ErrorCode>;
+    fn skip(&mut self, bytes_to_skip: u64, bytes_skipped: &mut u64, callback: ResourceSkipCallback) -> Result<(), ErrorCode>;
     /// Read response data. If data is available immediately copy up to
     /// the slice len into `data_out`, set `bytes_read` to the number of
     /// bytes copied, and return true. To read the data at a later time keep a
@@ -613,13 +614,13 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// to 0 and return false. To indicate failure return
     /// `Err(ErrorCode::$Error)`. This function will be called in sequence but not
     /// from a dedicated thread.
-    fn read(&self, data_out: &mut [u8], bytes_read: &mut u32, callback: ResourceReadCallback) -> Result<(), ErrorCode>;
+    fn read(&mut self, data_out: &mut [u8], bytes_read: &mut u32, callback: ResourceReadCallback) -> Result<(), ErrorCode>;
     /// Request processing has been canceled.
-    fn cancel(&self) {}
+    fn cancel(&mut self) {}
 }
 
 pub(crate) struct ResourceHandlerWrapper {
-    delegate: Box<dyn ResourceHandlerCallbacks>,
+    delegate: Mutex<RefCell<Box<dyn ResourceHandlerCallbacks>>>,
 }
 
 impl Wrapper for ResourceHandlerWrapper {
@@ -644,7 +645,7 @@ impl Wrapper for ResourceHandlerWrapper {
 
 impl ResourceHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn ResourceHandlerCallbacks>) -> ResourceHandlerWrapper {
-        ResourceHandlerWrapper { delegate }
+        ResourceHandlerWrapper { delegate: Mutex::new(RefCell::new(delegate)) }
     }
 }
 
@@ -657,7 +658,7 @@ cef_callback_impl!{
             callback: Callback: *mut cef_callback_t,
         ) -> c_int {
             let mut handle_request_rs = *handle_request != 0;
-            let ret = self.delegate.open(request, &mut handle_request_rs, callback) as c_int;
+            let ret = self.delegate.lock().borrow_mut().open(request, &mut handle_request_rs, callback) as c_int;
             *handle_request = handle_request_rs as c_int;
             ret
         }
@@ -669,7 +670,7 @@ cef_callback_impl!{
         ) {
             let mut response_length_rs = None;
             let mut redirect_url_rs = String::new();
-            self.delegate.get_response_headers(
+            self.delegate.lock().borrow().get_response_headers(
                 response,
                 &mut response_length_rs,
                 &mut redirect_url_rs
@@ -684,7 +685,7 @@ cef_callback_impl!{
             callback: ResourceSkipCallback: *mut cef_resource_skip_callback_t,
         ) -> c_int {
             let mut bytes_skipped_rs = 0;
-            let result = self.delegate.skip(
+            let result = self.delegate.lock().borrow_mut().skip(
                 bytes_to_skip as u64,
                 &mut bytes_skipped_rs,
                 callback
@@ -703,7 +704,7 @@ cef_callback_impl!{
                 std::slice::from_raw_parts_mut(data_out as *mut u8, bytes_to_read as usize)
             };
             let mut bytes_read_rs = 0;
-            let result = self.delegate.read(
+            let result = self.delegate.lock().borrow_mut().read(
                 data_out,
                 &mut bytes_read_rs,
                 callback
@@ -712,7 +713,7 @@ cef_callback_impl!{
             result.is_ok() as c_int
         }
         fn cancel(&self) {
-            self.delegate.cancel();
+            self.delegate.lock().borrow_mut().cancel();
         }
     }
 }
