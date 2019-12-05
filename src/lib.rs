@@ -26,6 +26,7 @@ pub mod dom;
 pub mod v8context;
 pub mod process;
 pub mod request;
+pub mod response;
 pub mod url_request;
 pub mod request_context;
 pub mod web_plugin;

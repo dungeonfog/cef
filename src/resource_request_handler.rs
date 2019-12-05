@@ -6,8 +6,9 @@ use crate::{
     string::CefString,
     url_request::{
         CookieAccessFilter, RequestCallback, ResourceHandler,
-        Response, ResponseFilter, URLRequestStatus,
+        ResponseFilter, URLRequestStatus,
     },
+    response::Response,
     ReturnValue,
 };
 use cef_sys::{

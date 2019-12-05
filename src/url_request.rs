@@ -20,6 +20,7 @@ use crate::{
     load_handler::ErrorCode,
     refcounted::{RefCountedPtr, Wrapper},
     request::Request,
+    response::Response,
     request_context::RequestContext,
     string::CefString,
 };
@@ -299,12 +300,6 @@ cef_callback_impl! {
             ) as i32
         }
     }
-}
-
-ref_counted_ptr! {
-    /// Structure used to represent a web response. The functions of this structure
-    /// may be called on any thread.
-    pub struct Response(*mut cef_response_t);
 }
 
 ref_counted_ptr! {
