@@ -43,7 +43,7 @@ impl log::Log for Logger {
         if level == cef_log_severity_t::LOGSEVERITY_DISABLE as _ {
             false
         } else {
-            metadata.level() <= Self::log_level(level as _)
+            metadata.level() >= Self::log_level(level as _)
         }
     }
 
