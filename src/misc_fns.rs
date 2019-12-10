@@ -18,6 +18,9 @@ use std::{
     sync::atomic::{AtomicBool, Ordering},
 };
 
+#[cfg(target_os = "macos")]
+use std::os::unix::ffi::OsStrExt;
+
 
 /// Call during process startup to enable High-DPI support on Windows 7 or newer.
 ///
@@ -233,3 +236,23 @@ pub fn quit_message_loop() -> Result<(), QuitMessageLoopError> {
     Ok(())
 }
 
+#[cfg(target_os = "macos")]
+/// Load the CEF library at the specified |path|. Returns true on
+/// success and false on failure.
+pub fn load_library<P: AsRef<std::path::Path>>(path: P) -> bool {
+    let path = path.as_ref().as_os_str().as_bytes();
+    let mut path = path.to_vec();
+    path.push(0);
+    unsafe {
+        cef_sys::cef_load_library(path.as_ptr() as *const _) != 0
+    }
+}
+
+#[cfg(target_os = "macos")]
+/// Unload the CEF library that was previously loaded. Returns true (1)
+/// on success and false (0) on failure.
+pub fn unload_library() -> bool {
+    unsafe {
+        cef_sys::cef_unload_library() != 0
+    }
+}
