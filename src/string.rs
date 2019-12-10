@@ -110,6 +110,13 @@ impl CefString {
     }
 }
 
+impl std::fmt::Debug for CefString {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        let s = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(self.0.str, self.0.length) });
+        <String as std::fmt::Debug>::fmt(&s, f)
+    }
+}
+
 /// De-allocate the structure the userfree points to without freeing the underlying buffers.
 unsafe fn unwrap_userfree(raw: cef_string_userfree_t) -> cef_string_t {
     unsafe extern "C" fn null_dtor(str: *mut u16) {}
