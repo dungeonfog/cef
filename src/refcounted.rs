@@ -107,7 +107,7 @@ lazy_static!{
 macro_rules! ref_counted_ptr {
     (
         $(#[$meta:meta])*
-        $vis:vis struct $Struct:ident$(<$($generic:ident $(: $bound:path)?),+>)?(*mut $cef:ty);
+        $vis:vis struct $Struct:ident$(<$($generic:ident $(: $bound:path)?),+>)?(*mut $cef:ty $(, $poisonable:expr)?);
     ) => {
         $(#[$meta])*
         #[repr(transparent)]
@@ -117,7 +117,7 @@ macro_rules! ref_counted_ptr {
         unsafe impl$(<$($generic $(: $bound)?),+>)? Send for $Struct$(<$($generic),+>)? {}
         unsafe impl$(<$($generic $(: $bound)?),+>)? Sync for $Struct$(<$($generic),+>)? {}
 
-        ref_counter!($cef);
+        ref_counter!($cef $(, $poisonable)?);
 
         impl$(<$($generic $(: $bound)?),+>)? $Struct$(<$($generic),+>)? {
             pub(crate) unsafe fn from_ptr_add_ref(ptr: *mut $cef) -> Option<Self> {
