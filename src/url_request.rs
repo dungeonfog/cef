@@ -607,14 +607,15 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     fn skip(&mut self, bytes_to_skip: u64, bytes_skipped: &mut u64, callback: ResourceSkipCallback) -> Result<(), ErrorCode>;
     /// Read response data. If data is available immediately copy up to
     /// the slice len into `data_out`, set `bytes_read` to the number of
-    /// bytes copied, and return true. To read the data at a later time keep a
-    /// reference to `data_out`, set `bytes_read` to 0, return `Ok(())` and execute
+    /// bytes copied, and return `Ok(true)` if there's more data to be read,
+    /// or `Ok(false)` if the end was reached. To read the data at a later time keep a
+    /// reference to `data_out`, set `bytes_read` to 0, return `Ok(true)` and execute
     /// `callback` when the data is available (`data_out` will remain valid until
     /// the callback is executed). To indicate response completion
-    /// return `Err(ErrorCode::None)`. To indicate failure return
+    /// return `Ok(false)`. To indicate failure return
     /// `Err(ErrorCode::$Error)`. This function will be called in sequence but not
     /// from a dedicated thread.
-    fn read(&mut self, data_out: &mut [u8], bytes_read: &mut i32, callback: ResourceReadCallback) -> Result<(), ErrorCode>;
+    fn read(&mut self, data_out: &mut [u8], bytes_read: &mut i32, callback: ResourceReadCallback) -> Result<bool, ErrorCode>;
     /// Request processing has been canceled.
     fn cancel(&mut self) {}
 }
@@ -706,14 +707,20 @@ cef_callback_impl!{
                 std::slice::from_raw_parts_mut(data_out as *mut u8, bytes_to_read as usize)
             };
             let mut bytes_read_rs = *bytes_read;
-            let result = self.delegate.lock().borrow_mut().read(
+            match self.delegate.lock().borrow_mut().read(
                 data_out,
                 &mut bytes_read_rs,
                 callback
-            );
-            *bytes_read = result.err().map(|e| -(e as i32)).unwrap_or(bytes_read_rs.try_into().unwrap());
-            let result = result.is_ok() as c_int;
-            result
+            ) {
+                Ok(incomplete) => {
+                    *bytes_read = bytes_read_rs.try_into().unwrap();
+                    incomplete as _
+                }
+                Err(err) => {
+                    *bytes_read = -(err as c_int);
+                    0
+                }
+            }
         }
         fn cancel(&self) {
             self.delegate.lock().borrow_mut().cancel();
