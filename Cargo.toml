@@ -21,6 +21,7 @@ log = "0.4"
 winit = "=0.20.0-alpha4"
 wgpu = "0.4"
 vk-shader-macros = "0.2.2"
+log = { version = "0.4", features = ["std"] }
 
 [features]
 sandbox = []
