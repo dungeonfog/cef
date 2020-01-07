@@ -36,8 +36,6 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     }
 }
 
-static LOGGER: Logger = Logger;
-
 fn main() {
     let app = App::new(AppCallbacksImpl {});
     let result = cef::execute_process(Some(app.clone()), None);
@@ -50,7 +48,10 @@ fn main() {
     .locales_dir_path("./Resources/locales");
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
-    log::set_logger(&LOGGER).map(|()| log::set_max_level(log::LevelFilter::Info)).unwrap();
+    let mut logger_builder = Logger::builder();
+    logger_builder.level(log::LevelFilter::Info);
+    let logger = Box::new(logger_builder.build());
+    log::set_boxed_logger(logger).map(|()| log::set_max_level(log::LevelFilter::Info)).unwrap();
     info!("Startup"); // This is the earliest you can use logging!
 
     let mut window_info = WindowInfo::new();
