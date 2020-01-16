@@ -1,4 +1,4 @@
-use cef_sys::{cef_process_id_t, cef_process_message_t, cef_string_userfree_utf16_free};
+use cef_sys::{cef_process_id_t, cef_process_message_t, cef_string_userfree_utf16_free, cef_process_message_create};
 
 use crate::{
     string::CefString,
@@ -26,6 +26,12 @@ ref_counted_ptr! {
 }
 
 impl ProcessMessage {
+    pub fn new(name: &str) -> Self {
+        unsafe {
+            Self::from_ptr_unchecked(cef_process_message_create(CefString::from(name).as_ptr()))
+        }
+    }
+
     pub fn is_valid(&self) -> bool {
         self.0
             .is_valid
