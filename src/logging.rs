@@ -39,11 +39,10 @@ impl Logger {
         }
     }
     fn log_level(level: i32) -> Level {
-        match level {
-            1 => Level::Warn,
-            2 => Level::Error,
-            3 | 4 => Level::max(),
-            _ => Level::Info,
+        match level as cef_log_severity_t::Type {
+            cef_log_severity_t::LOGSEVERITY_DEBUG => Level::Debug,
+            cef_log_severity_t::LOGSEVERITY_INFO => Level::Info,
+            _ => Level::Error,
         }
     }
 }

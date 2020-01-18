@@ -5,6 +5,7 @@ use crate::{
     string::{CefString, StringVisitor},
     url_request::{URLRequest, URLRequestClient},
     v8context::V8Context,
+    process::{ProcessId, ProcessMessage},
 };
 use cef_sys::{cef_frame_t, cef_string_userfree_utf16_free};
 
@@ -261,6 +262,22 @@ impl Frame {
                 client.into_raw(),
             );
             URLRequest::from_ptr_unchecked(urlrequest)
+        }
+    }
+
+    /// Send a message to the specified |target_process|. Message delivery is not
+    /// guaranteed in all cases (for example, if the browser is closing,
+    /// navigating, or if the target process crashes). Send an ACK message back
+    /// from the target process if confirmation is required.
+    pub fn send_process_message(
+        &self,
+        target_process: ProcessId,
+        message: ProcessMessage,
+    ) {
+        if let Some(send_process_message) = self.0.send_process_message {
+            unsafe {
+                send_process_message(self.0.as_ptr(), target_process as _, message.as_ptr());
+            }
         }
     }
 }
