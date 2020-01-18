@@ -26,7 +26,7 @@ impl Response {
             .map(|get_error| unsafe { ErrorCode::from_unchecked(get_error(self.0.as_ptr())) })
             .unwrap_or(ErrorCode::Failed)
     }
-    pub fn set_error(&mut self, error: ErrorCode) {
+    pub fn set_error(&self, error: ErrorCode) {
         if let Some(set_error) = self.0.set_error {
             unsafe {
                 set_error(self.0.as_ptr(), error as _);
@@ -39,7 +39,7 @@ impl Response {
             .map(|get_status| unsafe { get_status(self.0.as_ptr()) } as _)
             .unwrap_or(0)
     }
-    pub fn set_status(&mut self, status: i32) {
+    pub fn set_status(&self, status: i32) {
         if let Some(set_status) = self.0.set_status {
             unsafe {
                 set_status(self.0.as_ptr(), status as _);
@@ -57,7 +57,7 @@ impl Response {
             })
             .unwrap_or_default()
     }
-    pub fn set_status_text(&mut self, status_text: &str) {
+    pub fn set_status_text(&self, status_text: &str) {
         if let Some(set_status_text) = self.0.set_status_text {
             unsafe {
                 set_status_text(self.0.as_ptr(), CefString::new(status_text).as_ptr());
@@ -75,7 +75,7 @@ impl Response {
             })
             .unwrap_or_default()
     }
-    pub fn set_mime_type(&mut self, mime_type: &str) {
+    pub fn set_mime_type(&self, mime_type: &str) {
         if let Some(set_mime_type) = self.0.set_mime_type {
             unsafe {
                 set_mime_type(self.0.as_ptr(), CefString::new(mime_type).as_ptr());
@@ -93,7 +93,7 @@ impl Response {
             })
             .unwrap_or_default()
     }
-    pub fn set_charset(&mut self, charset: &str) {
+    pub fn set_charset(&self, charset: &str) {
         if let Some(set_charset) = self.0.set_charset {
             unsafe {
                 set_charset(self.0.as_ptr(), CefString::new(charset).as_ptr());
@@ -111,7 +111,7 @@ impl Response {
             })
             .unwrap_or_default()
     }
-    pub fn set_header_by_name(&mut self, name: &str, value: &str, overwrite: bool) {
+    pub fn set_header_by_name(&self, name: &str, value: &str, overwrite: bool) {
         if let Some(set_header_by_name) = self.0.set_header_by_name {
             unsafe {
                 set_header_by_name(self.0.as_ptr(), CefString::new(name).as_ptr(), CefString::new(value).as_ptr(), overwrite as _);
@@ -128,7 +128,7 @@ impl Response {
             })
             .unwrap_or_else(HashMap::new)
     }
-    pub fn set_header_map(&mut self, header_map: &HashMap<String, Vec<String>>) {
+    pub fn set_header_map(&self, header_map: &HashMap<String, Vec<String>>) {
         let map: MultiMap = header_map.into();
         self.0
             .set_header_map
@@ -145,7 +145,7 @@ impl Response {
             })
             .unwrap_or_default()
     }
-    pub fn set_url(&mut self, url: &str) {
+    pub fn set_url(&self, url: &str) {
         if let Some(set_url) = self.0.set_url {
             unsafe {
                 set_url(self.0.as_ptr(), CefString::new(url).as_ptr());
