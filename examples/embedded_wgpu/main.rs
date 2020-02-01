@@ -271,8 +271,8 @@ impl Renderer {
     const OUTPUT_ATTACHMENT_FORMAT: wgpu::TextureFormat = wgpu::TextureFormat::Bgra8Unorm;
 
     pub fn new(window: &Window) -> Renderer {
-        static SHADER_BLIT_VERT: &[u32] = vk_shader_macros::include_glsl!("examples/blit.vert");
-        static SHADER_BLIT_FRAG: &[u32] = vk_shader_macros::include_glsl!("examples/blit.frag");
+        static SHADER_BLIT_VERT: &[u32] = vk_shader_macros::include_glsl!("blit.vert");
+        static SHADER_BLIT_FRAG: &[u32] = vk_shader_macros::include_glsl!("blit.frag");
 
         let surface = wgpu::Surface::create(window);
         let adapter = wgpu::Adapter::request(&wgpu::RequestAdapterOptions {
@@ -590,12 +590,12 @@ fn main() {
             });
 
             #[cfg(not(target_os = "macos"))]
-            let settings = Settings::new("./Resources")
+            let settings = Settings::new()
                 .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true);
             #[cfg(target_os = "macos")]
-            let settings = Settings::new("./Resources")
+            let settings = Settings::new()
                 .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true)

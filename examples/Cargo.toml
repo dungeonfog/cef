@@ -1,0 +1,33 @@
+[package]
+name = "cef-examples"
+version = "0.1.0"
+authors = ["Andreas Monitzer <andreas@monitzer.com>", "Osspial <osspial@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+cef = {path = ".."}
+cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
+winit = "=0.20.0-alpha4"
+wgpu = "0.4"
+vk-shader-macros = "0.2.2"
+log = { version = "0.4", features = ["std"] }
+parking_lot = "0.9"
+
+[build-dependencies]
+embed-resource = "1"
+
+[[bin]]
+name = "cefsimple"
+path = "cefsimple/main.rs"
+
+[[bin]]
+name = "embedded"
+path = "embedded/main.rs"
+
+[[bin]]
+name = "embedded_wgpu"
+path = "embedded_wgpu/main.rs"
+
+[target.'cfg(windows)'.dependencies]
+winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
+winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}

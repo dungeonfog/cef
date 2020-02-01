@@ -91,7 +91,11 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
 
 impl BrowserProcessHandlerCallbacks for BrowserProcessHandlerCallbacksImpl {
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
+        println!("schedule work {}", delay_ms);
         self.proxy.lock().send_event(CefEvent::ScheduleWork(Instant::now() + Duration::from_millis(delay_ms as u64))).ok();
+    }
+    fn on_before_child_process_launch(&self, command_line: CommandLine) {
+        command_line.append_switch("enable-high-dpi-support");
     }
 }
 
@@ -155,6 +159,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         width: i32,
         height: i32
     ) {
+        println!("paint {:?}", dirty_rects);
         let buffer = BGRA::from_raw_slice(buffer);
         assert_eq!(buffer.len(), (width * height) as usize);
         let buffer_row = |row: usize| {
@@ -296,11 +301,12 @@ fn main() {
                 })
             });
 
-            let settings = Settings::new("./Resources")
+            let settings = Settings::new()
                 .windowless_rendering_enabled(true)
-                .log_severity(LogSeverity::Disable)
+                .log_severity(LogSeverity::Verbose)
                 .external_message_pump(true);
 
+            println!("{:?}", &settings as *const _);
             let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 
             let window = WindowBuilder::new()
@@ -336,7 +342,9 @@ fn main() {
             let browser = BrowserHost::create_browser_sync(
                 &window_info,
                 client,
-                "https://www.google.com",
+                "https://www.google.com/",
+                // "https://webkit.org/blog-files/3d-transforms/morphing-cubes.html",
+                // "https://devyumao.github.io/dragon-loading/",
                 &browser_settings,
                 None,
                 None,
@@ -353,8 +361,12 @@ fn main() {
             event_loop.run(move |event, _, control_flow| {
                 match event {
                     Event::NewEvents(StartCause::ResumeTimeReached{..}) => {
-                        *control_flow = ControlFlow::Wait;
+                        println!("do scheduled work a");
                         context.do_message_loop_work();
+                        *control_flow = ControlFlow::Wait;
+                    }
+                    Event::NewEvents(_) => {
+                        *control_flow = ControlFlow::Wait;
                     }
                     Event::WindowEvent {
                         event: WindowEvent::CloseRequested,
@@ -480,6 +492,7 @@ fn main() {
                     Event::UserEvent(event) => match event {
                         CefEvent::ScheduleWork(instant) => {
                             if instant <= Instant::now() {
+                                println!("do scheduled work b {:?}", instant);
                                 context.do_message_loop_work();
                             } else {
                                 *control_flow = ControlFlow::WaitUntil(instant);
@@ -488,7 +501,11 @@ fn main() {
                         CefEvent::Quit => {
                             context.quit_message_loop();
                         }
-                    }
+                    },
+                    // Event::EventsCleared => {
+                    //     *control_flow = ControlFlow::Poll;
+                    //     context.do_message_loop_work();
+                    // }
                     _ => (),//*control_flow = ControlFlow::Wait,
                 }
             });

@@ -43,9 +43,8 @@ fn main() {
         std::process::exit(result);
     }
 
-    let settings = Settings::new("./Resources")
-    .log_severity(cef::settings::LogSeverity::Info)
-    .locales_dir_path("./Resources/locales");
+    let settings = Settings::new()
+        .log_severity(cef::settings::LogSeverity::Info);
 
     let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
     let mut logger_builder = Logger::builder();
@@ -72,7 +71,7 @@ fn main() {
     let _browser = BrowserHost::create_browser_sync(
         &window_info,
         client,
-        "https://www.youtube.com",
+        "https://webkit.org/blog-files/3d-transforms/morphing-cubes.html",
         &browser_settings,
         None,
         None,

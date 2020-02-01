@@ -156,7 +156,7 @@ pub struct Settings {
     /// the module directory on Windows/Linux or the app bundle Resources directory
     /// on Mac OS X. Also configurable using the "resources-dir-path" command-line
     /// switch.
-    pub resources_dir_path: PathBuf,
+    pub resources_dir_path: Option<PathBuf>,
     /// The fully qualified path for the locales directory. If this value is empty
     /// the locales directory must be located in the module directory. This value
     /// is ignored on Mac OS X where pack files are always loaded from the app
@@ -212,7 +212,7 @@ pub struct Settings {
 }
 
 impl Settings {
-    pub fn new<T: Into<PathBuf>>(resources_dir_path: T) -> Settings {
+    pub fn new() -> Settings {
         Settings {
             browser_subprocess_path: None,
             framework_dir_path: None,
@@ -232,7 +232,7 @@ impl Settings {
             log_file: None,
             log_severity: LogSeverity::Default,
             javascript_flags: None,
-            resources_dir_path: resources_dir_path.into(),
+            resources_dir_path: None,
             locales_dir_path: None,
             pack_loading_disabled: false,
             remote_debugging_port: 0,
@@ -267,7 +267,7 @@ impl Settings {
             log_file: path_to_cef(self.log_file.as_ref())?,
             log_severity: cef_log_severity_t::LOGSEVERITY_DEFAULT,
             javascript_flags: string_to_cef(self.javascript_flags.as_ref()),
-            resources_dir_path: path_to_cef(Some(&self.resources_dir_path))?,
+            resources_dir_path: path_to_cef(self.resources_dir_path.as_ref())?,
             locales_dir_path: path_to_cef(self.locales_dir_path.as_ref())?,
             pack_loading_disabled: self.pack_loading_disabled as c_int,
             remote_debugging_port: self.remote_debugging_port as c_int,

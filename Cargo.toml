@@ -32,3 +32,6 @@ winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
 
 [target.'cfg(windows)'.dev-dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
+
+[workspace]
+members = ["./examples"]
