@@ -358,12 +358,19 @@ fn main() {
                 y: 0,
                 modifiers: EventFlags::empty(),
             };
-            let mut scheduled_work_queue = vec![];
+            let poll_duration = Duration::new(1, 0) / 30;
+            let mut poll_instant = Instant::now() + poll_duration;
+            let mut scheduled_work_queue = vec![poll_instant];
             event_loop.run(move |event, _, control_flow| {
                 match event {
                     Event::NewEvents(StartCause::ResumeTimeReached{..}) => {
                         while scheduled_work_queue.len() > 0 && scheduled_work_queue[0] <= Instant::now() {
-                            scheduled_work_queue.remove(0);
+                            let work_time = scheduled_work_queue.remove(0);
+                            if work_time == poll_instant {
+                                poll_instant = work_time + poll_duration;
+                                scheduled_work_queue.push(poll_instant);
+                            }
+                            println!("do work");
                             context.do_message_loop_work();
                         }
                     }

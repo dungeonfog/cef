@@ -660,11 +660,21 @@ fn main() {
                 y: 0,
                 modifiers: EventFlags::empty(),
             };
+            let poll_duration = Duration::new(1, 0) / 30;
+            let mut poll_instant = Instant::now() + poll_duration;
+            let mut scheduled_work_queue = vec![poll_instant];
             event_loop.run(move |event, _, control_flow| {
                 match event {
-                    Event::NewEvents(StartCause::ResumeTimeReached { .. }) => {
-                        *control_flow = ControlFlow::Wait;
-                        context.do_message_loop_work();
+                    Event::NewEvents(StartCause::ResumeTimeReached{..}) => {
+                        while scheduled_work_queue.len() > 0 && scheduled_work_queue[0] <= Instant::now() {
+                            let work_time = scheduled_work_queue.remove(0);
+                            if work_time == poll_instant {
+                                poll_instant = work_time + poll_duration;
+                                scheduled_work_queue.push(poll_instant);
+                            }
+                            println!("do work");
+                            context.do_message_loop_work();
+                        }
                     }
                     Event::WindowEvent {
                         event: WindowEvent::CloseRequested,
@@ -838,21 +848,31 @@ fn main() {
                     Event::UserEvent(event) => match event {
                         CefEvent::ScheduleWork(instant) => {
                             if instant <= Instant::now() {
+                                println!("do scheduled work b {:?}", instant);
                                 context.do_message_loop_work();
                             } else {
-                                *control_flow = ControlFlow::WaitUntil(instant);
+                                let i = match scheduled_work_queue.binary_search(&instant) {
+                                    Ok(i) | Err(i) => i
+                                };
+                                scheduled_work_queue.insert(i, instant);
                             }
-                        }
+                        },
                         CefEvent::Quit => {
                             context.quit_message_loop();
                         }
                     },
                     Event::EventsCleared => {
+                        if scheduled_work_queue.len() > 0 {
+                            *control_flow = ControlFlow::WaitUntil(scheduled_work_queue[0]);
+                        } else {
+                            *control_flow = ControlFlow::Wait;
+                        }
+
                         let mut renderer = renderer.lock();
                         renderer.blit();
                         // This blocks on VSYNC
                     }
-                    _ => (), //*control_flow = ControlFlow::Wait,
+                    _ => (),//*control_flow = ControlFlow::Wait,
                 }
             });
         }
