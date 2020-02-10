@@ -34,6 +34,7 @@ impl LogSeverity {
     }
 }
 
+#[derive(Debug, PartialEq, Eq, Clone)]
 pub struct Settings {
     /// Set the path to a separate executable that will be launched for sub-processes.
     /// If this value is empty on Windows or Linux then the main process executable

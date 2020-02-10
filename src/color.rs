@@ -24,4 +24,23 @@ impl Color {
     pub(crate) fn get(self) -> cef_color_t {
         self.0
     }
+
+    pub fn r(&self) -> u8 {
+        (self.0 >> 16) as u8
+    }
+    pub fn g(&self) -> u8 {
+        (self.0 >> 8) as u8
+    }
+    pub fn b(&self) -> u8 {
+        (self.0 >> 0) as u8
+    }
+    pub fn a(&self) -> u8 {
+        (self.0 >> 24) as u8
+    }
+}
+
+impl std::fmt::Debug for Color {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> Result<(), std::fmt::Error> {
+        write!(f, "#{:02X}{:02X}{:02X}{:02X}", self.r(), self.g(), self.b(), self.a())
+    }
 }
