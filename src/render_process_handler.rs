@@ -81,7 +81,7 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
         browser: Browser,
         frame: Frame,
         source_process: ProcessId,
-        message: &ProcessMessage,
+        message: ProcessMessage,
     ) -> bool {
         false
     }
@@ -222,7 +222,7 @@ cef_callback_impl! {
                 browser,
                 frame,
                 source_process,
-                &message
+                message
             ) as std::os::raw::c_int
         }
     }
