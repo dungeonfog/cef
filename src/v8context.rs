@@ -14,7 +14,6 @@ use parking_lot::Mutex;
 use std::{
     any::Any,
     cell::RefCell,
-    collections::HashSet,
     convert::TryFrom,
     ptr::null_mut,
     time::{Duration, SystemTime, SystemTimeError},
@@ -27,6 +26,7 @@ use crate::{
     string::{CefString, CefStringList},
     task::TaskRunner,
 };
+use bitflags::bitflags;
 
 ref_counted_ptr! {
     /// Structure representing a V8 context handle. V8 handles can only be accessed
@@ -419,62 +419,24 @@ impl From<V8StackTrace> for Vec<V8StackFrame> {
     }
 }
 
-/// V8 property attribute values.
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum V8PropertyAttribute {
-    /// Not writeable
-    ReadOnly = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_READONLY.0 as isize,
-    /// Not enumerable
-    DontEnum = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTENUM.0 as isize,
-    /// Not configurable
-    DontDelete = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTDELETE.0 as isize,
-}
-
-impl V8PropertyAttribute {
-    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
-        attributes: I,
-    ) -> cef_v8_propertyattribute_t {
-        cef_v8_propertyattribute_t(attributes.fold(0, |mask, attr| mask | (*attr as crate::CEnumType)))
-    }
-    pub(crate) fn as_vec(mask: cef_v8_propertyattribute_t) -> HashSet<Self> {
-        [
-            V8PropertyAttribute::ReadOnly,
-            V8PropertyAttribute::DontEnum,
-            V8PropertyAttribute::DontDelete,
-        ]
-        .iter()
-        .filter(|flag| (**flag as crate::CEnumType) & mask.0 != 0)
-        .cloned()
-        .collect()
+bitflags!{
+    /// V8 property attribute values.
+    pub struct V8PropertyAttribute: crate::CEnumType {
+        /// Not writeable
+        const READ_ONLY = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_READONLY.0;
+        /// Not enumerable
+        const DONT_ENUM = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTENUM.0;
+        /// Not configurable
+        const DONT_DELETE = cef_v8_propertyattribute_t::V8_PROPERTY_ATTRIBUTE_DONTDELETE.0;
     }
 }
 
-/// V8 access control values.
-#[repr(C)]
-#[derive(Debug, Copy, Clone, PartialEq, Eq, Hash)]
-pub enum V8AccessControl {
-    AllCanRead = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_READ.0 as isize,
-    AllCanWrite = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_WRITE.0 as isize,
-    ProhibitsOverwriting = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING.0 as isize,
-}
-
-impl V8AccessControl {
-    pub(crate) fn as_mask<'a, I: 'a + Iterator<Item = &'a Self>>(
-        attributes: I,
-    ) -> cef_v8_accesscontrol_t {
-        cef_v8_accesscontrol_t(attributes.fold(0, |mask, attr| mask | (*attr as crate::CEnumType)))
-    }
-    pub(crate) fn as_vec(mask: cef_v8_accesscontrol_t) -> HashSet<Self> {
-        [
-            V8AccessControl::AllCanRead,
-            V8AccessControl::AllCanWrite,
-            V8AccessControl::ProhibitsOverwriting,
-        ]
-        .iter()
-        .filter(|flag| (**flag as crate::CEnumType) & mask.0 != 0)
-        .cloned()
-        .collect()
+bitflags!{
+    /// V8 access control values.
+    pub struct V8AccessControl: crate::CEnumType {
+        const ALL_CAN_READ = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_READ.0;
+        const ALL_CAN_WRITE = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_ALL_CAN_WRITE.0;
+        const PROHIBITS_OVERWRITING = cef_v8_accesscontrol_t::V8_ACCESS_CONTROL_PROHIBITS_OVERWRITING.0;
     }
 }
 
@@ -891,9 +853,8 @@ impl V8Value {
         &self,
         key: &str,
         value: V8Value,
-        attributes: &[V8PropertyAttribute],
+        attributes: V8PropertyAttribute,
     ) -> bool {
-        let attributes = V8PropertyAttribute::as_mask(attributes.iter());
         self.0
             .set_value_bykey
             .map(|set_value_bykey| unsafe {
@@ -901,7 +862,7 @@ impl V8Value {
                     self.as_ptr(),
                     CefString::new(key).as_ptr(),
                     value.into_raw(),
-                    attributes,
+                    cef_v8_propertyattribute_t(attributes.bits),
                 ) != 0
             })
             .unwrap_or(false)
@@ -934,20 +895,18 @@ impl V8Value {
     pub fn set_value_byaccessor(
         &self,
         key: &str,
-        settings: &[V8AccessControl],
-        attributes: &[V8PropertyAttribute],
+        settings: V8AccessControl,
+        attributes: V8PropertyAttribute,
     ) -> bool {
         self.0
             .set_value_byaccessor
             .map(|set_value_byaccessor| {
-                let settings = V8AccessControl::as_mask(settings.iter());
-                let attributes = V8PropertyAttribute::as_mask(attributes.iter());
                 unsafe {
                     set_value_byaccessor(
                         self.as_ptr(),
                         CefString::new(key).as_ptr(),
-                        settings,
-                        attributes,
+                        cef_v8_accesscontrol_t(settings.bits),
+                        cef_v8_propertyattribute_t(attributes.bits),
                     ) != 0
                 }
             })
