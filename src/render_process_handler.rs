@@ -13,7 +13,7 @@ use cef_sys::{
     cef_load_handler_t, cef_process_id_t, cef_process_message_t, cef_render_process_handler_t,
     cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
 };
-use std::{ptr::null_mut};
+use std::{cell::UnsafeCell, ptr::null_mut};
 
 ref_counted_ptr!{
     pub struct RenderProcessHandler(*mut cef_render_process_handler_t);
@@ -26,26 +26,25 @@ impl RenderProcessHandler {
 }
 
 /// Trait used to implement render process callbacks. The functions of this
-/// trait will be called on the render process main thread ([ProcessId::Renderer])
-/// unless otherwise indicated.
-pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
+/// trait will be called on the render process main thread ([ProcessId::Renderer]).
+pub trait RenderProcessHandlerCallbacks: 'static + Send {
     /// Called after the render process main thread has been created. `extra_info`
     /// is originating from
     /// [BrowserProcessHandlerCallbacks::on_render_process_thread_created].
-    fn on_render_thread_created(&self, extra_info: ListValue) {}
+    fn on_render_thread_created(&mut self, extra_info: ListValue) {}
     /// Called after WebKit has been initialized.
-    fn on_web_kit_initialized(&self) {}
+    fn on_web_kit_initialized(&mut self) {}
     /// Called after a browser has been created. When browsing cross-origin a new
     /// browser will be created before the old browser with the same identifier is
     /// destroyed. |extra_info| is originating from
     /// [BrowserHost::create_browser()],
     /// [BrowserHost::create_browser_sync()],
     /// [LifeSpanHandler::on_before_popup()] or [BrowserView::create()].
-    fn on_browser_created(&self, browser: Browser, extra_info: DictionaryValue) {}
+    fn on_browser_created(&mut self, browser: Browser, extra_info: DictionaryValue) {}
     /// Called before a browser is destroyed.
-    fn on_browser_destroyed(&self, browser: Browser) {}
+    fn on_browser_destroyed(&mut self, browser: Browser) {}
     /// Return the handler for browser load status events.
-    fn get_load_handler(&self) -> Option<LoadHandler> {
+    fn get_load_handler(&mut self) -> Option<LoadHandler> {
         None
     }
     /// Called immediately after the V8 context for a frame has been created. To
@@ -54,14 +53,14 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
     /// from the thread on which they are created. A task runner for posting tasks
     /// on the associated thread can be retrieved via the
     /// [V8Context::get_task_runner()] function.
-    fn on_context_created(&self, browser: Browser, frame: Frame, context: V8Context) {}
+    fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {}
     /// Called immediately before the V8 context for a frame is released.
-    fn on_context_released(&self, browser: Browser, frame: Frame, context: V8Context) {}
+    fn on_context_released(&mut self, browser: Browser, frame: Frame, context: V8Context) {}
     /// Called for global uncaught exceptions in a frame. Execution of this
     /// callback is disabled by default. To enable set
     /// [CefSettings.uncaught_exception_stack_size] > 0.
     fn on_uncaught_exception(
-        &self,
+        &mut self,
         browser: Browser,
         frame: Frame,
         context: V8Context,
@@ -73,11 +72,11 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
     /// be None if no specific node has gained focus. The node object passed to
     /// this function represents a snapshot of the DOM at the time this function is
     /// executed.
-    fn on_focused_node_changed(&self, browser: Browser, frame: Frame, node: Option<DOMNode>) {}
+    fn on_focused_node_changed(&mut self, browser: Browser, frame: Frame, node: Option<DOMNode>) {}
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
     fn on_process_message_received(
-        &self,
+        &mut self,
         browser: Browser,
         frame: Frame,
         source_process: ProcessId,
@@ -88,14 +87,14 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send + Sync {
 }
 
 #[repr(transparent)]
-pub(crate) struct RenderProcessHandlerWrapper(Box<dyn RenderProcessHandlerCallbacks>);
+pub(crate) struct RenderProcessHandlerWrapper(UnsafeCell<Box<dyn RenderProcessHandlerCallbacks>>);
 
 unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RenderProcessHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn RenderProcessHandlerCallbacks>) -> Self {
-        Self(delegate)
+        Self(UnsafeCell::new(delegate))
     }
 }
 
@@ -127,11 +126,11 @@ cef_callback_impl! {
             &self,
             extra_info: ListValue: *mut cef_list_value_t,
         ) {
-            self.0.on_render_thread_created(extra_info);
+            unsafe{ &mut *self.0.get() }.on_render_thread_created(extra_info);
         }
 
         fn web_kit_initialized(&self) {
-            self.0.on_web_kit_initialized();
+            unsafe{ &mut *self.0.get() }.on_web_kit_initialized();
         }
 
         fn browser_created(
@@ -139,20 +138,20 @@ cef_callback_impl! {
             browser: Browser: *mut cef_browser_t,
             extra_info: DictionaryValue: *mut cef_dictionary_value_t,
         ) {
-            self.0.on_browser_created(browser, extra_info);
+            unsafe{ &mut *self.0.get() }.on_browser_created(browser, extra_info);
         }
 
         fn browser_destroyed(
             &self,
             browser: Browser: *mut cef_browser_t,
         ) {
-            self.0.on_browser_destroyed(browser);
+            unsafe{ &mut *self.0.get() }.on_browser_destroyed(browser);
         }
 
         fn get_load_handler(
             &self,
         ) -> *mut cef_load_handler_t {
-            self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+            unsafe{ &mut *self.0.get() }.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
 
         fn context_created(
@@ -161,7 +160,7 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             context: V8Context: *mut cef_v8context_t,
         ) {
-            self.0.on_context_created(
+            unsafe{ &mut *self.0.get() }.on_context_created(
                 browser,
                 frame,
                 context,
@@ -174,7 +173,7 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             context: V8Context: *mut cef_v8context_t,
         ) {
-            self.0.on_context_created(
+            unsafe{ &mut *self.0.get() }.on_context_created(
                 browser,
                 frame,
                 context,
@@ -189,7 +188,7 @@ cef_callback_impl! {
             exception: V8Exception: *mut cef_v8exception_t,
             stack_trace: V8StackTrace: *mut cef_v8stack_trace_t,
         ) {
-            self.0.on_uncaught_exception(
+            unsafe{ &mut *self.0.get() }.on_uncaught_exception(
                 browser,
                 frame,
                 context,
@@ -204,7 +203,7 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             node: Option<DOMNode>: *mut cef_domnode_t,
         ) {
-            self.0.on_focused_node_changed(
+            unsafe{ &mut *self.0.get() }.on_focused_node_changed(
                 browser,
                 frame,
                 node
@@ -218,7 +217,7 @@ cef_callback_impl! {
             source_process: ProcessId: cef_process_id_t::Type,
             message: ProcessMessage: *mut cef_process_message_t,
         ) -> std::os::raw::c_int {
-            self.0.on_process_message_received(
+            unsafe{ &mut *self.0.get() }.on_process_message_received(
                 browser,
                 frame,
                 source_process,
