@@ -16,6 +16,7 @@ use std::{
     cell::RefCell,
     convert::TryFrom,
     ptr::null_mut,
+    mem::ManuallyDrop,
     time::{Duration, SystemTime, SystemTimeError},
 };
 
@@ -493,17 +494,16 @@ impl V8Value {
     /// or [V8AccessorCallbacks] callback, or in combination with calling
     /// [V8Context::enter] and [V8Context::exit] on a stored [V8Context]
     /// reference.
-    pub fn new_array_buffer(mut buffer: Vec<u8>) -> Self {
+    pub fn new_array_buffer(mut buffer: Box<[u8]>) -> Self {
         let length = buffer.len();
-        let capacity = buffer.capacity();
         let ptr = buffer.as_mut_ptr();
-        std::mem::forget(buffer);
+        let mut buffer_md = ManuallyDrop::new(buffer);
         unsafe {
             V8Value::from_ptr_unchecked(cef_v8value_create_array_buffer(
                 ptr as *mut _,
                 length,
-                V8ArrayBufferReleaseCallbackWrapper::new(move |ptr| {
-                    Vec::from_raw_parts(ptr, length, capacity);
+                V8ArrayBufferReleaseCallbackWrapper::new(move |_| {
+                    ManuallyDrop::drop(&mut buffer_md);
                 })
                 .wrap()
                 .into_raw(),
