@@ -355,6 +355,25 @@ impl BinaryValue {
             .map(|get_size| unsafe { get_size(self.as_ptr()) })
             .unwrap_or(0)
     }
+
+    pub fn write_to_slice(&self, offset: usize, slice: &mut [u8]) -> Result<(), usize> {
+        let get_data = self.0.get_data.unwrap();
+        let bytes_read = unsafe {
+            get_data(
+                self.as_ptr(),
+                slice.as_mut_ptr() as *mut _,
+                slice.len(),
+                offset,
+            )
+        };
+
+        if bytes_read == self.len() {
+            Ok(())
+        } else {
+            Err(bytes_read)
+        }
+    }
+
     pub fn push_to_vec(&self, vec: &mut Vec<u8>) {
         let len = self.len();
         let target_vec_len = vec.len() + len;
