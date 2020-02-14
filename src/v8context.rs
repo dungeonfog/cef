@@ -890,7 +890,7 @@ impl V8Value {
     pub fn set_value_bykey(
         &self,
         key: &str,
-        value: &V8Value,
+        value: V8Value,
         attributes: &[V8PropertyAttribute],
     ) -> bool {
         let attributes = V8PropertyAttribute::as_mask(attributes.iter());
@@ -900,7 +900,7 @@ impl V8Value {
                 set_value_bykey(
                     self.as_ptr(),
                     CefString::new(key).as_ptr(),
-                    value.as_ptr(),
+                    value.into_raw(),
                     attributes,
                 ) != 0
             })
@@ -1069,7 +1069,7 @@ impl V8Value {
     /// This function is only available on functions.
     pub fn execute_function(
         &self,
-        object: Option<&mut V8Value>,
+        object: Option<V8Value>,
         arguments: &[V8Value],
     ) -> Option<V8Value> {
         self.0.execute_function.and_then(|execute_function| {
@@ -1077,7 +1077,7 @@ impl V8Value {
             unsafe {
                 let result = execute_function(
                     self.as_ptr(),
-                    object.map(|obj| obj.as_ptr()).unwrap_or_else(null_mut),
+                    object.map(|obj| obj.into_raw()).unwrap_or_else(null_mut),
                     count,
                     arguments
                         .iter()
@@ -1099,8 +1099,8 @@ impl V8Value {
     /// This function is only available on functions.
     pub fn execute_function_with_context(
         &self,
-        context: &mut V8Context,
-        object: Option<&mut V8Value>,
+        context: V8Context,
+        object: Option<V8Value>,
         arguments: &[V8Value],
     ) -> Option<V8Value> {
         self.0
@@ -1110,8 +1110,8 @@ impl V8Value {
                 unsafe {
                     let result = execute_function_with_context(
                         self.as_ptr(),
-                        context.as_ptr(),
-                        object.map(|obj| obj.as_ptr()).unwrap_or_else(null_mut),
+                        context.into_raw(),
+                        object.map(|obj| obj.into_raw()).unwrap_or_else(null_mut),
                         count,
                         arguments
                             .iter()
