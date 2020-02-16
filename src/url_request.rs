@@ -555,7 +555,7 @@ ref_counted_ptr!{
 }
 
 ref_counted_ptr!{
-    pub struct ResourceReadCallback(*mut cef_resource_read_callback_t);
+    struct ResourceReadCallback(*mut cef_resource_read_callback_t);
 }
 
 impl ResourceHandler {
@@ -606,16 +606,13 @@ pub trait ResourceHandlerCallbacks: 'static + Send + Sync {
     /// from a dedicated thread.
     fn skip(&mut self, bytes_to_skip: u64, bytes_skipped: &mut u64, callback: ResourceSkipCallback) -> Result<(), ErrorCode>;
     /// Read response data. If data is available immediately copy up to
-    /// the slice len into `data_out`, set `bytes_read` to the number of
-    /// bytes copied, and return `Ok(true)` if there's more data to be read,
-    /// or `Ok(false)` if the end was reached. To read the data at a later time keep a
-    /// reference to `data_out`, set `bytes_read` to 0, return `Ok(true)` and execute
-    /// `callback` when the data is available (`data_out` will remain valid until
-    /// the callback is executed). To indicate response completion
-    /// return `Ok(false)`. To indicate failure return
-    /// `Err(ErrorCode::$Error)`. This function will be called in sequence but not
-    /// from a dedicated thread.
-    fn read(&mut self, data_out: &mut [u8], bytes_read: &mut i32, callback: ResourceReadCallback) -> Result<bool, ErrorCode>;
+    /// the slice len into `handler.as_buffer_ref()`, call `handler.set_bytes_read` to set the number of
+    /// bytes copied if there's more data to be read, or call `handler.set_bytes_read(0)`
+    /// if the end was reached, and return `Ok(handler)`. To read the data at a later time keep
+    /// handler and return `None`. After calling `set_bytes_read` as above, execute `handler.cont()`
+    /// when the data is available. To indicate failure call `handler.set_error` instead of `set_bytes_read`.
+    /// This function will be called in sequence but not from a dedicated thread.
+    fn read(&mut self, handler: ResourceReadHandler) -> Option<ResourceReadHandler>;
     /// Request processing has been canceled.
     fn cancel(&mut self) {}
 }
@@ -703,23 +700,18 @@ cef_callback_impl!{
             bytes_read: &mut c_int: *mut c_int,
             callback: ResourceReadCallback: *mut cef_resource_read_callback_t,
         ) -> c_int {
-            let data_out = unsafe{
-                std::slice::from_raw_parts_mut(data_out as *mut u8, bytes_to_read as usize)
-            };
-            let mut bytes_read_rs = *bytes_read;
-            match self.delegate.lock().borrow_mut().read(
+            let wrapper = ResourceReadHandler {
+                callback,
                 data_out,
-                &mut bytes_read_rs,
-                callback
-            ) {
-                Ok(incomplete) => {
-                    *bytes_read = bytes_read_rs.try_into().unwrap();
-                    incomplete as _
-                }
-                Err(err) => {
-                    *bytes_read = -(err as c_int);
-                    0
-                }
+                bytes_to_read: bytes_to_read as _,
+                bytes_read: 0,
+            };
+            if let Some(response) = self.delegate.lock().borrow_mut().read(wrapper) {
+                *bytes_read = response.bytes_read;
+                (response.bytes_read > 0) as c_int
+            } else {
+                *bytes_read = 0;
+                1
             }
         }
         fn cancel(&self) {
@@ -733,8 +725,8 @@ impl ResourceSkipCallback {
         unsafe{ ResourceSkipCallback::from_ptr_unchecked(ResourceSkipCallbackWrapper(Mutex::new(Box::new(f))).wrap().into_raw()) }
     }
 
-    pub fn cont(&self, bytes_skipped: u64) {
-        unsafe{ self.0.cont.unwrap()(self.as_ptr(), bytes_skipped.try_into().unwrap()) }
+    pub fn cont(&self, bytes_skipped: i64) {
+        unsafe{ self.0.cont.unwrap()(self.as_ptr(), bytes_skipped) }
     }
 }
 
@@ -797,5 +789,37 @@ cef_callback_impl!{
         ) {
             (&mut *self.0.lock())(bytes_read as u32)
         }
+    }
+}
+
+/// Wrapper for read requests. Can handle both synchronous and asynchronous responses.
+pub struct ResourceReadHandler {
+    callback: ResourceReadCallback,
+    data_out: *mut c_void,
+    bytes_to_read: usize,
+    bytes_read: i32,
+}
+
+unsafe impl Send for ResourceReadHandler {}
+
+impl ResourceReadHandler {
+    /// Callback for asynchronous continuation of read().
+    pub fn cont(self) {
+        self.callback.cont(self.bytes_read as _);
+    }
+    /// Get the underlying buffer of this request.
+    pub fn as_buffer_ref(&mut self) -> &mut [u8] {
+        unsafe { std::slice::from_raw_parts_mut(self.data_out as *mut u8, self.bytes_to_read) }
+    }
+    /// If `bytes_read` == 0 the
+    /// response will be considered complete. If `bytes_read` > 0 then read() will
+    /// be called again until the request is complete (based on either the result
+    /// or the expected content length).
+    pub fn set_bytes_read(&mut self, bytes_read: i32) {
+        self.bytes_read = bytes_read;
+    }
+    /// Call this to indicate an error with the corresponding error code.
+    pub fn set_error(&mut self, error_code: ErrorCode) {
+        self.bytes_read = -(error_code as i32);
     }
 }
