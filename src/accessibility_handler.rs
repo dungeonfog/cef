@@ -1,5 +1,6 @@
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
+    send_cell::SendCell,
     values::{StoredValue, Value},
 };
 use cef_sys::{
@@ -20,24 +21,26 @@ impl AccessibilityHandler {
     }
 }
 
-pub trait AccessibilityHandlerCallbacks: 'static + Send + Sync {
+pub trait AccessibilityHandlerCallbacks: 'static + Send {
     /// Called after renderer process sends accessibility tree changes to the
     /// browser process.
-    fn on_accessibility_tree_change(&self, value: StoredValue) {
+    fn on_accessibility_tree_change(&mut self, value: StoredValue) {
     }
     /// Called after renderer process sends accessibility location changes to the
     /// browser process.
-    fn on_accessibility_location_change(&self, value: StoredValue) {
+    fn on_accessibility_location_change(&mut self, value: StoredValue) {
     }
 }
 
 struct AccessibilityHandlerWrapper {
-    delegate: Box<dyn AccessibilityHandlerCallbacks>,
+    delegate: SendCell<Box<dyn AccessibilityHandlerCallbacks>>,
 }
 
 impl AccessibilityHandlerWrapper {
     fn new(delegate: Box<dyn AccessibilityHandlerCallbacks>) -> AccessibilityHandlerWrapper {
-        AccessibilityHandlerWrapper { delegate }
+        AccessibilityHandlerWrapper {
+            delegate: SendCell::new(delegate)
+        }
     }
 }
 
@@ -61,13 +64,13 @@ cef_callback_impl!{
             &self,
             value: Value: *mut cef_value_t,
         ) {
-            self.delegate.on_accessibility_tree_change(value.into())
+            unsafe{ self.delegate.get() }.on_accessibility_tree_change(value.into())
         }
         fn on_accessibility_location_change(
             &self,
             value: Value: *mut cef_value_t,
         ) {
-            self.delegate.on_accessibility_location_change(value.into())
+            unsafe{ self.delegate.get() }.on_accessibility_location_change(value.into())
         }
     }
 }

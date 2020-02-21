@@ -1,5 +1,4 @@
 use crate::stream::StreamReader;
-use parking_lot::Mutex;
 use crate::browser::BrowserSettings;
 use crate::window::WindowInfo;
 use cef_sys::cef_browser_t;
@@ -22,6 +21,7 @@ use std::{
 use crate::{
     request_context::RequestContext,
     string::CefString,
+    send_cell::SendCell,
     refcounted::{RefCountedPtr, Wrapper},
     values::{DictionaryValue, StoredValue},
 };
@@ -118,6 +118,12 @@ impl GetExtensionResourceCallback {
     }
     pub fn cancel(&self) {
         unsafe { self.0.cancel.unwrap()(self.as_ptr()) }
+    }
+}
+
+impl ExtensionHandler {
+    pub fn new<C: ExtensionHandlerCallbacks>(callbacks: C) -> ExtensionHandler {
+        unsafe{ ExtensionHandler::from_ptr_unchecked(ExtensionHandlerWrapper::new(Box::new(callbacks)).wrap().into_raw()) }
     }
 }
 
@@ -230,7 +236,17 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     ) -> bool;
 }
 
-struct ExtensionHandlerWrapper(Mutex<Box<dyn ExtensionHandlerCallbacks>>);
+struct ExtensionHandlerWrapper {
+    delegate: SendCell<Box<dyn ExtensionHandlerCallbacks>>
+}
+
+impl ExtensionHandlerWrapper {
+    fn new(delegate: Box<dyn ExtensionHandlerCallbacks>) -> ExtensionHandlerWrapper {
+        ExtensionHandlerWrapper {
+            delegate: SendCell::new(delegate)
+        }
+    }
+}
 
 impl Wrapper for ExtensionHandlerWrapper {
     type Cef = cef_extension_handler_t;
@@ -258,19 +274,19 @@ cef_callback_impl!{
             &self,
             result: ErrorCode: cef_errorcode_t::Type
         ) {
-            self.0.lock().on_extension_load_failed(result);
+            unsafe{ self.delegate.get() }.on_extension_load_failed(result);
         }
         fn on_extension_loaded(
             &self,
             extension: Extension: *mut cef_extension_t
         ) {
-            self.0.lock().on_extension_loaded(extension);
+            unsafe{ self.delegate.get() }.on_extension_loaded(extension);
         }
         fn on_extension_unloaded(
             &self,
             extension: Extension: *mut cef_extension_t
         ) {
-            self.0.lock().on_extension_unloaded(extension);
+            unsafe{ self.delegate.get() }.on_extension_unloaded(extension);
         }
         fn on_before_background_browser(
             &self,
@@ -280,7 +296,7 @@ cef_callback_impl!{
             settings: &mut cef_browser_settings_t: *mut cef_browser_settings_t
         ) -> c_int {
             let mut settings_rs = unsafe{ BrowserSettings::from_raw(settings) };
-            let ret = self.0.lock().on_before_background_browser(
+            let ret = unsafe{ self.delegate.get() }.on_before_background_browser(
                 extension,
                 &String::from(url),
                 client,
@@ -303,7 +319,7 @@ cef_callback_impl!{
         ) -> c_int {
             let mut window_info_rs = unsafe{ WindowInfo::from_raw(window_info) };
             let mut settings_rs = unsafe{ BrowserSettings::from_raw(settings) };
-            let ret = self.0.lock().on_before_browser(
+            let ret = unsafe{ self.delegate.get() }.on_before_browser(
                 extension,
                 browser,
                 active_browser,
@@ -324,7 +340,7 @@ cef_callback_impl!{
             browser: Browser: *mut cef_browser_t,
             include_incognito: c_int: c_int
         ) -> *mut cef_browser_t {
-            self.0.lock().get_active_browser(extension, browser, include_incognito != 0).into_raw()
+            unsafe{ self.delegate.get() }.get_active_browser(extension, browser, include_incognito != 0).into_raw()
         }
         fn can_access_browser(
             &self,
@@ -333,7 +349,7 @@ cef_callback_impl!{
             include_incognito: c_int: c_int,
             target_browser: Browser: *mut cef_browser_t
         ) -> c_int {
-            self.0.lock().can_access_browser(extension, browser, include_incognito != 0, target_browser) as c_int
+            unsafe{ self.delegate.get() }.can_access_browser(extension, browser, include_incognito != 0, target_browser) as c_int
         }
         fn get_extension_resource(
             &self,
@@ -342,7 +358,7 @@ cef_callback_impl!{
             file: &CefString: *const cef_string_t,
             callback: GetExtensionResourceCallback: *mut cef_get_extension_resource_callback_t
         ) -> c_int {
-            self.0.lock().get_extension_resource(extension, browser, &String::from(file), callback) as c_int
+            unsafe{ self.delegate.get() }.get_extension_resource(extension, browser, &String::from(file), callback) as c_int
         }
     }
 }

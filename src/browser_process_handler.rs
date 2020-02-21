@@ -17,9 +17,7 @@ impl BrowserProcessHandler {
     }
 }
 
-/// Trait used to implement browser process callbacks. The functions of this
-/// trait will be called on the browser process main thread unless otherwise
-/// indicated.
+/// Trait used to implement browser process callbacks.
 pub trait BrowserProcessHandlerCallbacks: 'static + Sync + Send {
     /// Called on the browser process UI thread immediately after the CEF context
     /// has been initialized.

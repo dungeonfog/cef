@@ -1,9 +1,9 @@
 use cef_sys::{cef_dom_node_type_t, cef_domdocument_t, cef_domnode_t, cef_domvisitor_t};
 use std::{collections::HashMap};
-use parking_lot::Mutex;
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
+    send_cell::SendCell,
     string::{CefString, CefStringMap},
     values::Rect,
 };
@@ -180,7 +180,7 @@ impl DOMVisitor {
 pub trait DOMVisitorCallback = 'static + Send + FnMut(DOMDocument);
 
 pub(crate) struct DOMVisitorWrapper {
-    delegate: Mutex<Box<dyn DOMVisitorCallback>>,
+    delegate: SendCell<Box<dyn DOMVisitorCallback>>,
 }
 
 impl Wrapper for DOMVisitorWrapper {
@@ -198,7 +198,7 @@ impl Wrapper for DOMVisitorWrapper {
 
 impl DOMVisitorWrapper {
     pub(crate) fn new(delegate: Box<dyn DOMVisitorCallback>) -> DOMVisitorWrapper {
-        DOMVisitorWrapper { delegate: Mutex::new(delegate) }
+        DOMVisitorWrapper { delegate: SendCell::new(delegate) }
     }
 }
 
@@ -208,7 +208,7 @@ cef_callback_impl! {
             &self,
             document: DOMDocument: *mut cef_domdocument_t,
         ) {
-            (&mut *self.delegate.lock())(document);
+            (unsafe{ &mut *self.delegate.get() })(document);
         }
     }
 }

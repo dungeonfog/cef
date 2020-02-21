@@ -7,13 +7,14 @@ use crate::{
     refcounted::{RefCountedPtr, Wrapper},
     v8context::{V8Context, V8Exception, V8StackFrame, V8StackTrace},
     values::{DictionaryValue, ListValue},
+    send_cell::SendCell,
 };
 use cef_sys::{
     cef_browser_t, cef_dictionary_value_t, cef_domnode_t, cef_frame_t, cef_list_value_t,
     cef_load_handler_t, cef_process_id_t, cef_process_message_t, cef_render_process_handler_t,
     cef_v8context_t, cef_v8exception_t, cef_v8stack_trace_t,
 };
-use std::{cell::UnsafeCell, ptr::null_mut};
+use std::ptr::null_mut;
 
 ref_counted_ptr!{
     pub struct RenderProcessHandler(*mut cef_render_process_handler_t);
@@ -87,14 +88,14 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send {
 }
 
 #[repr(transparent)]
-pub(crate) struct RenderProcessHandlerWrapper(UnsafeCell<Box<dyn RenderProcessHandlerCallbacks>>);
+pub(crate) struct RenderProcessHandlerWrapper(SendCell<Box<dyn RenderProcessHandlerCallbacks>>);
 
 unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RenderProcessHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn RenderProcessHandlerCallbacks>) -> Self {
-        Self(UnsafeCell::new(delegate))
+        Self(SendCell::new(delegate))
     }
 }
 
@@ -126,11 +127,11 @@ cef_callback_impl! {
             &self,
             extra_info: ListValue: *mut cef_list_value_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_render_thread_created(extra_info);
+            unsafe{ self.0.get() }.on_render_thread_created(extra_info);
         }
 
         fn web_kit_initialized(&self) {
-            unsafe{ &mut *self.0.get() }.on_web_kit_initialized();
+            unsafe{ self.0.get() }.on_web_kit_initialized();
         }
 
         fn browser_created(
@@ -138,20 +139,20 @@ cef_callback_impl! {
             browser: Browser: *mut cef_browser_t,
             extra_info: DictionaryValue: *mut cef_dictionary_value_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_browser_created(browser, extra_info);
+            unsafe{ self.0.get() }.on_browser_created(browser, extra_info);
         }
 
         fn browser_destroyed(
             &self,
             browser: Browser: *mut cef_browser_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_browser_destroyed(browser);
+            unsafe{ self.0.get() }.on_browser_destroyed(browser);
         }
 
         fn get_load_handler(
             &self,
         ) -> *mut cef_load_handler_t {
-            unsafe{ &mut *self.0.get() }.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+            unsafe{ self.0.get() }.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
 
         fn context_created(
@@ -160,7 +161,7 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             context: V8Context: *mut cef_v8context_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_context_created(
+            unsafe{ self.0.get() }.on_context_created(
                 browser,
                 frame,
                 context,
@@ -173,7 +174,7 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             context: V8Context: *mut cef_v8context_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_context_created(
+            unsafe{ self.0.get() }.on_context_created(
                 browser,
                 frame,
                 context,
@@ -188,7 +189,7 @@ cef_callback_impl! {
             exception: V8Exception: *mut cef_v8exception_t,
             stack_trace: V8StackTrace: *mut cef_v8stack_trace_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_uncaught_exception(
+            unsafe{ self.0.get() }.on_uncaught_exception(
                 browser,
                 frame,
                 context,
@@ -203,7 +204,7 @@ cef_callback_impl! {
             frame: Frame: *mut cef_frame_t,
             node: Option<DOMNode>: *mut cef_domnode_t,
         ) {
-            unsafe{ &mut *self.0.get() }.on_focused_node_changed(
+            unsafe{ self.0.get() }.on_focused_node_changed(
                 browser,
                 frame,
                 node
@@ -217,7 +218,7 @@ cef_callback_impl! {
             source_process: ProcessId: cef_process_id_t::Type,
             message: ProcessMessage: *mut cef_process_message_t,
         ) -> std::os::raw::c_int {
-            unsafe{ &mut *self.0.get() }.on_process_message_received(
+            unsafe{ self.0.get() }.on_process_message_received(
                 browser,
                 frame,
                 source_process,

@@ -58,6 +58,7 @@ pub mod stream;
 pub mod ssl;
 pub mod task;
 pub mod logging;
+mod send_cell;
 
 /// Return value types.
 #[repr(C)]
