@@ -253,7 +253,7 @@ impl PartialEq for Value {
     }
 }
 
-impl crate::cef_helper_traits::DeepClone for Value {
+impl crate::helper_traits::DeepClone for Value {
     /// Returns a copy of this object. The underlying data will also be copied.
     fn deep_clone(&self) -> Self {
         unsafe { Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
@@ -491,7 +491,7 @@ impl PartialEq for BinaryValue {
     }
 }
 
-impl crate::cef_helper_traits::DeepClone for BinaryValue {
+impl crate::helper_traits::DeepClone for BinaryValue {
     /// Returns a copy of this object. The underlying data will also be copied.
     fn deep_clone(&self) -> Self {
         unsafe { Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }
@@ -852,7 +852,7 @@ impl PartialEq for DictionaryValue {
     }
 }
 
-impl crate::cef_helper_traits::DeepClone for DictionaryValue {
+impl crate::helper_traits::DeepClone for DictionaryValue {
     /// Returns a copy of this object. The underlying data will also be copied.
     fn deep_clone(&self) -> Self {
         unsafe { Self::from_ptr_unchecked(self.0.copy.unwrap()(self.as_ptr(), 0)) }
@@ -1139,7 +1139,7 @@ impl PartialEq for ListValue {
     }
 }
 
-impl crate::cef_helper_traits::DeepClone for ListValue {
+impl crate::helper_traits::DeepClone for ListValue {
     /// Returns a copy of this object. The underlying data will also be copied.
     fn deep_clone(&self) -> Self {
         unsafe { Self::from_ptr_unchecked((self.0.copy.unwrap())(self.as_ptr())) }

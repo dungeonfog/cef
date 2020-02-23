@@ -158,7 +158,7 @@ impl DragData {
     }
 }
 
-impl crate::cef_helper_traits::DeepClone for DragData {
+impl crate::helper_traits::DeepClone for DragData {
     /// Returns a writable copy of this object.
     fn deep_clone(&self) -> DragData {
         unsafe { Self::from_ptr_unchecked(self.0.clone.unwrap()(self.as_ptr())) }

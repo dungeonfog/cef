@@ -4,7 +4,7 @@
 mod refcounted;
 #[macro_use]
 mod extern_callback_helpers;
-mod cef_helper_traits;
+pub mod helper_traits;
 mod ptr_hash;
 mod misc_fns;
 pub use misc_fns::*;

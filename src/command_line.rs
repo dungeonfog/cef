@@ -229,7 +229,7 @@ impl Default for CommandLine {
         Self::new()
     }
 }
-impl crate::cef_helper_traits::DeepClone for CommandLine {
+impl crate::helper_traits::DeepClone for CommandLine {
     /// Returns a writable copy of this object.
     fn deep_clone(&self) -> CommandLine {
         unsafe { Self::from_ptr_unchecked(self.0.copy.unwrap()(self.as_ptr())) }
