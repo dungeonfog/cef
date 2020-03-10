@@ -743,7 +743,7 @@ impl BrowserHost {
     /// window rendering is disabled.
     pub fn drag_target_drag_enter(
         &self,
-        drag_data: &DragData,
+        drag_data: DragData,
         event: &MouseEvent,
         allowed_ops: DragOperation,
     ) {
@@ -751,7 +751,7 @@ impl BrowserHost {
             unsafe {
                 drag_target_drag_enter(
                     self.0.as_ptr(),
-                    drag_data.as_ptr(),
+                    drag_data.into_raw(),
                     event.as_cef(),
                     cef_drag_operations_mask_t(allowed_ops.bits()),
                 );
