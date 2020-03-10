@@ -34,24 +34,24 @@ ref_counted_ptr! {
     pub struct Image(*mut cef_image_t);
 }
 
-/// Returned by [Image::get_representation_info]
+/// Returned by [`Image::get_representation_info`]
 pub struct RepresentationInfo {
     /// The actual scale factor for the representation.
-    actual_scale_factor: f32,
+    pub actual_scale_factor: f32,
     /// The representation width in pixel coordinates.
-    pixel_width: i32,
+    pub pixel_width: i32,
     /// The representation height in pixel coordinates.
-    pixel_height: i32,
+    pub pixel_height: i32,
 }
 
-/// Returned by [Image::get_as_bitmap], [Image::get_as_png] and [Image::get_as_jpeg].
+/// Returned by [`Image::get_as_bitmap`], [`Image::get_as_pn`g] and [`Image::get_as_jpeg`].
 pub struct BinaryImage {
     /// The output representation width in pixel coordinates.
-    pixel_width: i32,
+    pub pixel_width: i32,
     /// The output representation height in pixel coordinates.
-    pixel_height: i32,
+    pub pixel_height: i32,
     /// A vector containing the pixel data.
-    data: Vec<u8>,
+    pub data: Vec<u8>,
 }
 
 impl Image {
