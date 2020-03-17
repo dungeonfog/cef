@@ -110,7 +110,7 @@ impl Frame {
         }
     }
     /// Load the request represented by the |request| object.
-    pub fn load_request(&self, request: &Request) {
+    pub fn load_request(&self, request: Request) {
         if let Some(load_request) = self.0.load_request {
             unsafe {
                 load_request(self.0.as_ptr(), request.as_ptr());
@@ -252,13 +252,13 @@ impl Frame {
     /// function.
     pub fn create_urlrequest(
         &self,
-        request: &mut Request,
+        request: Request,
         client: URLRequestClient,
     ) -> URLRequest {
         unsafe {
             let urlrequest = self.0.create_urlrequest.unwrap()(
                 self.0.as_ptr(),
-                request.as_ptr(),
+                request.into_raw(),
                 client.into_raw(),
             );
             URLRequest::from_ptr_unchecked(urlrequest)
@@ -276,7 +276,7 @@ impl Frame {
     ) {
         if let Some(send_process_message) = self.0.send_process_message {
             unsafe {
-                send_process_message(self.0.as_ptr(), target_process as _, message.as_ptr());
+                send_process_message(self.0.as_ptr(), target_process as _, message.into_raw());
             }
         }
     }
