@@ -80,10 +80,10 @@ impl Value {
     /// Returns true if this object and `that` object have the same underlying
     /// data. If true modifications to this object will also affect `that`
     /// object and vice-versa.
-    pub(crate) fn is_same(&self, that: &Value) -> bool {
+    pub(crate) fn is_same(&self, that: Value) -> bool {
         self.0
             .is_same
-            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.into_raw()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the underlying value type.
@@ -342,10 +342,10 @@ impl BinaryValue {
     }
     /// Returns true if this object and `that` object have the same underlying
     /// data.
-    pub fn is_same(&self, that: &BinaryValue) -> bool {
+    pub fn is_same(&self, that: BinaryValue) -> bool {
         self.0
             .is_same
-            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.into_raw()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the data size.
@@ -486,7 +486,7 @@ impl PartialEq for BinaryValue {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.clone().into_raw()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -533,10 +533,10 @@ impl DictionaryValue {
     }
     /// Returns true if this object and `that` object have the same underlying
     /// data.
-    pub fn is_same(&self, that: &DictionaryValue) -> bool {
+    pub fn is_same(&self, that: DictionaryValue) -> bool {
         self.0
             .is_same
-            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.into_raw()) != 0 })
             .unwrap_or(false)
     }
     /// Returns the number of values.
@@ -847,7 +847,7 @@ impl PartialEq for DictionaryValue {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.clone().into_raw()) != 0 })
             .unwrap_or(false)
     }
 }
@@ -900,10 +900,10 @@ impl ListValue {
     }
     /// Returns true if this object and `that` object have the same underlying
     /// data.
-    pub fn is_same(&self, that: &ListValue) -> bool {
+    pub fn is_same(&self, that: ListValue) -> bool {
         self.0
             .is_same
-            .map(|is_same| unsafe { is_same(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_same| unsafe { is_same(self.as_ptr(), that.into_raw()) != 0 })
             .unwrap_or(false)
     }
     /// Sets the number of values. If the number of values is expanded all new
@@ -1081,7 +1081,7 @@ impl ListValue {
     pub fn set_binary(&self, index: usize, value: BinaryValue) -> bool {
         self.0
             .set_binary
-            .map(|set_binary| unsafe { set_binary(self.as_ptr(), index, value.as_ptr()) != 0 })
+            .map(|set_binary| unsafe { set_binary(self.as_ptr(), index, value.into_raw()) != 0 })
             .unwrap_or(false)
     }
     /// Sets the value at the specified index as type dict. Returns true if the
@@ -1134,7 +1134,7 @@ impl PartialEq for ListValue {
     fn eq(&self, that: &Self) -> bool {
         self.0
             .is_equal
-            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.as_ptr()) != 0 })
+            .map(|is_equal| unsafe { is_equal(self.as_ptr(), that.clone().into_raw()) != 0 })
             .unwrap_or(false)
     }
 }
