@@ -38,7 +38,8 @@ pub enum KeyEvent {
         /// cef_event_flags_t for values.
         modifiers: EventFlags,
         windows_key_code: WindowsKeyCode,
-        // native_key_code: i32,
+        /// Also known as scan code.
+        native_key_code: i32,
         is_system_key: bool,
         focus_on_editable_field: bool,
     },
@@ -47,7 +48,8 @@ pub enum KeyEvent {
         /// cef_event_flags_t for values.
         modifiers: EventFlags,
         windows_key_code: WindowsKeyCode,
-        // native_key_code: i32,
+        /// Also known as scan code.
+        native_key_code: i32,
         is_system_key: bool,
         focus_on_editable_field: bool,
     },
@@ -60,18 +62,20 @@ pub enum KeyEvent {
 impl KeyEvent {
     pub fn as_cef(&self) -> cef_key_event_t {
         match *self {
-            KeyEvent::KeyDown{modifiers, windows_key_code, is_system_key, focus_on_editable_field} => cef_key_event_t {
+            KeyEvent::KeyDown{modifiers, windows_key_code, native_key_code, is_system_key, focus_on_editable_field} => cef_key_event_t {
                 type_: cef_key_event_type_t::KEYEVENT_KEYDOWN,
                 modifiers: modifiers.bits() as _,
                 windows_key_code: windows_key_code.0,
+                native_key_code,
                 is_system_key: is_system_key as _,
                 focus_on_editable_field: focus_on_editable_field as _,
                 ..unsafe{ mem::zeroed() }
             },
-            KeyEvent::KeyUp{modifiers, windows_key_code, is_system_key, focus_on_editable_field} => cef_key_event_t {
+            KeyEvent::KeyUp{modifiers, windows_key_code, native_key_code, is_system_key, focus_on_editable_field} => cef_key_event_t {
                 type_: cef_key_event_type_t::KEYEVENT_KEYUP,
                 modifiers: modifiers.bits() as _,
                 windows_key_code: windows_key_code.0,
+                native_key_code,
                 is_system_key: is_system_key as _,
                 focus_on_editable_field: focus_on_editable_field as _,
                 ..unsafe{ mem::zeroed() }
@@ -99,12 +103,14 @@ impl From<cef_key_event_t> for KeyEvent {
             cef_key_event_type_t::KEYEVENT_RAWKEYDOWN => KeyEvent::KeyDown {
                 modifiers: EventFlags::from_bits_truncate(event.modifiers as _),
                 windows_key_code: WindowsKeyCode(event.windows_key_code),
+                native_key_code: event.native_key_code,
                 is_system_key: event.is_system_key != 0,
                 focus_on_editable_field: event.focus_on_editable_field != 0,
             },
             cef_key_event_type_t::KEYEVENT_KEYUP => KeyEvent::KeyUp {
                 modifiers: EventFlags::from_bits_truncate(event.modifiers as _),
                 windows_key_code: WindowsKeyCode(event.windows_key_code),
+                native_key_code: event.native_key_code,
                 is_system_key: event.is_system_key != 0,
                 focus_on_editable_field: event.focus_on_editable_field != 0,
             },

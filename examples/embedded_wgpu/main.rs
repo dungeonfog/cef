@@ -799,44 +799,31 @@ fn main() {
                             modifiers: mouse_event.modifiers,
                             pointer_type: PointerType::Touch,
                         }),
-                        WindowEvent::KeyboardInput {
-                            input:
-                                KeyboardInput {
-                                    state,
-                                    virtual_keycode,
-                                    modifiers,
-                                    ..
-                                },
-                            ..
-                        } => {
-                            mouse_event
-                                .modifiers
-                                .set(EventFlags::SHIFT_DOWN, modifiers.shift);
-                            mouse_event
-                                .modifiers
-                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
-                            mouse_event
-                                .modifiers
-                                .set(EventFlags::ALT_DOWN, modifiers.alt);
-                            if let Some(keycode) =
-                                virtual_keycode.and_then(winit_keycode_to_windows_keycode)
-                            {
-                                browser.get_host().send_key_event(match state {
-                                    ElementState::Pressed => KeyEvent::KeyDown {
-                                        modifiers: mouse_event.modifiers,
-                                        windows_key_code: keycode,
-                                        is_system_key: false,
-                                        focus_on_editable_field: false,
-                                    },
-                                    ElementState::Released => KeyEvent::KeyUp {
-                                        modifiers: mouse_event.modifiers,
-                                        windows_key_code: keycode,
-                                        is_system_key: false,
-                                        focus_on_editable_field: false,
-                                    },
-                                });
+                        WindowEvent::KeyboardInput{input: KeyboardInput {state, virtual_keycode, scancode, modifiers, ..}, ..} => {
+                            mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                            mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                            mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
+                            if let Some(keycode) = virtual_keycode.and_then(winit_keycode_to_windows_keycode) {
+                                browser.get_host().send_key_event(
+                                    match state {
+                                        ElementState::Pressed => KeyEvent::KeyDown {
+                                            modifiers: mouse_event.modifiers,
+                                            windows_key_code: keycode,
+                                            native_key_code: scancode as _,
+                                            is_system_key: false,
+                                            focus_on_editable_field: false,
+                                        },
+                                        ElementState::Released => KeyEvent::KeyUp {
+                                            modifiers: mouse_event.modifiers,
+                                            windows_key_code: keycode,
+                                            native_key_code: scancode as _,
+                                            is_system_key: false,
+                                            focus_on_editable_field: false,
+                                        },
+                                    }
+                                );
                             }
-                        }
+                        },
                         WindowEvent::ReceivedCharacter(char) => {
                             browser.get_host().send_key_event(KeyEvent::Char {
                                 modifiers: mouse_event.modifiers,
