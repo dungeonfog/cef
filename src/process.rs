@@ -8,7 +8,7 @@ use crate::{
 /// Existing process IDs.
 #[repr(C)]
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum ProcessId {
+pub(crate) enum ProcessId {
     /// Browser process.
     Browser = cef_process_id_t::PID_BROWSER as isize,
     /// Renderer process.

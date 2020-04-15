@@ -94,7 +94,6 @@ pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
         &self,
         browser: Browser,
         frame: Frame,
-        process_id: ProcessId,
         message: ProcessMessage,
     ) -> bool {
         false
@@ -154,7 +153,8 @@ cef_callback_impl! {
             source_process: ProcessId     : cef_process_id_t::Type,
             message       : ProcessMessage: *mut cef_process_message_t
         ) -> std::os::raw::c_int {
-            self.0.on_process_message_received(browser, frame, source_process, message) as std::os::raw::c_int
+            assert_eq!(ProcessId::Renderer, source_process);
+            self.0.on_process_message_received(browser, frame, message) as std::os::raw::c_int
         }
     }
 }

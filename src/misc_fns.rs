@@ -99,16 +99,21 @@ pub enum ProcessType {
 }
 
 pub fn process_type() -> ProcessType {
-    let flag = "--type=";
-    let arg = std::env::args().find(|s| s.starts_with(flag));
-    let arg = arg.as_ref().map(|s| &s[flag.len()..]);
-    match arg {
-        None => ProcessType::Browser,
-        Some("renderer") => ProcessType::Renderer,
-        Some("gpu-process") => ProcessType::Gpu,
-        Some("utility") => ProcessType::Utility,
-        _ => ProcessType::Other,
+    lazy_static::lazy_static!{
+        static ref PROCESS_TYPE: ProcessType = {
+            let flag = "--type=";
+            let arg = std::env::args().find(|s| s.starts_with(flag));
+            let arg = arg.as_ref().map(|s| &s[flag.len()..]);
+            match arg {
+                None => ProcessType::Browser,
+                Some("renderer") => ProcessType::Renderer,
+                Some("gpu-process") => ProcessType::Gpu,
+                Some("utility") => ProcessType::Utility,
+                _ => ProcessType::Other,
+            }
+        };
     }
+    *PROCESS_TYPE
 }
 
 pub struct Context(());

@@ -271,10 +271,13 @@ impl Frame {
     /// from the target process if confirmation is required.
     pub fn send_process_message(
         &self,
-        target_process: ProcessId,
         message: ProcessMessage,
     ) {
         if let Some(send_process_message) = self.0.send_process_message {
+            let target_process = match crate::process_type() {
+                crate::ProcessType::Browser => ProcessId::Renderer,
+                _ => ProcessId::Browser,
+            };
             unsafe {
                 send_process_message(self.0.as_ptr(), target_process as _, message.into_raw());
             }
