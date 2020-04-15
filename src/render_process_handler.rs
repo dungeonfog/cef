@@ -217,7 +217,7 @@ cef_callback_impl! {
             source_process: ProcessId: cef_process_id_t::Type,
             message: ProcessMessage: *mut cef_process_message_t,
         ) -> std::os::raw::c_int {
-            assert_eq!(ProcessId::Renderer, source_process);
+            assert_eq!(ProcessId::Browser, source_process);
             unsafe{ self.0.get() }.on_process_message_received(
                 browser,
                 frame,
