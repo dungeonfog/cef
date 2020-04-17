@@ -116,10 +116,8 @@ pub fn process_type() -> ProcessType {
     *PROCESS_TYPE
 }
 
-pub struct Context(());
+pub struct Context(std::marker::PhantomData<&'static std::cell::Cell<u8>>); // not Send nor Sync
 
-impl !Send for Context {}
-impl !Sync for Context {}
 static CONTEXT_INITIALIZED: AtomicBool = AtomicBool::new(false);
 
 impl Context {
@@ -150,7 +148,7 @@ impl Context {
             ) != 0;
             crate::settings::drop_settings(settings);
             match worked {
-                true => Ok(Context(())),
+                true => Ok(Context(std::marker::PhantomData)),
                 false => Err(std::io::Error::new(std::io::ErrorKind::Other, "context creation failed!")),
             }
         }
