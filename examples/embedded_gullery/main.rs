@@ -144,7 +144,7 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         };
 
         Some(ScreenInfo {
-            device_scale_factor: self.blit.lock().window().scale_factor() as f32,
+            device_scale_factor: window.scale_factor() as f32,
             depth: 32,
             depth_per_component: 8,
             is_monochrome: false,
@@ -292,8 +292,8 @@ fn main() {
 
             let settings = Settings::new()
                 .windowless_rendering_enabled(true)
-                .locales_dir_path("/mnt/hgfs/ubuntu_git/Resources/locales/")
-                .resources_dir_path("/mnt/hgfs/ubuntu_git/Resources/")
+                // .locales_dir_path("/mnt/hgfs/ubuntu_git/Resources/locales/")
+                // .resources_dir_path("/mnt/hgfs/ubuntu_git/Resources/")
                 .log_severity(LogSeverity::Verbose)
                 .external_message_pump(true);
 
