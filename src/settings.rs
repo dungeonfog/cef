@@ -351,6 +351,10 @@ impl Settings {
         self.javascript_flags = Some(javascript_flags.into());
         self
     }
+    pub fn resources_dir_path<T: Into<PathBuf>>(mut self, resources_dir_path: T) -> Self {
+        self.resources_dir_path = Some(resources_dir_path.into());
+        self
+    }
     pub fn locales_dir_path<T: Into<PathBuf>>(mut self, locales_dir_path: T) -> Self {
         self.locales_dir_path = Some(locales_dir_path.into());
         self
