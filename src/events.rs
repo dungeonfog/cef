@@ -84,6 +84,7 @@ impl KeyEvent {
                 type_: cef_key_event_type_t::KEYEVENT_CHAR,
                 modifiers: modifiers.bits() as _,
                 windows_key_code: char as _,
+                character: char as _,
                 ..unsafe{ mem::zeroed() }
             }
         }
