@@ -30,7 +30,7 @@ use std::{
 };
 use winit::event::{Touch, TouchPhase};
 use winit::{
-    dpi::LogicalPosition,
+    dpi::{LogicalPosition, PhysicalPosition},
     event::{
         ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, StartCause,
         VirtualKeyCode, WindowEvent,
@@ -58,7 +58,7 @@ pub struct RenderHandlerCallbacksImpl {
     popup_rect: Mutex<Option<Rect>>,
 }
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 enum CefEvent {
     ScheduleWork(Instant),
     Quit,
@@ -109,12 +109,12 @@ impl BrowserProcessHandlerCallbacks for BrowserProcessHandlerCallbacksImpl {
 
 impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
     fn get_view_rect(&self, _: Browser) -> Rect {
-        let inner_size = self.window.inner_size();
+        let inner_size = self.window.inner_size().to_logical::<i32>(self.window.scale_factor());
         Rect {
             x: 0,
             y: 0,
-            width: inner_size.width.round() as i32,
-            height: inner_size.height.round() as i32,
+            width: inner_size.width,
+            height: inner_size.height,
         }
     }
     fn on_popup_show(&self, _browser: Browser, show: bool) {
@@ -122,15 +122,14 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             *self.popup_rect.lock() = None;
         }
     }
-    fn get_screen_point(&self, _browser: Browser, point: Point) -> Option<Point> {
-        let screen_pos = self
-            .window
-            .inner_position()
-            .unwrap_or(LogicalPosition::new(0.0, 0.0));
-        let physical_pos =
-            (LogicalPosition::new(screen_pos.x + point.x as f64, screen_pos.y + point.y as f64))
-                .to_physical(self.window.hidpi_factor());
-        Some(Point::new(physical_pos.x as i32, physical_pos.y as i32))
+    fn get_screen_point(
+        &self,
+        _browser: Browser,
+        point: Point,
+    ) -> Option<Point> {
+        let screen_pos = self.window.inner_position().unwrap_or(PhysicalPosition::new(0, 0));
+        let point_physical = LogicalPosition::new(point.x, point.y).to_physical::<i32>(self.window.scale_factor());
+        Some(Point::new(screen_pos.x + point_physical.x, screen_pos.y + point_physical.y))
     }
     fn on_popup_size(&self, _: Browser, mut rect: Rect) {
         let window_size: (u32, u32) = self.window.inner_size().into();
@@ -142,16 +141,16 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         *self.popup_rect.lock() = Some(rect);
     }
     fn get_screen_info(&self, _: Browser) -> Option<ScreenInfo> {
-        let inner_size = self.window.inner_size();
+        let inner_size = self.window.inner_size().to_logical::<i32>(self.window.scale_factor());
         let rect = Rect {
             x: 0,
             y: 0,
-            width: inner_size.width.round() as i32,
-            height: inner_size.height.round() as i32,
+            width: inner_size.width,
+            height: inner_size.height,
         };
 
         Some(ScreenInfo {
-            device_scale_factor: self.window.hidpi_factor() as f32,
+            device_scale_factor: self.window.scale_factor() as f32,
             depth: 32,
             depth_per_component: 8,
             is_monochrome: false,
@@ -287,7 +286,7 @@ impl Renderer {
             limits: wgpu::Limits::default(),
         });
 
-        let window_size = window.inner_size().to_physical(window.hidpi_factor());
+        let window_size = window.inner_size();
         let (swap_chain_width, swap_chain_height) =
             (window_size.width as u32, window_size.height as u32);
 
@@ -608,18 +607,10 @@ fn main() {
                 .build(&event_loop)
                 .unwrap();
 
-            let hidpi_factor = window.hidpi_factor();
+            let scale_factor = window.scale_factor();
 
-            let width = window
-                .inner_size()
-                .to_physical(window.hidpi_factor())
-                .width
-                .round() as u32;
-            let height = window
-                .inner_size()
-                .to_physical(window.hidpi_factor())
-                .height
-                .round() as u32;
+            let width = window.inner_size().width;
+            let height = window.inner_size().height;
 
             let window_info = WindowInfo {
                 windowless_rendering_enabled: true,
@@ -687,13 +678,9 @@ fn main() {
                         window_id: _,
                     } => match event {
                         WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                        WindowEvent::RedrawRequested => {
-                            // Ignored because of VSYNC
-                        }
-                        WindowEvent::Resized(logical_size) => {
+                        WindowEvent::Resized(physical_size) => {
                             browser.get_host().was_resized();
 
-                            let physical_size = logical_size.to_physical(hidpi_factor);
                             let mut renderer = renderer.lock();
                             renderer.set_window_size(
                                 physical_size.width as u32,
@@ -707,13 +694,13 @@ fn main() {
                         } => {
                             mouse_event
                                 .modifiers
-                                .set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                                .set(EventFlags::SHIFT_DOWN, modifiers.shift());
                             mouse_event
                                 .modifiers
-                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl());
                             mouse_event
                                 .modifiers
-                                .set(EventFlags::ALT_DOWN, modifiers.alt);
+                                .set(EventFlags::ALT_DOWN, modifiers.alt());
                             mouse_event.x = position.x.round() as _;
                             mouse_event.y = position.y.round() as _;
                             browser
@@ -739,13 +726,13 @@ fn main() {
                         } => {
                             mouse_event
                                 .modifiers
-                                .set(EventFlags::SHIFT_DOWN, modifiers.shift);
+                                .set(EventFlags::SHIFT_DOWN, modifiers.shift());
                             mouse_event
                                 .modifiers
-                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
+                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl());
                             mouse_event
                                 .modifiers
-                                .set(EventFlags::ALT_DOWN, modifiers.alt);
+                                .set(EventFlags::ALT_DOWN, modifiers.alt());
                             let button = match button {
                                 MouseButton::Left => Some(MouseButtonType::Left),
                                 MouseButton::Middle => Some(MouseButtonType::Middle),
@@ -800,9 +787,9 @@ fn main() {
                             pointer_type: PointerType::Touch,
                         }),
                         WindowEvent::KeyboardInput{input: KeyboardInput {state, virtual_keycode, scancode, modifiers, ..}, ..} => {
-                            mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
-                            mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
-                            mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
+                            mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift());
+                            mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl());
+                            mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt());
                             if let Some(keycode) = virtual_keycode.and_then(winit_keycode_to_windows_keycode) {
                                 browser.get_host().send_key_event(
                                     match state {
@@ -848,7 +835,7 @@ fn main() {
                             context.quit_message_loop();
                         }
                     },
-                    Event::EventsCleared => {
+                    Event::MainEventsCleared => {
                         if scheduled_work_queue.len() > 0 {
                             *control_flow = ControlFlow::WaitUntil(scheduled_work_queue[0]);
                         } else {
@@ -858,7 +845,10 @@ fn main() {
                         let mut renderer = renderer.lock();
                         renderer.blit();
                         // This blocks on VSYNC
-                    }
+                    },
+                    Event::RedrawRequested(_) => {
+                        // Ignored because of VSYNC
+                    },
                     _ => (),//*control_flow = ControlFlow::Wait,
                 }
             });

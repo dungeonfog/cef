@@ -7,11 +7,14 @@ edition = "2018"
 [dependencies]
 cef = {path = ".."}
 cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
-winit = "=0.20.0-alpha4"
+winit = "0.22.0"
+glutin = "0.24.0"
 wgpu = "0.4"
 vk-shader-macros = "0.2.2"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.9"
+gullery = {git = "https://github.com/Osspial/gullery.git" }
+gullery_macros = {git = "https://github.com/Osspial/gullery.git" }
 
 [build-dependencies]
 embed-resource = "1"
@@ -27,6 +30,10 @@ path = "embedded/main.rs"
 [[bin]]
 name = "embedded_wgpu"
 path = "embedded_wgpu/main.rs"
+
+[[bin]]
+name = "embedded_gullery"
+path = "embedded_gullery/main.rs"
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
