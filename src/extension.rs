@@ -21,7 +21,7 @@ use std::{
 use crate::{
     request_context::RequestContext,
     string::CefString,
-    send_cell::SendCell,
+    send_protector::SendProtector,
     refcounted::{RefCountedPtr, Wrapper},
     values::{DictionaryValue, StoredValue},
 };
@@ -134,18 +134,18 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     /// Called if the cef_request_tContext::LoadExtension request fails. `result`
     /// will be the error code.
     fn on_extension_load_failed(
-        &mut self,
+        &self,
         result: ErrorCode
     );
     /// Called if the cef_request_tContext::LoadExtension request succeeds.
     /// `extension` is the loaded extension.
     fn on_extension_loaded(
-        &mut self,
+        &self,
         extension: Extension
     );
     /// Called after the cef_extension_t::Unload request has completed.
     fn on_extension_unloaded(
-        &mut self,
+        &self,
         extension: Extension
     );
     /// Called when an extension needs a browser to host a background script
@@ -162,7 +162,7 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     /// browser. See https://developer.chrome.com/extensions/event_pages for more
     /// information about extension background script usage.
     fn on_before_background_browser(
-        &mut self,
+        &self,
         extension: Extension,
         url: &str,
         client: &mut Client,
@@ -182,7 +182,7 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     /// modifications to `windowInfo` will be ignored if `active_browser` is
     /// wrapped in a cef_browser_view_t.
     fn on_before_browser(
-        &mut self,
+        &self,
         extension: Extension,
         browser: Browser,
         active_browser: Browser,
@@ -201,7 +201,7 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     /// be considered unless the source extension has incognito access enabled, in
     /// which case `include_incognito` will be `true`.
     fn get_active_browser(
-        &mut self,
+        &self,
         extension: Extension,
         browser: Browser,
         include_incognito: bool
@@ -213,7 +213,7 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     /// should not be allowed unless the source extension has incognito access
     /// enabled, in which case `include_incognito` will be `true`.
     fn can_access_browser(
-        &mut self,
+        &self,
         extension: Extension,
         browser: Browser,
         include_incognito: bool,
@@ -228,7 +228,7 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
     /// on disk return `false`. Localization substitutions will not be applied to
     /// resources handled via this function.
     fn get_extension_resource(
-        &mut self,
+        &self,
         extension: Extension,
         browser: Browser,
         file: &str,
@@ -237,13 +237,13 @@ pub trait ExtensionHandlerCallbacks: 'static + Send {
 }
 
 struct ExtensionHandlerWrapper {
-    delegate: SendCell<Box<dyn ExtensionHandlerCallbacks>>
+    delegate: SendProtector<Box<dyn ExtensionHandlerCallbacks>>
 }
 
 impl ExtensionHandlerWrapper {
     fn new(delegate: Box<dyn ExtensionHandlerCallbacks>) -> ExtensionHandlerWrapper {
         ExtensionHandlerWrapper {
-            delegate: SendCell::new(delegate)
+            delegate: SendProtector::new(delegate)
         }
     }
 }

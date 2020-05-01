@@ -7,7 +7,7 @@ use crate::{
     refcounted::{RefCountedPtr, Wrapper},
     v8context::{V8Context, V8Exception, V8StackFrame, V8StackTrace},
     values::{DictionaryValue, ListValue},
-    send_cell::SendCell,
+    send_protector::SendProtector,
 };
 use cef_sys::{
     cef_browser_t, cef_dictionary_value_t, cef_domnode_t, cef_frame_t, cef_list_value_t,
@@ -32,20 +32,20 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send {
     /// Called after the render process main thread has been created. `extra_info`
     /// is originating from
     /// [BrowserProcessHandlerCallbacks::on_render_process_thread_created].
-    fn on_render_thread_created(&mut self, extra_info: ListValue) {}
+    fn on_render_thread_created(&self, extra_info: ListValue) {}
     /// Called after WebKit has been initialized.
-    fn on_web_kit_initialized(&mut self) {}
+    fn on_web_kit_initialized(&self) {}
     /// Called after a browser has been created. When browsing cross-origin a new
     /// browser will be created before the old browser with the same identifier is
     /// destroyed. |extra_info| is originating from
     /// [BrowserHost::create_browser()],
     /// [BrowserHost::create_browser_sync()],
     /// [LifeSpanHandler::on_before_popup()] or [BrowserView::create()].
-    fn on_browser_created(&mut self, browser: Browser, extra_info: DictionaryValue) {}
+    fn on_browser_created(&self, browser: Browser, extra_info: DictionaryValue) {}
     /// Called before a browser is destroyed.
-    fn on_browser_destroyed(&mut self, browser: Browser) {}
+    fn on_browser_destroyed(&self, browser: Browser) {}
     /// Return the handler for browser load status events.
-    fn get_load_handler(&mut self) -> Option<LoadHandler> {
+    fn get_load_handler(&self) -> Option<LoadHandler> {
         None
     }
     /// Called immediately after the V8 context for a frame has been created. To
@@ -54,14 +54,14 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send {
     /// from the thread on which they are created. A task runner for posting tasks
     /// on the associated thread can be retrieved via the
     /// [V8Context::get_task_runner()] function.
-    fn on_context_created(&mut self, browser: Browser, frame: Frame, context: V8Context) {}
+    fn on_context_created(&self, browser: Browser, frame: Frame, context: V8Context) {}
     /// Called immediately before the V8 context for a frame is released.
-    fn on_context_released(&mut self, browser: Browser, frame: Frame, context: V8Context) {}
+    fn on_context_released(&self, browser: Browser, frame: Frame, context: V8Context) {}
     /// Called for global uncaught exceptions in a frame. Execution of this
     /// callback is disabled by default. To enable set
     /// [CefSettings.uncaught_exception_stack_size] > 0.
     fn on_uncaught_exception(
-        &mut self,
+        &self,
         browser: Browser,
         frame: Frame,
         context: V8Context,
@@ -73,11 +73,11 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send {
     /// be None if no specific node has gained focus. The node object passed to
     /// this function represents a snapshot of the DOM at the time this function is
     /// executed.
-    fn on_focused_node_changed(&mut self, browser: Browser, frame: Frame, node: Option<DOMNode>) {}
+    fn on_focused_node_changed(&self, browser: Browser, frame: Frame, node: Option<DOMNode>) {}
     /// Called when a new message is received from a different process. Return true
     /// if the message was handled or false otherwise.
     fn on_process_message_received(
-        &mut self,
+        &self,
         browser: Browser,
         frame: Frame,
         message: ProcessMessage,
@@ -87,14 +87,14 @@ pub trait RenderProcessHandlerCallbacks: 'static + Send {
 }
 
 #[repr(transparent)]
-pub(crate) struct RenderProcessHandlerWrapper(SendCell<Box<dyn RenderProcessHandlerCallbacks>>);
+pub(crate) struct RenderProcessHandlerWrapper(SendProtector<Box<dyn RenderProcessHandlerCallbacks>>);
 
 unsafe impl Send for RenderProcessHandlerWrapper {}
 unsafe impl Sync for RenderProcessHandlerWrapper {}
 
 impl RenderProcessHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn RenderProcessHandlerCallbacks>) -> Self {
-        Self(SendCell::new(delegate))
+        Self(SendProtector::new(delegate))
     }
 }
 

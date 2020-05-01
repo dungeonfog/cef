@@ -12,7 +12,7 @@ use crate::{
     printing::PDFPrintSettings,
     refcounted::{RefCountedPtr, Wrapper},
     request_context::RequestContext,
-    send_cell::SendCell,
+    send_protector::SendProtectorMut,
     string::{CefString, CefStringList},
     values::{DictionaryValue, Point, Range, Size, StoredValue},
     window::{RawWindow, WindowInfo},
@@ -1021,7 +1021,7 @@ impl NavigationEntryVisitor {
 }
 
 pub(crate) struct NavigationEntryVisitorWrapper {
-    callback: SendCell<Box<dyn NavigationEntryVisitorCallback>>,
+    callback: SendProtectorMut<Box<dyn NavigationEntryVisitorCallback>>,
 }
 
 impl Wrapper for NavigationEntryVisitorWrapper {
@@ -1042,7 +1042,7 @@ impl NavigationEntryVisitorWrapper {
         callback: impl NavigationEntryVisitorCallback,
     ) -> NavigationEntryVisitorWrapper {
         NavigationEntryVisitorWrapper {
-            callback: SendCell::new(Box::new(callback)),
+            callback: SendProtectorMut::new(Box::new(callback)),
         }
     }
 }
@@ -1056,7 +1056,7 @@ cef_callback_impl! {
             index: std::os::raw::c_int: std::os::raw::c_int,
             total: std::os::raw::c_int: std::os::raw::c_int
         ) -> std::os::raw::c_int {
-            (unsafe{ &mut *self.callback.get() })(NavigationEntryVisit {
+            (unsafe{ &mut *self.callback.get_mut() })(NavigationEntryVisit {
                 entry,
                 current,
                 index: index as usize,

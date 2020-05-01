@@ -3,7 +3,7 @@ use std::{collections::HashMap};
 
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
-    send_cell::SendCell,
+    send_protector::SendProtectorMut,
     string::{CefString, CefStringMap},
     values::Rect,
 };
@@ -180,7 +180,7 @@ impl DOMVisitor {
 pub trait DOMVisitorCallback = 'static + Send + FnMut(DOMDocument);
 
 pub(crate) struct DOMVisitorWrapper {
-    delegate: SendCell<Box<dyn DOMVisitorCallback>>,
+    delegate: SendProtectorMut<Box<dyn DOMVisitorCallback>>,
 }
 
 impl Wrapper for DOMVisitorWrapper {
@@ -198,7 +198,7 @@ impl Wrapper for DOMVisitorWrapper {
 
 impl DOMVisitorWrapper {
     pub(crate) fn new(delegate: Box<dyn DOMVisitorCallback>) -> DOMVisitorWrapper {
-        DOMVisitorWrapper { delegate: SendCell::new(delegate) }
+        DOMVisitorWrapper { delegate: SendProtectorMut::new(delegate) }
     }
 }
 
@@ -208,7 +208,7 @@ cef_callback_impl! {
             &self,
             document: DOMDocument: *mut cef_domdocument_t,
         ) {
-            (unsafe{ &mut *self.delegate.get() })(document);
+            (unsafe{ &mut *self.delegate.get_mut() })(document);
         }
     }
 }

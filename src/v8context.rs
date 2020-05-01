@@ -24,7 +24,7 @@ use crate::{
     browser::Browser,
     frame::Frame,
     refcounted::{RefCountedPtr, Wrapper},
-    send_cell::SendCell,
+    send_protector::SendProtector,
     string::{CefString, CefStringList},
     task::TaskRunner,
 };
@@ -518,7 +518,7 @@ impl V8Value {
     /// reference.
     pub fn new_function(
         name: &str,
-        handler: impl FnMut(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Send + 'static,
+        handler: impl Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Send + 'static,
     ) -> Self {
         let name = CefString::new(name);
         unsafe {
@@ -1408,16 +1408,16 @@ cef_callback_impl! {
 }
 
 struct V8HandlerWrapper(
-    SendCell<Box<dyn FnMut(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Send + 'static>>,
+    SendProtector<Box<dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Send + 'static>>,
 );
 
 impl V8HandlerWrapper {
     fn new(
         delegate: Box<
-            dyn FnMut(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Send + 'static,
+            dyn Fn(&str, V8Value, &[V8Value]) -> Result<V8Value, String> + Send + 'static,
         >,
     ) -> Self {
-        Self(SendCell::new(delegate))
+        Self(SendProtector::new(delegate))
     }
 }
 
@@ -1447,7 +1447,7 @@ cef_callback_impl! {
         ) -> std::os::raw::c_int {
             let name: String = name.into();
             let args: Vec<V8Value> = unsafe { std::slice::from_raw_parts(arguments, arguments_count) }.iter().map(|val| unsafe { V8Value::from_ptr_unchecked(*val) }).collect();
-            match (unsafe{ &mut *self.0.get() })(&name, object, &args) {
+            match (unsafe{ &*self.0.get() })(&name, object, &args) {
                 Ok(value) => {
                     *retval = value.into_raw();
                     1

@@ -1,6 +1,6 @@
 use crate::{
     refcounted::{RefCountedPtr, Wrapper},
-    send_cell::SendCell,
+    send_protector::SendProtector,
     values::{StoredValue, Value},
 };
 use cef_sys::{
@@ -24,22 +24,22 @@ impl AccessibilityHandler {
 pub trait AccessibilityHandlerCallbacks: 'static + Send {
     /// Called after renderer process sends accessibility tree changes to the
     /// browser process.
-    fn on_accessibility_tree_change(&mut self, value: StoredValue) {
+    fn on_accessibility_tree_change(&self, value: StoredValue) {
     }
     /// Called after renderer process sends accessibility location changes to the
     /// browser process.
-    fn on_accessibility_location_change(&mut self, value: StoredValue) {
+    fn on_accessibility_location_change(&self, value: StoredValue) {
     }
 }
 
 struct AccessibilityHandlerWrapper {
-    delegate: SendCell<Box<dyn AccessibilityHandlerCallbacks>>,
+    delegate: SendProtector<Box<dyn AccessibilityHandlerCallbacks>>,
 }
 
 impl AccessibilityHandlerWrapper {
     fn new(delegate: Box<dyn AccessibilityHandlerCallbacks>) -> AccessibilityHandlerWrapper {
         AccessibilityHandlerWrapper {
-            delegate: SendCell::new(delegate)
+            delegate: SendProtector::new(delegate)
         }
     }
 }
