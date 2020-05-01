@@ -8,13 +8,15 @@ edition = "2018"
 cef = {path = ".."}
 cef-sys = { git = "https://github.com/anlumo/cef-sys.git" }
 winit = "0.22.0"
-glutin = "0.24.0"
-wgpu = "0.4"
-vk-shader-macros = "0.2.2"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.9"
-gullery = {git = "https://github.com/Osspial/gullery.git" }
-gullery_macros = {git = "https://github.com/Osspial/gullery.git" }
+
+wgpu = {version = "0.4", optional = true}
+vk-shader-macros = {version = "0.2.2", optional = true}
+
+glutin = {version = "0.24.0", optional = true}
+gullery = {git = "https://github.com/Osspial/gullery.git", optional = true }
+gullery_macros = {git = "https://github.com/Osspial/gullery.git", optional = true }
 
 [build-dependencies]
 embed-resource = "1"
@@ -27,14 +29,11 @@ path = "cefsimple/main.rs"
 name = "embedded"
 path = "embedded/main.rs"
 
-[[bin]]
-name = "embedded_wgpu"
-path = "embedded_wgpu/main.rs"
-
-[[bin]]
-name = "embedded_gullery"
-path = "embedded_gullery/main.rs"
-
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
-winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git"}
+winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git", optional = true}
+
+[features]
+winit-blit-renderer = ["winit-blit"]
+gullery-renderer = ["glutin", "gullery", "gullery_macros"]
+wgpu-renderer = ["wgpu", "vk-shader-macros"]

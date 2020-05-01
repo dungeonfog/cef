@@ -1,7 +1,6 @@
 use glutin::WindowedContext;
 use glutin::PossiblyCurrent;
-use glutin::event::{Event, WindowEvent};
-use glutin::event_loop::{ControlFlow, EventLoop};
+use glutin::event_loop::EventLoop;
 use glutin::window::{Window, WindowBuilder};
 use glutin::{ContextBuilder, GlRequest};
 use gullery::{
@@ -14,20 +13,83 @@ use gullery::{
     vertex::VertexArrayObject,
     ContextState,
 };
+use cef::{
+    browser_host::PaintElementType,
+    values::Rect,
+};
 use gullery_macros::{Vertex, Uniforms};
 pub type BGRA = Bgra;
 
-pub struct QuickBlit {
-    pub windowed_context: Option<WindowedContext<PossiblyCurrent>>,
+pub struct GulleryRenderer {
+    windowed_context: Option<WindowedContext<PossiblyCurrent>>,
     vao: VertexArrayObject<Vertex, u16>,
     texture: Texture<D2, Bgra>,
     program: Program<Vertex, Uniforms<'static>>,
     state: std::rc::Rc<ContextState>,
     buffer: Vec<Bgra>,
     default_framebuffer: FramebufferDefault,
+    popup_rect: Option<Rect>,
 }
 
-unsafe impl Send for QuickBlit {}
+unsafe impl Send for GulleryRenderer {}
+
+impl crate::Renderer for GulleryRenderer {
+    fn new<T>(window_builder: WindowBuilder, el: &EventLoop<T>) -> Self {
+        unsafe {
+            GulleryRenderer::new(window_builder, el)
+        }
+    }
+    fn window(&self) -> &Window {
+        self.windowed_context.as_ref().unwrap().window()
+    }
+    fn on_paint(
+        &mut self,
+        element_type: PaintElementType,
+        dirty_rects: &[Rect],
+        buffer: &[u8],
+        width: i32,
+        height: i32,
+    ) {
+        println!("paint {:?}", dirty_rects);
+        let buffer = BGRA::from_raw_slice(buffer);
+        assert_eq!(buffer.len(), (width * height) as usize);
+        let buffer_row = |row: usize| {
+            &buffer[row as usize * width as usize..(1 + row) as usize * width as usize]
+        };
+        let pixel_buffer = self;
+        pixel_buffer.resize((width as _, height as _));
+
+        match (element_type, pixel_buffer.popup_rect) {
+            (PaintElementType::View, _) => {
+                for rect in dirty_rects {
+                    let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
+                    for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
+                        let pixel_buffer_row =
+                            &mut pixel_buffer.row_mut(row as u32).unwrap()
+                                [row_span.clone()];
+                        pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
+                    }
+                }
+                unsafe {pixel_buffer.blit()}
+            },
+            (PaintElementType::Popup, Some(rect)) => {
+                let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
+                for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
+                    let pixel_buffer_row =
+                        &mut pixel_buffer.row_mut(row as u32).unwrap()
+                            [row_span.clone()];
+                    pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
+                }
+
+                unsafe {pixel_buffer.blit()}
+            },
+            _ => (),
+        }
+    }
+    fn set_popup_rect(&mut self, rect: Option<Rect>) {
+        self.popup_rect = rect;
+    }
+}
 
 #[derive(Vertex, Clone, Copy)]
 struct Vertex {
@@ -40,19 +102,13 @@ struct Uniforms<'a> {
     tex: &'a Texture<D2, dyn ImageFormat<ScalarType = GLSLFloat>>,
 }
 
-impl QuickBlit {
-    pub fn window(&self) -> &Window {
-        self.windowed_context.as_ref().unwrap().window()
-    }
-
-    pub unsafe fn new<T: 'static>(window: WindowBuilder, el: &EventLoop<T>) -> QuickBlit {
+impl GulleryRenderer {
+    unsafe fn new<T: 'static>(window: WindowBuilder, el: &EventLoop<T>) -> GulleryRenderer {
         let windowed_context = ContextBuilder::new()
-            // .with_srgb(true)
-            // .with_depth_buffer(0)
-            // .with_stencil_buffer(0)
-            // .with_pixel_format(24, 8)
-            // .with_vsync(false)
-            // .with_gl(GlRequest::Latest)
+            .with_depth_buffer(0)
+            .with_stencil_buffer(0)
+            .with_pixel_format(24, 8)
+            .with_gl(GlRequest::Latest)
             .build_windowed(window, &el).unwrap();
 
         let windowed_context = windowed_context.make_current().unwrap();
@@ -99,7 +155,7 @@ impl QuickBlit {
         let (program, _): (Program<Vertex, Uniforms>, _) = Program::new(&vertex_shader, None, &fragment_shader).unwrap();
         let default_framebuffer = FramebufferDefault::new(state.clone()).unwrap();
 
-        QuickBlit {
+        GulleryRenderer {
             windowed_context: Some(windowed_context),
             vao,
             texture,
@@ -107,6 +163,7 @@ impl QuickBlit {
             state,
             buffer,
             default_framebuffer,
+            popup_rect: None,
         }
     }
 

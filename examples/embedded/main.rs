@@ -1,40 +1,52 @@
-use winit::event::{Touch, TouchPhase};
-use cef::events::{TouchEvent, TouchEventType, PointerType};
-use cef::events::WindowsKeyCode;
-use cef::events::KeyEvent;
-use cef::client::render_handler::CursorType;
-use cef::drag::DragOperation;
-use cef::values::{Rect, Point};
-use cef::client::render_handler::ScreenInfo;
+#[cfg(feature = "winit-blit-renderer")]
+mod winit_blit;
+#[cfg(feature = "gullery-renderer")]
+mod gullery;
+#[cfg(feature = "wgpu-renderer")]
+mod wgpu;
+#[cfg(not(any(feature = "winit-blit-renderer", feature = "gullery-renderer", feature = "wgpu-renderer")))]
+compile_error!("At least one renderer feature must be enabled! Enable winit-blit-renderer, gullery-renderer, or wgpu-renderer to continue");
+
 use cef::browser_host::PaintElementType;
-use std::{
-    time::{Duration, Instant},
-    ffi::c_void,
-};
+use cef::client::render_handler::CursorType;
+use cef::client::render_handler::ScreenInfo;
+use cef::drag::DragOperation;
+use cef::events::KeyEvent;
+use cef::events::WindowsKeyCode;
+use cef::events::{PointerType, TouchEvent, TouchEventType};
+use cef::values::{Point, Rect};
 use cef::{
     app::{App, AppCallbacks},
     browser::{Browser, BrowserSettings},
     browser_host::BrowserHost,
     browser_process_handler::{BrowserProcessHandler, BrowserProcessHandlerCallbacks},
     client::{
-        Client, ClientCallbacks,
         life_span_handler::{LifeSpanHandler, LifeSpanHandlerCallbacks},
         render_handler::{RenderHandler, RenderHandlerCallbacks},
+        Client, ClientCallbacks,
     },
     command_line::CommandLine,
-    events::{EventFlags, MouseEvent, MouseButtonType},
-    settings::{Settings, LogSeverity},
-    window::{WindowInfo, RawWindow},
+    events::{EventFlags, MouseButtonType, MouseEvent},
+    settings::{LogSeverity, Settings},
+    window::{RawWindow, WindowInfo},
 };
 use cef_sys::cef_cursor_handle_t;
+use parking_lot::Mutex;
+use std::{
+    ffi::c_void,
+    sync::Arc,
+    time::{Duration, Instant},
+};
+use winit::event::{Touch, TouchPhase};
 use winit::{
-    event::{Event, WindowEvent, StartCause, MouseButton, ElementState, MouseScrollDelta, KeyboardInput, VirtualKeyCode},
-    dpi::LogicalPosition,
+    dpi::{LogicalPosition, PhysicalPosition},
+    event::{
+        ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, StartCause,
+        VirtualKeyCode, WindowEvent,
+    },
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
     window::{CursorIcon, Window, WindowBuilder},
 };
-use winit_blit::{PixelBufferTyped, BGRA};
-use parking_lot::Mutex;
 
 pub struct AppCallbacksImpl {
     browser_process_handler: BrowserProcessHandler,
@@ -49,20 +61,36 @@ pub struct LifeSpanHandlerImpl {
 pub struct BrowserProcessHandlerCallbacksImpl {
     proxy: Mutex<EventLoopProxy<CefEvent>>,
 }
-pub struct RenderHandlerCallbacksImpl {
-    window: Window,
-    pixel_buffer: Mutex<PixelBufferTyped<BGRA>>,
-    popup_rect: Mutex<Option<Rect>>,
+pub struct RenderHandlerCallbacksImpl<R: Renderer> {
+    renderer: Arc<Mutex<R>>,
 }
 
-#[derive(Clone)]
+pub trait Renderer: 'static + Send {
+    fn new<T>(window_builder: WindowBuilder, el: &EventLoop<T>) -> Self;
+    fn window(&self) -> &Window;
+    fn on_paint(
+        &mut self,
+        element_type: PaintElementType,
+        dirty_rects: &[Rect],
+        buffer: &[u8],
+        width: i32,
+        height: i32,
+    );
+    fn set_popup_rect(&mut self, rect: Option<Rect>);
+}
+
+#[derive(Debug, Clone)]
 enum CefEvent {
     ScheduleWork(Instant),
     Quit,
 }
 
 impl AppCallbacks for AppCallbacksImpl {
-    fn on_before_command_line_processing (&self, process_type: Option<&str>, command_line: CommandLine) {
+    fn on_before_command_line_processing(
+        &self,
+        process_type: Option<&str>,
+        command_line: CommandLine,
+    ) {
         if process_type == None {
             command_line.append_switch("disable-gpu");
             command_line.append_switch("disable-gpu-compositing");
@@ -91,27 +119,30 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
 
 impl BrowserProcessHandlerCallbacks for BrowserProcessHandlerCallbacksImpl {
     fn on_schedule_message_pump_work(&self, delay_ms: i64) {
-        println!("schedule work {}", delay_ms);
-        self.proxy.lock().send_event(CefEvent::ScheduleWork(Instant::now() + Duration::from_millis(delay_ms as u64))).ok();
-    }
-    fn on_before_child_process_launch(&self, command_line: CommandLine) {
-        command_line.append_switch("enable-high-dpi-support");
+        self.proxy
+            .lock()
+            .send_event(CefEvent::ScheduleWork(
+                Instant::now() + Duration::from_millis(delay_ms as u64),
+            ))
+            .ok();
     }
 }
 
-impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
+impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
     fn get_view_rect(&self, _: Browser) -> Rect {
-        let inner_size = self.window.inner_size();
+        let renderer = self.renderer.lock();
+        let window = renderer.window();
+        let inner_size = window.inner_size().to_logical::<i32>(window.scale_factor());
         Rect {
             x: 0,
             y: 0,
-            width: inner_size.width.round() as i32,
-            height: inner_size.height.round() as i32,
+            width: inner_size.width,
+            height: inner_size.height,
         }
     }
     fn on_popup_show(&self, _browser: Browser, show: bool) {
         if !show {
-            *self.popup_rect.lock() = None;
+            self.renderer.lock().set_popup_rect(None);
         }
     }
     fn get_screen_point(
@@ -119,30 +150,39 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         _browser: Browser,
         point: Point,
     ) -> Option<Point> {
-        let screen_pos = self.window.inner_position().unwrap_or(LogicalPosition::new(0.0, 0.0));
-        let physical_pos = (LogicalPosition::new(screen_pos.x + point.x as f64, screen_pos.y + point.y as f64)).to_physical(self.window.hidpi_factor());
-        Some(Point::new(physical_pos.x as i32, physical_pos.y as i32))
+        let renderer = self.renderer.lock();
+        let window = renderer.window();
+
+        let screen_pos = window.inner_position().unwrap_or(PhysicalPosition::new(0, 0));
+        let point_physical = LogicalPosition::new(point.x, point.y).to_physical::<i32>(window.scale_factor());
+        Some(Point::new(screen_pos.x + point_physical.x, screen_pos.y + point_physical.y))
     }
     fn on_popup_size(&self, _: Browser, mut rect: Rect) {
-        let window_size: (u32, u32) = self.window.inner_size().into();
+        let mut renderer = self.renderer.lock();
+        let window = renderer.window();
+
+        let window_size: (u32, u32) = window.inner_size().into();
         let window_size = (window_size.0 as i32, window_size.1 as i32);
         rect.x = i32::max(rect.x, 0);
         rect.y = i32::max(rect.y, 0);
         rect.x = i32::min(rect.x, window_size.0 - rect.width);
         rect.y = i32::min(rect.y, window_size.1 - rect.height);
-        *self.popup_rect.lock() = Some(rect);
+        renderer.set_popup_rect(Some(rect));
     }
     fn get_screen_info(&self, _: Browser) -> Option<ScreenInfo> {
-        let inner_size = self.window.inner_size();
+        let renderer = self.renderer.lock();
+        let window = renderer.window();
+
+        let inner_size = window.inner_size().to_logical::<i32>(window.scale_factor());
         let rect = Rect {
             x: 0,
             y: 0,
-            width: inner_size.width.round() as i32,
-            height: inner_size.height.round() as i32,
+            width: inner_size.width,
+            height: inner_size.height,
         };
 
         Some(ScreenInfo {
-            device_scale_factor: self.window.hidpi_factor() as f32,
+            device_scale_factor: window.scale_factor() as f32,
             depth: 32,
             depth_per_component: 8,
             is_monochrome: false,
@@ -157,83 +197,43 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
         dirty_rects: &[Rect],
         buffer: &[u8],
         width: i32,
-        height: i32
+        height: i32,
     ) {
-        println!("paint {:?}", dirty_rects);
-        let buffer = BGRA::from_raw_slice(buffer);
-        assert_eq!(buffer.len(), (width * height) as usize);
-        let buffer_row = |row: usize| {
-            &buffer[row as usize * width as usize..(1 + row) as usize * width as usize]
-        };
-        let mut pixel_buffer = self.pixel_buffer.lock();
-        if pixel_buffer.width() != width as u32 || pixel_buffer.height() != height as u32 {
-            *pixel_buffer = PixelBufferTyped::new_supported(width as u32, height as u32, &self.window);
-        }
-        match (element_type, *self.popup_rect.lock()) {
-            (PaintElementType::View, _) => {
-                for rect in dirty_rects {
-                    let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
-                    for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
-                        let pixel_buffer_row =
-                            &mut pixel_buffer.row_mut(row as u32).unwrap()
-                                [row_span.clone()];
-                        pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
-                    }
+        println!(
+            "paint: buffer len {:?} dirty rects: {:?}",
+            buffer.len(),
+            dirty_rects
+        );
 
-                    pixel_buffer.blit_rect(
-                        (rect.x as u32, rect.y as u32),
-                        (rect.x as u32, rect.y as u32),
-                        (rect.width as u32, rect.height as u32),
-                        &self.window
-                    ).unwrap();
-                }
-            },
-            (PaintElementType::Popup, Some(rect)) => {
-                let row_span = rect.x as usize..rect.x as usize + rect.width as usize;
-                for row in (rect.y..rect.y+rect.height).map(|r| r as usize) {
-                    let pixel_buffer_row =
-                        &mut pixel_buffer.row_mut(row as u32).unwrap()
-                            [row_span.clone()];
-                    pixel_buffer_row.copy_from_slice(&buffer_row(row)[row_span.clone()]);
-                }
+        // FIXME: this completely ignores dirty rects for now and only
+        // just re-uploads and re-renders everything anew
+        assert_eq!(buffer.len(), 4 * (width * height) as usize);
 
-                pixel_buffer.blit_rect(
-                    (rect.x as u32, rect.y as u32),
-                    (rect.x as u32, rect.y as u32),
-                    (rect.width as u32, rect.height as u32),
-                    &self.window
-                ).unwrap();
-            },
-            _ => (),
-        }
+        let mut renderer = self.renderer.lock();
+        renderer.on_paint(element_type, dirty_rects, buffer, width, height);
     }
     fn on_accelerated_paint(
         &self,
         _browser: Browser,
         _type_: PaintElementType,
         _dirty_rects: &[Rect],
-        _shared_handle: *mut c_void
+        _shared_handle: *mut c_void,
     ) {
         unimplemented!()
     }
-    fn on_cursor_change(
-        &self,
-        _browser: Browser,
-        _cursor: cef_cursor_handle_t,
-        type_: CursorType
-    ) {
+    fn on_cursor_change(&self, _browser: Browser, _cursor: cef_cursor_handle_t, type_: CursorType) {
         let winit_cursor = match type_ {
-            CursorType::MiddlePanning |
-            CursorType::EastPanning |
-            CursorType::NorthPanning |
-            CursorType::NorthEastPanning |
-            CursorType::NorthWestPanning |
-            CursorType::SouthPanning |
-            CursorType::SouthEastPanning |
-            CursorType::SouthWestPanning |
-            CursorType::WestPanning |
-            CursorType::Custom(_) |
-            CursorType::Pointer => Some(CursorIcon::Default),
+            CursorType::MiddlePanning
+            | CursorType::EastPanning
+            | CursorType::NorthPanning
+            | CursorType::NorthEastPanning
+            | CursorType::NorthWestPanning
+            | CursorType::SouthPanning
+            | CursorType::SouthEastPanning
+            | CursorType::SouthWestPanning
+            | CursorType::WestPanning
+            | CursorType::Custom(_)
+            | CursorType::Pointer => Some(CursorIcon::Default),
             CursorType::Cross => Some(CursorIcon::Crosshair),
             CursorType::Hand => Some(CursorIcon::Hand),
             CursorType::IBeam => Some(CursorIcon::Text),
@@ -268,25 +268,26 @@ impl RenderHandlerCallbacks for RenderHandlerCallbacksImpl {
             CursorType::Grab => Some(CursorIcon::Grab),
             CursorType::Grabbing => Some(CursorIcon::Grabbing),
         };
+        let renderer = self.renderer.lock();
+        let window = renderer.window();
+
         match winit_cursor {
             Some(cursor) => {
-                self.window.set_cursor_icon(cursor);
-                self.window.set_cursor_visible(true);
-            },
-            None => self.window.set_cursor_visible(false),
+                window.set_cursor_icon(cursor);
+                window.set_cursor_visible(true);
+            }
+            None => window.set_cursor_visible(false),
         }
     }
-    fn update_drag_cursor(&self, _browser: Browser, _operation: DragOperation) {
-
-    }
+    fn update_drag_cursor(&self, _browser: Browser, _operation: DragOperation) {}
 }
 
 fn main() {
     match cef::process_type() {
-        cef::ProcessType::Renderer |
-        cef::ProcessType::Gpu |
-        cef::ProcessType::Utility |
-        cef::ProcessType::Other => {
+        cef::ProcessType::Renderer
+        | cef::ProcessType::Gpu
+        | cef::ProcessType::Utility
+        | cef::ProcessType::Other => {
             let result = cef::execute_process(None, None);
             if result >= 0 {
                 std::process::exit(result);
@@ -296,30 +297,43 @@ fn main() {
         cef::ProcessType::Browser => {
             let event_loop: EventLoop<CefEvent> = EventLoop::with_user_event();
             let app = App::new(AppCallbacksImpl {
-                browser_process_handler: BrowserProcessHandler::new(BrowserProcessHandlerCallbacksImpl {
-                    proxy: Mutex::new(event_loop.create_proxy()),
-                })
+                browser_process_handler: BrowserProcessHandler::new(
+                    BrowserProcessHandlerCallbacksImpl {
+                        proxy: Mutex::new(event_loop.create_proxy()),
+                    },
+                ),
             });
 
+            #[cfg(not(target_os = "macos"))]
             let settings = Settings::new()
-                .windowless_rendering_enabled(true)
                 .log_severity(LogSeverity::Verbose)
+                .windowless_rendering_enabled(true)
                 .external_message_pump(true);
+            #[cfg(target_os = "macos")]
+            let settings = Settings::new()
+                .log_severity(LogSeverity::Verbose)
+                .windowless_rendering_enabled(true)
+                .external_message_pump(true)
+                .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
 
-            println!("{:?}", &settings as *const _);
             let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
 
-            let window = WindowBuilder::new()
-                .with_title("CEF Example Window")
-                .build(&event_loop)
-                .unwrap();
+            let window_builder = WindowBuilder::new()
+                .with_title("CEF Example Window");
 
-            let width = window.inner_size().to_physical(window.hidpi_factor()).width.round() as u32;
-            let height = window.inner_size().to_physical(window.hidpi_factor()).height.round() as u32;
+            #[cfg(feature = "winit-blit-renderer")]
+            let renderer = crate::winit_blit::WinitBlitRenderer::new(window_builder, &event_loop);
+            #[cfg(feature = "gullery-renderer")]
+            let renderer = crate::gullery::GulleryRenderer::new(window_builder, &event_loop);
+            #[cfg(feature = "wgpu-renderer")]
+            let renderer = crate::wgpu::WgpuRenderer::new(window_builder, &event_loop);
+
+            let width = renderer.window().inner_size().width;
+            let height = renderer.window().inner_size().height;
 
             let window_info = WindowInfo {
                 windowless_rendering_enabled: true,
-                parent_window: Some(unsafe{ RawWindow::from_window(&window) }),
+                parent_window: Some(unsafe { RawWindow::from_window(renderer.window()) }),
                 width: width as _,
                 height: height as _,
                 ..WindowInfo::new()
@@ -327,24 +341,20 @@ fn main() {
 
             let browser_settings = BrowserSettings::new();
 
+            let renderer = Arc::new(Mutex::new(renderer));
             let client = Client::new(ClientCallbacksImpl {
                 life_span_handler: LifeSpanHandler::new(LifeSpanHandlerImpl {
                     proxy: Mutex::new(event_loop.create_proxy()),
                 }),
                 render_handler: RenderHandler::new(RenderHandlerCallbacksImpl {
-                    pixel_buffer: Mutex::new(PixelBufferTyped::new_supported(width, height, &window)),
-                    window,
-                    popup_rect: Mutex::new(None),
-                })
+                    renderer: Arc::clone(&renderer),
+                }),
             });
-
 
             let browser = BrowserHost::create_browser_sync(
                 &window_info,
                 client,
-                "https://www.google.com/",
-                // "https://webkit.org/blog-files/3d-transforms/morphing-cubes.html",
-                // "https://devyumao.github.io/dragon-loading/",
+                "https://www.google.com",
                 &browser_settings,
                 None,
                 None,
@@ -383,119 +393,142 @@ fn main() {
                     Event::WindowEvent {
                         event,
                         window_id: _,
-                    } => {
-                        match event {
-                            WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
-                            WindowEvent::RedrawRequested => {
-                                browser.get_host().invalidate(PaintElementType::View);
-                            },
-                            WindowEvent::Resized(_) => {
-                                browser.get_host().was_resized();
-                            },
-                            WindowEvent::CursorMoved{position, modifiers, ..} => {
-                                mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
-                                mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
-                                mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
-                                mouse_event.x = position.x.round() as _;
-                                mouse_event.y = position.y.round() as _;
-                                browser.get_host().send_mouse_move_event(
-                                    &mouse_event,
-                                    false,
-                                );
-                            },
-                            WindowEvent::MouseWheel{delta, ..} => {
-                                let (delta_x, delta_y) = match delta {
-                                    MouseScrollDelta::LineDelta(x, y) => (20 * x as i32, 20 * y as i32),
-                                    MouseScrollDelta::PixelDelta(delta) => (delta.x as _, delta.y as _),
-                                };
-                                browser.get_host().send_mouse_wheel_event(
-                                    &mouse_event,
-                                    delta_x,
-                                    delta_y,
-                                );
-                            },
-                            WindowEvent::MouseInput{state, button, modifiers, ..} => {
-                                mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
-                                mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
-                                mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
-                                let button = match button {
-                                    MouseButton::Left => Some(MouseButtonType::Left),
-                                    MouseButton::Middle => Some(MouseButtonType::Middle),
-                                    MouseButton::Right => Some(MouseButtonType::Right),
-                                    _ => None,
-                                };
-                                let released = match state {
-                                    ElementState::Pressed => false,
-                                    ElementState::Released => true,
-                                };
-                                if let Some(button) = button {
-                                    match button {
-                                        MouseButtonType::Left => mouse_event.modifiers.set(EventFlags::LEFT_MOUSE_BUTTON, !released),
-                                        MouseButtonType::Middle => mouse_event.modifiers.set(EventFlags::MIDDLE_MOUSE_BUTTON, !released),
-                                        MouseButtonType::Right => mouse_event.modifiers.set(EventFlags::RIGHT_MOUSE_BUTTON, !released),
-                                    }
-                                    browser.get_host().send_mouse_click_event(
-                                        &mouse_event,
-                                        button,
-                                        released,
-                                        1
-                                    );
-                                }
-                            },
-                            WindowEvent::Touch(Touch{phase, location, force, id, ..}) => {
-                                browser.get_host().send_touch_event(&TouchEvent {
-                                    touch_id: id as i32,
-                                    x: location.x as f32,
-                                    y: location.y as f32,
-                                    radius_x: 1.0,
-                                    radius_y: 1.0,
-                                    rotation_angle: 0.0,
-                                    pressure: force.map(|f| f.normalized() as f32).unwrap_or(1.0),
-                                    event_type: match phase {
-                                        TouchPhase::Started => TouchEventType::Pressed,
-                                        TouchPhase::Moved => TouchEventType::Moved,
-                                        TouchPhase::Ended => TouchEventType::Released,
-                                        TouchPhase::Cancelled => TouchEventType::Cancelled,
-                                    },
-                                    modifiers: mouse_event.modifiers,
-                                    pointer_type: PointerType::Touch,
-                                })
-                            }
-                            WindowEvent::KeyboardInput{input: KeyboardInput {state, virtual_keycode, scancode, modifiers, ..}, ..} => {
-                                mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift);
-                                mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl);
-                                mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt);
-                                if let Some(keycode) = virtual_keycode.and_then(winit_keycode_to_windows_keycode) {
-                                    browser.get_host().send_key_event(
-                                        match state {
-                                            ElementState::Pressed => KeyEvent::KeyDown {
-                                                modifiers: mouse_event.modifiers,
-                                                windows_key_code: keycode,
-                                                native_key_code: scancode as _,
-                                                is_system_key: false,
-                                                focus_on_editable_field: false,
-                                            },
-                                            ElementState::Released => KeyEvent::KeyUp {
-                                                modifiers: mouse_event.modifiers,
-                                                windows_key_code: keycode,
-                                                native_key_code: scancode as _,
-                                                is_system_key: false,
-                                                focus_on_editable_field: false,
-                                            },
-                                        }
-                                    );
-                                }
-                            },
-                            WindowEvent::ReceivedCharacter(char) => {
-                                browser.get_host().send_key_event(
-                                    KeyEvent::Char {
-                                        modifiers: mouse_event.modifiers,
-                                        char,
-                                    }
-                                );
-                            }
-                            _ => (),
+                    } => match event {
+                        WindowEvent::CloseRequested => *control_flow = ControlFlow::Exit,
+                        WindowEvent::Resized(_) => {
+                            browser.get_host().was_resized();
                         }
+                        WindowEvent::CursorMoved {
+                            position,
+                            modifiers,
+                            ..
+                        } => {
+                            mouse_event
+                                .modifiers
+                                .set(EventFlags::SHIFT_DOWN, modifiers.shift());
+                            mouse_event
+                                .modifiers
+                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl());
+                            mouse_event
+                                .modifiers
+                                .set(EventFlags::ALT_DOWN, modifiers.alt());
+                            mouse_event.x = position.x.round() as _;
+                            mouse_event.y = position.y.round() as _;
+                            browser
+                                .get_host()
+                                .send_mouse_move_event(&mouse_event, false);
+                        }
+                        WindowEvent::MouseWheel { delta, .. } => {
+                            let (delta_x, delta_y) = match delta {
+                                MouseScrollDelta::LineDelta(x, y) => (20 * x as i32, 20 * y as i32),
+                                MouseScrollDelta::PixelDelta(delta) => (delta.x as _, delta.y as _),
+                            };
+                            browser.get_host().send_mouse_wheel_event(
+                                &mouse_event,
+                                delta_x,
+                                delta_y,
+                            );
+                        }
+                        WindowEvent::MouseInput {
+                            state,
+                            button,
+                            modifiers,
+                            ..
+                        } => {
+                            mouse_event
+                                .modifiers
+                                .set(EventFlags::SHIFT_DOWN, modifiers.shift());
+                            mouse_event
+                                .modifiers
+                                .set(EventFlags::CONTROL_DOWN, modifiers.ctrl());
+                            mouse_event
+                                .modifiers
+                                .set(EventFlags::ALT_DOWN, modifiers.alt());
+                            let button = match button {
+                                MouseButton::Left => Some(MouseButtonType::Left),
+                                MouseButton::Middle => Some(MouseButtonType::Middle),
+                                MouseButton::Right => Some(MouseButtonType::Right),
+                                _ => None,
+                            };
+                            let released = match state {
+                                ElementState::Pressed => false,
+                                ElementState::Released => true,
+                            };
+                            if let Some(button) = button {
+                                match button {
+                                    MouseButtonType::Left => mouse_event
+                                        .modifiers
+                                        .set(EventFlags::LEFT_MOUSE_BUTTON, !released),
+                                    MouseButtonType::Middle => mouse_event
+                                        .modifiers
+                                        .set(EventFlags::MIDDLE_MOUSE_BUTTON, !released),
+                                    MouseButtonType::Right => mouse_event
+                                        .modifiers
+                                        .set(EventFlags::RIGHT_MOUSE_BUTTON, !released),
+                                }
+                                browser.get_host().send_mouse_click_event(
+                                    &mouse_event,
+                                    button,
+                                    released,
+                                    1,
+                                );
+                            }
+                        }
+                        WindowEvent::Touch(Touch {
+                            phase,
+                            location,
+                            force,
+                            id,
+                            ..
+                        }) => browser.get_host().send_touch_event(&TouchEvent {
+                            touch_id: id as i32,
+                            x: location.x as f32,
+                            y: location.y as f32,
+                            radius_x: 1.0,
+                            radius_y: 1.0,
+                            rotation_angle: 0.0,
+                            pressure: force.map(|f| f.normalized() as f32).unwrap_or(1.0),
+                            event_type: match phase {
+                                TouchPhase::Started => TouchEventType::Pressed,
+                                TouchPhase::Moved => TouchEventType::Moved,
+                                TouchPhase::Ended => TouchEventType::Released,
+                                TouchPhase::Cancelled => TouchEventType::Cancelled,
+                            },
+                            modifiers: mouse_event.modifiers,
+                            pointer_type: PointerType::Touch,
+                        }),
+                        WindowEvent::KeyboardInput{input: KeyboardInput {state, virtual_keycode, scancode, modifiers, ..}, ..} => {
+                            mouse_event.modifiers.set(EventFlags::SHIFT_DOWN, modifiers.shift());
+                            mouse_event.modifiers.set(EventFlags::CONTROL_DOWN, modifiers.ctrl());
+                            mouse_event.modifiers.set(EventFlags::ALT_DOWN, modifiers.alt());
+                            if let Some(keycode) = virtual_keycode.and_then(winit_keycode_to_windows_keycode) {
+                                browser.get_host().send_key_event(
+                                    match state {
+                                        ElementState::Pressed => KeyEvent::KeyDown {
+                                            modifiers: mouse_event.modifiers,
+                                            windows_key_code: keycode,
+                                            native_key_code: scancode as _,
+                                            is_system_key: false,
+                                            focus_on_editable_field: false,
+                                        },
+                                        ElementState::Released => KeyEvent::KeyUp {
+                                            modifiers: mouse_event.modifiers,
+                                            windows_key_code: keycode,
+                                            native_key_code: scancode as _,
+                                            is_system_key: false,
+                                            focus_on_editable_field: false,
+                                        },
+                                    }
+                                );
+                            }
+                        },
+                        WindowEvent::ReceivedCharacter(char) => {
+                            browser.get_host().send_key_event(KeyEvent::Char {
+                                modifiers: mouse_event.modifiers,
+                                char,
+                            });
+                        }
+                        _ => (),
                     },
                     Event::UserEvent(event) => match event {
                         CefEvent::ScheduleWork(instant) => {
@@ -513,13 +546,15 @@ fn main() {
                             context.quit_message_loop();
                         }
                     },
-                    Event::EventsCleared => {
+                    Event::MainEventsCleared => {
                         if scheduled_work_queue.len() > 0 {
                             *control_flow = ControlFlow::WaitUntil(scheduled_work_queue[0]);
                         } else {
                             *control_flow = ControlFlow::Wait;
                         }
-                    }
+                    },
+                    Event::RedrawRequested(_) => {
+                    },
                     _ => (),//*control_flow = ControlFlow::Wait,
                 }
             });
