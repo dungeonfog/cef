@@ -246,7 +246,7 @@ impl Settings {
     }
     pub(crate) fn to_cef(&self, use_sandbox: bool) -> Result<cef_settings_t, std::io::Error> {
         let string_to_cef = |s: Option<&String>| s.map(|s| &**s).map(CefString::new).unwrap_or_else(CefString::null).into_raw();
-        let path_to_cef = |path: Option<&PathBuf>| -> Result<_, std::io::Error> {Ok(path.map(|p| p.canonicalize()).transpose()?.as_ref().map(|p| p.to_str().unwrap()).map(CefString::new).unwrap_or_else(CefString::null).into_raw())};
+        let path_to_cef = |path: Option<&PathBuf>| -> Result<_, std::io::Error> {Ok(path.map(|p| dunce::canonicalize(p)).transpose()?.as_ref().map(|p| p.to_str().unwrap()).map(CefString::new).unwrap_or_else(CefString::null).into_raw())};
         Ok(cef_settings_t {
             size: std::mem::size_of::<cef_settings_t>(),
             no_sandbox: !use_sandbox as c_int,
