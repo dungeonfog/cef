@@ -208,7 +208,7 @@ pub(crate) struct RefCounted<W: Wrapper> {
     /// The ref-counting implementation here is blatantly stolen from `std::sync::Arc`, since it's
     /// a well-tested and robust design. There's lots of good documentation in the standard
     /// library source on the rationale for the various atomic operations, so reference that code for
-    /// explanations. See https://github.com/anlumo/cef/issues/1 for why we aren't just using `Arc`
+    /// explanations. See https://github.com/dungeonfog/cef/issues/1 for why we aren't just using `Arc`
     /// directly.
     ref_count: AtomicUsize,
     object: W,

@@ -81,7 +81,7 @@ mod imp {
             }
         }
         pub unsafe fn get_mut(&self) -> RefMut<T> {
-            self.data.try_lock().expect("Tried to either access data from multiple threads or do a re-entrant data access! Bug in cef wrapper - please report to https://github.com/anlumo/cef.")
+            self.data.try_lock().expect("Tried to either access data from multiple threads or do a re-entrant data access! Bug in cef wrapper - please report to https://github.com/dungeonfog/cef.")
         }
     }
 
@@ -100,7 +100,7 @@ mod imp {
             }
         }
         pub unsafe fn get(&self) -> Ref<T> {
-            self.data.try_lock().expect("Tried to access data from multiple threads! Bug in cef wrapper - please report to https://github.com/anlumo/cef.")
+            self.data.try_lock().expect("Tried to access data from multiple threads! Bug in cef wrapper - please report to https://github.com/dungeonfog/cef.")
         }
     }
 }
