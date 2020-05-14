@@ -134,7 +134,7 @@ mod imp {
 
     unsafe impl<T: Send> Sync for SendProtector<T> {}
 
-    pub type RefMut<'a, T> = &'a T;
+    pub type Ref<'a, T> = &'a T;
 
     impl<T: Send> SendProtector<T> {
         pub fn new(t: T) -> Self {
@@ -142,7 +142,7 @@ mod imp {
                 data: t,
             }
         }
-        pub unsafe fn get(&self) -> RefMut<T> {
+        pub unsafe fn get(&self) -> Ref<T> {
             &self.data
         }
     }
