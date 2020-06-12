@@ -25,7 +25,7 @@ vk-shader-macros = "0.2.2"
 log = { version = "0.4", features = ["std"] }
 
 [features]
-sandbox = []
+sandbox = ["cef-sys/sandbox"]
 
 [target.'cfg(windows)'.dependencies]
 winapi = { version = "0.3" }
