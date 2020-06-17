@@ -42,7 +42,7 @@ impl RunContextMenu {
     }
 }
 
-pub struct RunContextMenuWrapper(Box<dyn RunContextMenuCallbacks>);
+struct RunContextMenuWrapper(Box<dyn RunContextMenuCallbacks>);
 impl Wrapper for RunContextMenuWrapper {
     type Cef = _cef_run_context_menu_callback_t;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {

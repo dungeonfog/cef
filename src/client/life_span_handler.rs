@@ -220,7 +220,7 @@ impl PopupFeatures {
     }
 }
 
-pub struct LifeSpanHandlerWrapper(Box<dyn LifeSpanHandlerCallbacks>);
+struct LifeSpanHandlerWrapper(Box<dyn LifeSpanHandlerCallbacks>);
 
 impl Wrapper for LifeSpanHandlerWrapper {
     type Cef = cef_life_span_handler_t;

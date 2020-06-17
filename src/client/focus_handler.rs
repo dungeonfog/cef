@@ -71,7 +71,7 @@ pub trait FocusHandlerCallbacks: 'static + Send {
     }
 }
 
-pub struct FocusHandlerWrapper(Mutex<Box<dyn FocusHandlerCallbacks>>);
+struct FocusHandlerWrapper(Mutex<Box<dyn FocusHandlerCallbacks>>);
 
 impl Wrapper for FocusHandlerWrapper {
     type Cef = cef_focus_handler_t;

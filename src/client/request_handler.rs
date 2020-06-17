@@ -236,7 +236,7 @@ pub trait RequestHandlerCallbacks: Sync + Send + 'static {
 }
 
 #[repr(transparent)]
-pub struct RequestHandlerWrapper(Box<dyn RequestHandlerCallbacks>);
+struct RequestHandlerWrapper(Box<dyn RequestHandlerCallbacks>);
 
 impl RequestHandlerWrapper {
     pub(crate) fn new(delegate: Box<dyn RequestHandlerCallbacks>) -> Self {

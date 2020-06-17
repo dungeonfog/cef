@@ -296,7 +296,7 @@ impl ContextMenuHandler {
     }
 }
 
-pub struct ContextMenuHandlerWrapper(Box<dyn ContextMenuHandlerCallbacks>);
+struct ContextMenuHandlerWrapper(Box<dyn ContextMenuHandlerCallbacks>);
 impl Wrapper for ContextMenuHandlerWrapper {
     type Cef = cef_context_menu_handler_t;
     fn wrap(self) -> RefCountedPtr<Self::Cef> {

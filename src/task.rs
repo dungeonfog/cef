@@ -124,7 +124,7 @@ impl TaskRunner {
     }
 }
 
-pub struct TaskWrapper(Mutex<Option<Box<dyn FnOnce() + Send + 'static>>>);
+struct TaskWrapper(Mutex<Option<Box<dyn FnOnce() + Send + 'static>>>);
 
 ref_counted_ptr!{
     struct TaskPtr(*mut _cef_task_t);

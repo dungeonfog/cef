@@ -60,7 +60,7 @@ ref_counted_ptr! {
     pub struct App(*mut cef_app_t);
 }
 
-pub struct AppWrapper(Box<dyn AppCallbacks>);
+struct AppWrapper(Box<dyn AppCallbacks>);
 
 impl Wrapper for AppWrapper {
     type Cef = cef_app_t;

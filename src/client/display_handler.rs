@@ -120,7 +120,7 @@ pub trait DisplayHandlerCallbacks: 'static + Send {
     }
 }
 
-pub struct DisplayHandlerWrapper(Mutex<Box<dyn DisplayHandlerCallbacks>>);
+struct DisplayHandlerWrapper(Mutex<Box<dyn DisplayHandlerCallbacks>>);
 
 impl Wrapper for DisplayHandlerWrapper {
     type Cef = cef_display_handler_t;

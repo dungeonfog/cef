@@ -452,7 +452,7 @@ impl PopupFeatures {
     }
 }
 
-pub struct RenderHandlerWrapper(Box<dyn RenderHandlerCallbacks>);
+struct RenderHandlerWrapper(Box<dyn RenderHandlerCallbacks>);
 
 impl Wrapper for RenderHandlerWrapper {
     type Cef = cef_render_handler_t;

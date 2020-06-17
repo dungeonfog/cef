@@ -97,7 +97,7 @@ impl PopupFeatures {
     }
 }
 
-pub struct DragHandlerWrapper(Box<dyn DragHandlerCallbacks>);
+struct DragHandlerWrapper(Box<dyn DragHandlerCallbacks>);
 
 impl Wrapper for DragHandlerWrapper {
     type Cef = cef_drag_handler_t;
