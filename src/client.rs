@@ -17,6 +17,7 @@ pub mod js_dialog_handler;
 pub mod keyboard_handler;
 pub mod life_span_handler;
 pub mod render_handler;
+pub mod request_handler;
 
 use self::{
     context_menu_handler::ContextMenuHandler,
@@ -30,6 +31,7 @@ use self::{
     keyboard_handler::KeyboardHandler,
     life_span_handler::LifeSpanHandler,
     render_handler::RenderHandler,
+    request_handler::RequestHandler,
 };
 
 use crate::{
@@ -38,7 +40,6 @@ use crate::{
     load_handler::{LoadHandler},
     process::{ProcessId, ProcessMessage},
     refcounted::{RefCountedPtr, Wrapper},
-    request_handler::{RequestHandler},
 };
 
 ref_counted_ptr!{

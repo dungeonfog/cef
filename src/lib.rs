@@ -53,7 +53,6 @@ pub mod x509_certificate;
 pub mod ime;
 pub mod navigation;
 pub mod extension;
-pub mod request_handler;
 pub mod stream;
 pub mod ssl;
 pub mod task;

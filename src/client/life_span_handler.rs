@@ -1,8 +1,10 @@
 use crate::{
     browser::{Browser, BrowserSettings},
-    client::Client,
+    client::{
+        Client,
+        request_handler::WindowOpenDisposition,
+    },
     frame::Frame,
-    request_handler::WindowOpenDisposition,
     refcounted::{RefCountedPtr, Wrapper},
     values::DictionaryValue,
     window::WindowInfo,
