@@ -29,9 +29,12 @@ path = "cefsimple/main.rs"
 name = "embedded"
 path = "embedded/main.rs"
 
-[target.'cfg(windows)'.dependencies]
+[target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
 winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git", optional = true}
+
+[target.'cfg(target_os = "linux")'.dependencies]
+x11 = {version = "2", features = ["xlib"]}
 
 [features]
 winit-blit-renderer = ["winit-blit"]

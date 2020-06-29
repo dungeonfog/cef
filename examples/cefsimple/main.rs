@@ -1,5 +1,7 @@
-#[cfg(windows)]
+#[cfg(target_os = "windows")]
 use winapi::um::winuser::{WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_OVERLAPPEDWINDOW, WS_VISIBLE};
+#[cfg(target_os = "linux")]
+use x11::xlib;
 use cef::{
     app::{App, AppCallbacks},
     browser::{Browser, BrowserSettings},
@@ -36,11 +38,43 @@ impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     }
 }
 
+#[cfg(target_os = "linux")]
+unsafe extern "C" fn x_error_handler_impl(_: *mut xlib::Display, event: *mut xlib::XErrorEvent) -> std::os::raw::c_int {
+    let event = *event;
+    log::warn!("\
+        X error received: \n\
+        type {}\n\
+        serial {}\n\
+        error_code {}\n\
+        request_code {}\n\
+        \n\
+        minor_code {}\
+    ",
+        event.type_,
+        event.serial,
+        event.error_code,
+        event.request_code,
+        event.minor_code
+    );
+    0
+}
+
+#[cfg(target_os = "linux")]
+unsafe extern "C" fn x_io_error_handler_impl(_: *mut xlib::Display) -> std::os::raw::c_int {
+    0
+}
+
 fn main() {
     let app = App::new(AppCallbacksImpl {});
     let result = cef::execute_process(Some(app.clone()), None);
     if result >= 0 {
         std::process::exit(result);
+    }
+
+    #[cfg(target_os = "linux")] unsafe {
+        xlib::XSetErrorHandler(Some(x_error_handler_impl));
+        xlib::XSetIOErrorHandler(Some(x_io_error_handler_impl));
+        println!("woo linux");
     }
 
     let settings = Settings::new()
@@ -54,7 +88,7 @@ fn main() {
     info!("Startup"); // This is the earliest you can use logging!
 
     let mut window_info = WindowInfo::new();
-    #[cfg(windows)] {
+    #[cfg(target_os = "windows")] {
         window_info.platform_specific.style = WS_OVERLAPPEDWINDOW | WS_CLIPCHILDREN | WS_CLIPSIBLINGS | WS_VISIBLE;
     }
     window_info.window_name = "cefsimple Rust example".into();

@@ -109,6 +109,7 @@ impl GulleryRenderer {
             .with_stencil_buffer(0)
             .with_pixel_format(24, 8)
             .with_gl(GlRequest::Latest)
+            .with_vsync(false)
             .build_windowed(window, &el).unwrap();
 
         let windowed_context = windowed_context.make_current().unwrap();
