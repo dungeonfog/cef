@@ -1,5 +1,5 @@
 use crate::{
-    process::{ProcessId},
+    process::ProcessId,
     string::{CefString, CefStringList},
     url_request::URLRequestStatus,
 };
@@ -200,6 +200,11 @@ owned_casts_from_unchecked!(impl for crate::client::focus_handler::FocusSource: 
 owned_casts_from_unchecked!(impl for crate::client::js_dialog_handler::JsDialogType: cef_sys::cef_jsdialog_type_t::Type);
 owned_casts_from_unchecked!(impl for crate::settings::LogSeverity: cef_sys::cef_log_severity_t::Type);
 owned_casts_from_unchecked!(impl for crate::client::request_handler::TerminationStatus: cef_sys::cef_termination_status_t::Type);
+owned_casts_from_unchecked!(impl for crate::cookie::CookiePriority: cef_sys::cef_cookie_priority_t::Type);
+owned_casts_from_unchecked!(impl for crate::cookie::CookieSameSite: cef_sys::cef_cookie_same_site_t::Type);
+owned_casts_from_unchecked!(impl for crate::media_router::MediaRouteCreateResult: cef_sys::cef_media_route_create_result_t::Type);
+owned_casts_from_unchecked!(impl for crate::media_router::MediaRouteConnectionState: cef_sys::cef_media_route_connection_state_t::Type);
+owned_casts_from_unchecked!(impl for crate::media_router::MediaSinkIconType: cef_sys::cef_media_sink_icon_type_t::Type);
 owned_casts_from_flags_unchecked!(impl for crate::drag::DragOperation: cef_sys::cef_drag_operations_mask_t);
 owned_casts_from_flags_unchecked!(impl for crate::events::EventFlags: cef_sys::cef_event_flags_t);
 owned_casts_from_unchecked!(impl for crate::color::Color: cef_sys::cef_color_t);
@@ -307,6 +312,20 @@ impl<'a> CToRustType for &mut cef_sys::cef_window_info_t {
     type CType = *mut cef_sys::cef_window_info_t;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
         &mut *c_type
+    }
+}
+
+impl<'a> CToRustType for &mut cef_sys::cef_audio_parameters_t {
+    type CType = *mut cef_sys::cef_audio_parameters_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        &mut *c_type
+    }
+}
+
+impl<'a> CToRustType for &cef_sys::cef_audio_parameters_t {
+    type CType = *const cef_sys::cef_audio_parameters_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        &*c_type
     }
 }
 

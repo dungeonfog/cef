@@ -30,8 +30,9 @@ use crate::{
     browser::Browser,
     frame::Frame,
     refcounted::{RefCountedPtr, Wrapper},
+    media_router::MediaRouter,
     request::Request,
-    resource_request_handler::{ResourceRequestHandler},
+    resource_request_handler::ResourceRequestHandler,
     string::CefString,
     web_plugin::WebPluginInfo,
 };
@@ -582,6 +583,12 @@ impl RequestContext {
                 self.as_ptr(),
                 CefString::new(extension_id).as_ptr(),
             ))
+        }
+    }
+    /// Returns the MediaRouter object associated with this context.
+    pub fn get_media_router(&self) -> MediaRouter {
+        unsafe {
+            MediaRouter::from_ptr_unchecked(self.0.get_media_router.unwrap()(self.as_ptr()))
         }
     }
 }

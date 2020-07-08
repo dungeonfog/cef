@@ -307,7 +307,6 @@ impl Wrapper for ContextMenuHandlerWrapper {
                 run_context_menu: Some(Self::run_context_menu),
                 on_context_menu_command: Some(Self::on_context_menu_command),
                 on_context_menu_dismissed: Some(Self::on_context_menu_dismissed),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

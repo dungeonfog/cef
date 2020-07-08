@@ -1,58 +1,47 @@
-use cef_sys::{cef_composition_underline_t, cef_range_t};
+use cef_sys::{cef_composition_underline_t, cef_composition_underline_style_t};
 
 use crate::{color::Color, values::Range};
 
+#[repr(C)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum CompositionUnderlineStyle {
+    Solid = cef_composition_underline_style_t::CEF_CUS_SOLID as isize,
+    Dot = cef_composition_underline_style_t::CEF_CUS_DOT as isize,
+    Dash = cef_composition_underline_style_t::CEF_CUS_DASH as isize,
+    None = cef_composition_underline_style_t::CEF_CUS_NONE as isize,
+}
+
 /// Structure representing IME composition underline information. This is a thin
 /// wrapper around Blink's WebCompositionUnderline class.
-pub struct CompositionUnderline(cef_composition_underline_t);
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
+pub struct CompositionUnderline {
+    pub range: Range,
+    pub color: Color,
+    pub background_color: Color,
+    pub thick: bool,
+    pub style: CompositionUnderlineStyle,
+}
 
-impl CompositionUnderline {
-    pub fn new() -> Self {
-        Self(unsafe { std::mem::zeroed() })
-    }
-    pub(crate) fn wrap(underline: cef_composition_underline_t) -> Self {
-        Self(underline)
-    }
-    /// Underline character range.
-    pub fn set_range(&mut self, range: Range) {
-        self.0.range = range.into();
-    }
-    /// Underline character range.
-    pub fn range(&self) -> Range {
-        Range::from(cef_range_t { ..self.0.range })
-    }
-    /// Text color.
-    pub fn set_color(&mut self, color: Color) {
-        self.0.color = color.get();
-    }
-    /// Text color.
-    pub fn color(&self) -> Color {
-        Color::wrap(self.0.color)
-    }
-    /// Background color.
-    pub fn set_background_color(&mut self, color: Color) {
-        self.0.background_color = color.get();
-    }
-    /// Background color.
-    pub fn background_color(&self) -> Color {
-        Color::wrap(self.0.background_color)
-    }
-    /// Set to true for thick underline.
-    pub fn set_thick(&mut self, thick: bool) {
-        self.0.thick = thick as i32;
-    }
-    /// True for thick underline.
-    pub fn thick(&self) -> bool {
-        self.0.thick != 0
-    }
-
-    pub(crate) fn as_ptr(&self) -> *const cef_composition_underline_t {
-        &self.0
+impl Default for CompositionUnderlineStyle {
+    fn default() -> Self {
+        Self::Solid
     }
 }
 
-impl Default for CompositionUnderline {
-    fn default() -> Self {
-        Self::new()
+impl From<&'_ CompositionUnderline> for cef_composition_underline_t {
+    fn from(composition_underline: &'_ CompositionUnderline) -> cef_composition_underline_t {
+        (*composition_underline).into()
+    }
+}
+
+impl From<CompositionUnderline> for cef_composition_underline_t {
+    fn from(composition_underline: CompositionUnderline) -> cef_composition_underline_t {
+        cef_composition_underline_t {
+            range: composition_underline.range.into(),
+            color: composition_underline.color.get(),
+            background_color: composition_underline.background_color.get(),
+            thick: composition_underline.thick as _,
+            style: composition_underline.style as _,
+        }
     }
 }

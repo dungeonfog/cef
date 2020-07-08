@@ -20,6 +20,7 @@ bitflags!{
         const IS_KEY_PAD = cef_event_flags_t::EVENTFLAG_IS_KEY_PAD.0 as _;
         const IS_LEFT = cef_event_flags_t::EVENTFLAG_IS_LEFT.0 as _;
         const IS_RIGHT = cef_event_flags_t::EVENTFLAG_IS_RIGHT.0 as _;
+        const ALTGR_DOWN = cef_event_flags_t::EVENTFLAG_ALTGR_DOWN.0 as _;
     }
 }
 

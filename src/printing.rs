@@ -12,110 +12,81 @@ pub enum PDFPrintMargin {
 }
 
 /// Structure representing PDF print settings.
-pub struct PDFPrintSettings(cef_pdf_print_settings_t);
-
-impl PDFPrintSettings {
-    pub fn new() -> Self {
-        Self(unsafe { std::mem::zeroed() })
-    }
-
+#[derive(Default, Debug, Clone, PartialEq, Eq)]
+pub struct PDFPrintSettings {
     /// Page title to display in the header. Only used if [enable_header_footer]
     /// is called.
-    pub fn set_header_footer_title(&mut self, title: &str) {
-        self.0.header_footer_title = CefString::new(title).into_raw();
-    }
-
+    pub header_footer_title: String,
     /// URL to display in the footer. Only used if [enable_header_footer] is called.
-    pub fn set_header_footer_url(&mut self, url: &str) {
-        self.0.header_footer_url = CefString::new(url).into_raw();
-    }
-
+    pub header_footer_url: String,
     /// Output page size in microns. If either this or `page_height` is less than or
     /// equal to zero then the default paper size (A4) will be used.
-    pub fn set_page_width(&mut self, width: i32) {
-        self.0.page_width = width;
-    }
+    pub page_width: i32,
     /// Output page size in microns. If either this or `page_width` is less than or
     /// equal to zero then the default paper size (A4) will be used.
-    pub fn set_page_height(&mut self, height: i32) {
-        self.0.page_height = height;
-    }
-
+    pub page_height: i32,
     /// The percentage to scale the PDF by before printing (e.g. 50 is 50%).
     /// If this value is less than or equal to zero the default value of 100
     /// will be used.
-    pub fn set_scale_factor(&mut self, factor: i32) {
-        self.0.scale_factor = factor;
-    }
-
-    /// Margins in millimeters. Only used if `margin_type` is set to
+    pub scale_factor: i32,
+    /// Margins in points. Only used if `margin_type` is set to
     /// [PDFPrintMargin::Custom].
-    pub fn set_margin_top(&mut self, margin: f64) {
-        self.0.margin_top = margin;
-    }
-    /// Margins in millimeters. Only used if `margin_type` is set to
+    pub margin_top: i32,
+    /// Margins in points. Only used if `margin_type` is set to
     /// [PDFPrintMargin::Custom].
-    pub fn set_margin_right(&mut self, margin: f64) {
-        self.0.margin_right = margin;
-    }
-    /// Margins in millimeters. Only used if `margin_type` is set to
+    pub margin_right: i32,
+    /// Margins in points. Only used if `margin_type` is set to
     /// [PDFPrintMargin::Custom].
-    pub fn set_margin_bottom(&mut self, margin: f64) {
-        self.0.margin_bottom = margin;
-    }
-    /// Margins in millimeters. Only used if `margin_type` is set to
+    pub margin_bottom: i32,
+    /// Margins in points. Only used if `margin_type` is set to
     /// [PDFPrintMargin::Custom].
-    pub fn set_margin_left(&mut self, margin: f64) {
-        self.0.margin_left = margin;
-    }
-
+    pub margin_left: i32,
     /// Margin type.
-    pub fn set_margin_type(&mut self, margin_type: PDFPrintMargin) {
-        self.0.margin_type = margin_type as crate::CEnumType;
-    }
-
+    pub margin_type: PDFPrintMargin,
     /// Call this to print headers and footers.
-    pub fn enable_header_footer(&mut self) {
-        self.0.header_footer_enabled = 1;
-    }
-
+    pub header_footer_enabled: bool,
     /// Call to print the selection only or don't to print all.
-    pub fn print_selection_only(&mut self) {
-        self.0.selection_only = 1;
-    }
-
+    pub selection_only: bool,
     /// Call for landscape mode or don't for portrait mode.
-    pub fn enable_landscape(&mut self) {
-        self.0.landscape = 1;
-    }
-
+    pub landscape: bool,
     /// Call to print background graphics.
-    pub fn enable_backgrounds(&mut self) {
-        self.0.backgrounds_enabled = 1;
-    }
+    pub backgrounds_enabled: bool,
+}
 
-    pub(crate) fn as_ptr(&self) -> *const cef_pdf_print_settings_t {
-        &self.0
+impl From<PDFPrintSettings> for cef_pdf_print_settings_t {
+    fn from(settings: PDFPrintSettings) -> cef_pdf_print_settings_t {
+        settings.into_raw()
+    }
+}
+impl From<&'_ PDFPrintSettings> for cef_pdf_print_settings_t {
+    fn from(settings: &PDFPrintSettings) -> cef_pdf_print_settings_t {
+        settings.into_raw()
     }
 }
 
-impl Default for PDFPrintSettings {
-    fn default() -> Self {
-        Self::new()
+impl PDFPrintSettings {
+    fn into_raw(&self) -> cef_pdf_print_settings_t {
+        cef_pdf_print_settings_t {
+            header_footer_title: CefString::new(&self.header_footer_title).into_raw(),
+            header_footer_url: CefString::new(&self.header_footer_url).into_raw(),
+            page_width: self.page_width,
+            page_height: self.page_height,
+            scale_factor: self.scale_factor,
+            margin_top: self.margin_top,
+            margin_right: self.margin_right,
+            margin_bottom: self.margin_bottom,
+            margin_left: self.margin_left,
+            margin_type: self.margin_type as _,
+            header_footer_enabled: self.header_footer_enabled as _,
+            selection_only: self.selection_only as _,
+            landscape: self.landscape as _,
+            backgrounds_enabled: self.backgrounds_enabled as _,
+        }
     }
 }
 
-impl Drop for PDFPrintSettings {
-    fn drop(&mut self) {
-        if let Some(dtor) = self.0.header_footer_title.dtor {
-            unsafe {
-                dtor(self.0.header_footer_title.str);
-            }
-        }
-        if let Some(dtor) = self.0.header_footer_url.dtor {
-            unsafe {
-                dtor(self.0.header_footer_url.str);
-            }
-        }
+impl Default for PDFPrintMargin {
+    fn default() -> PDFPrintMargin {
+        Self::Default
     }
 }

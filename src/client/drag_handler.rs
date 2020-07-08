@@ -107,7 +107,6 @@ impl Wrapper for DragHandlerWrapper {
                 base: unsafe { std::mem::zeroed() },
                 on_drag_enter: Some(Self::on_drag_enter),
                 on_draggable_regions_changed: Some(Self::on_draggable_regions_changed),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

@@ -1,11 +1,20 @@
 use cef_sys::{
     cef_browser_t, cef_client_t, cef_frame_t, cef_load_handler_t, cef_process_id_t,
     cef_process_message_t, cef_request_handler_t, cef_life_span_handler_t, cef_render_handler_t,
-    cef_context_menu_handler_t,
+    cef_context_menu_handler_t, cef_dialog_handler_t,
+    cef_display_handler_t,
+    cef_download_handler_t,
+    cef_drag_handler_t,
+    cef_find_handler_t,
+    cef_focus_handler_t,
+    cef_jsdialog_handler_t,
+    cef_keyboard_handler_t,
+    cef_audio_handler_t,
 };
 use downcast_rs::{impl_downcast, Downcast};
-use std::{ptr::null_mut};
+use std::ptr::null_mut;
 
+pub mod audio_handler;
 pub mod context_menu_handler;
 pub mod dialog_handler;
 pub mod display_handler;
@@ -20,6 +29,7 @@ pub mod render_handler;
 pub mod request_handler;
 
 use self::{
+    audio_handler::AudioHandler,
     context_menu_handler::ContextMenuHandler,
     dialog_handler::DialogHandler,
     display_handler::DisplayHandler,
@@ -37,7 +47,7 @@ use self::{
 use crate::{
     browser::Browser,
     frame::Frame,
-    load_handler::{LoadHandler},
+    load_handler::LoadHandler,
     process::{ProcessId, ProcessMessage},
     refcounted::{RefCountedPtr, Wrapper},
 };
@@ -54,8 +64,8 @@ impl Client {
 
 /// Implement this trait to provide handler implementations.
 pub trait ClientCallbacks: 'static + Send + Sync + Downcast {
-    // /// Return the handler for audio rendering events.
-    // fn get_audio_handler(&self) -> Option<AudioHandler> { None }
+    /// Return the handler for audio rendering events.
+    fn get_audio_handler(&self) -> Option<AudioHandler> { None }
     /// Return the handler for context menus. If no handler is provided the default
     /// implementation will be used.
     fn get_context_menu_handler(&self) -> Option<ContextMenuHandler> { None }
@@ -113,13 +123,21 @@ impl Wrapper for ClientWrapper {
         RefCountedPtr::wrap(
             cef_client_t {
                 base: unsafe { std::mem::zeroed() },
-                get_load_handler: Some(Self::get_load_handler),
-                get_request_handler: Some(Self::get_request_handler),
-                get_life_span_handler: Some(Self::get_life_span_handler),
+                get_audio_handler: Some(Self::get_audio_handler),
                 get_context_menu_handler: Some(Self::get_context_menu_handler),
+                get_dialog_handler: Some(Self::get_dialog_handler),
+                get_display_handler: Some(Self::get_display_handler),
+                get_download_handler: Some(Self::get_download_handler),
+                get_drag_handler: Some(Self::get_drag_handler),
+                get_find_handler: Some(Self::get_find_handler),
+                get_focus_handler: Some(Self::get_focus_handler),
+                get_jsdialog_handler: Some(Self::get_jsdialog_handler),
+                get_keyboard_handler: Some(Self::get_keyboard_handler),
+                get_life_span_handler: Some(Self::get_life_span_handler),
+                get_load_handler: Some(Self::get_load_handler),
                 get_render_handler: Some(Self::get_render_handler),
+                get_request_handler: Some(Self::get_request_handler),
                 on_process_message_received: Some(Self::process_message_received),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )
@@ -137,14 +155,41 @@ impl ClientWrapper {
 
 cef_callback_impl! {
     impl for ClientWrapper: cef_client_t {
-        fn get_load_handler(&self) -> *mut cef_load_handler_t {
-            self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        fn get_audio_handler(&self) -> *mut cef_audio_handler_t {
+            self.0.get_audio_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_context_menu_handler(&self) -> *mut cef_context_menu_handler_t {
+            self.0.get_context_menu_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_dialog_handler(&self) -> *mut cef_dialog_handler_t {
+            self.0.get_dialog_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_display_handler(&self) -> *mut cef_display_handler_t {
+            self.0.get_display_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_download_handler(&self) -> *mut cef_download_handler_t {
+            self.0.get_download_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_drag_handler(&self) -> *mut cef_drag_handler_t {
+            self.0.get_drag_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_find_handler(&self) -> *mut cef_find_handler_t {
+            self.0.get_find_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_focus_handler(&self) -> *mut cef_focus_handler_t {
+            self.0.get_focus_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_jsdialog_handler(&self) -> *mut cef_jsdialog_handler_t {
+            self.0.get_jsdialog_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        }
+        fn get_keyboard_handler(&self) -> *mut cef_keyboard_handler_t {
+            self.0.get_keyboard_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn get_life_span_handler(&self) -> *mut cef_life_span_handler_t {
             self.0.get_life_span_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
-        fn get_context_menu_handler(&self) -> *mut cef_context_menu_handler_t {
-            self.0.get_context_menu_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        fn get_load_handler(&self) -> *mut cef_load_handler_t {
+            self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
         fn get_render_handler(&self) -> *mut cef_render_handler_t {
             self.0.get_render_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
@@ -152,6 +197,24 @@ cef_callback_impl! {
         fn get_request_handler(&self) -> *mut cef_request_handler_t {
             self.0.get_request_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
+        // fn get_context_menu_handler(&self) -> *mut cef_context_menu_handler_t {
+        //     self.0.get_context_menu_handler
+        // }
+        // fn get_load_handler(&self) -> *mut cef_load_handler_t {
+        //     self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        // }
+        // fn get_life_span_handler(&self) -> *mut cef_life_span_handler_t {
+        //     self.0.get_life_span_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        // }
+        // fn get_context_menu_handler(&self) -> *mut cef_context_menu_handler_t {
+        //     self.0.get_context_menu_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        // }
+        // fn get_render_handler(&self) -> *mut cef_render_handler_t {
+        //     self.0.get_render_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        // }
+        // fn get_request_handler(&self) -> *mut cef_request_handler_t {
+        //     self.0.get_request_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
+        // }
         fn process_message_received(
             &self,
             browser       : Browser       : *mut cef_browser_t,

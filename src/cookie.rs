@@ -6,13 +6,44 @@ use std::os::raw::c_int;
 use cef_sys::cef_cookie_visitor_t;
 use cef_sys::cef_set_cookie_callback_t;
 use cef_sys::cef_delete_cookies_callback_t;
-use cef_sys::{cef_cookie_t, cef_cookie_manager_t};
+use cef_sys::{cef_cookie_t, cef_cookie_manager_t, cef_cookie_priority_t, cef_cookie_same_site_t};
 use chrono::{DateTime, Utc};
 
 use crate::{
     callback::CompletionCallback,
     string::CefString,
 };
+
+/// Cookie priority values.
+#[repr(C)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum CookiePriority {
+    Low = cef_cookie_priority_t::CEF_COOKIE_PRIORITY_LOW as isize,
+    Medium = cef_cookie_priority_t::CEF_COOKIE_PRIORITY_MEDIUM as isize,
+    High = cef_cookie_priority_t::CEF_COOKIE_PRIORITY_HIGH as isize,
+}
+
+/// Cookie same site values.
+#[repr(C)]
+#[derive(PartialEq, Eq, Clone, Copy, Debug)]
+pub enum CookieSameSite {
+    Unspecified = cef_cookie_same_site_t::CEF_COOKIE_SAME_SITE_UNSPECIFIED as isize,
+    NoRestriction = cef_cookie_same_site_t::CEF_COOKIE_SAME_SITE_NO_RESTRICTION as isize,
+    LaxMode = cef_cookie_same_site_t::CEF_COOKIE_SAME_SITE_LAX_MODE as isize,
+    StrictMode = cef_cookie_same_site_t::CEF_COOKIE_SAME_SITE_STRICT_MODE as isize,
+}
+
+impl CookiePriority {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
+
+impl CookieSameSite {
+    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+        std::mem::transmute(c)
+    }
+}
 
 /// Cookie information.
 #[derive(Clone, Debug)]
@@ -40,6 +71,10 @@ pub struct Cookie {
     pub last_access: DateTime<Utc>,
     /// The cookie expiration date.
     pub expires: Option<DateTime<Utc>>,
+    /// Same site.
+    pub same_site: CookieSameSite,
+    /// Priority.
+    pub priority: CookiePriority,
 }
 
 pub struct CookieVisit<'a> {
@@ -86,6 +121,8 @@ impl Cookie {
             } else {
                 None
             },
+            same_site: CookieSameSite::from_unchecked(cookie.same_site),
+            priority: CookiePriority::from_unchecked(cookie.priority),
         }
     }
 }
@@ -103,6 +140,8 @@ impl From<&'_ Cookie> for cef_cookie_t {
             last_access: crate::values::date_time_to_cef_time(cookie.last_access),
             has_expires: cookie.expires.is_some() as c_int,
             expires: cookie.expires.map(crate::values::date_time_to_cef_time).unwrap_or(unsafe{ std::mem::zeroed() }),
+            same_site: cookie.same_site as _,
+            priority: cookie.priority as _,
         }
     }
 }

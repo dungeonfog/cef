@@ -82,7 +82,6 @@ impl Wrapper for FocusHandlerWrapper {
                 on_take_focus: Some(Self::on_take_focus),
                 on_set_focus: Some(Self::on_set_focus),
                 on_got_focus: Some(Self::on_got_focus),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

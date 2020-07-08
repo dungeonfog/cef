@@ -112,7 +112,6 @@ impl ClientCallbacks for ClientCallbacksImpl {
 
 impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     fn on_before_close(&self, _browser: Browser) {
-        println!("close browser");
         self.proxy.lock().send_event(CefEvent::Quit).unwrap();
     }
 }
@@ -199,12 +198,6 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
         width: i32,
         height: i32,
     ) {
-        println!(
-            "paint: buffer len {:?} dirty rects: {:?}",
-            buffer.len(),
-            dirty_rects
-        );
-
         // FIXME: this completely ignores dirty rects for now and only
         // just re-uploads and re-renders everything anew
         assert_eq!(buffer.len(), 4 * (width * height) as usize);
@@ -222,7 +215,7 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
         unimplemented!()
     }
     fn on_cursor_change(&self, _browser: Browser, _cursor: cef_cursor_handle_t, type_: CursorType) {
-        let winit_cursor = match type_ {
+        let winit_cursor = match dbg!(type_) {
             CursorType::MiddlePanning
             | CursorType::EastPanning
             | CursorType::NorthPanning
@@ -233,6 +226,13 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             | CursorType::SouthWestPanning
             | CursorType::WestPanning
             | CursorType::Custom(_)
+            | CursorType::MiddlePanning
+            | CursorType::MiddlePanningVertical
+            | CursorType::MiddlePanningHorizontal
+            | CursorType::DndNone
+            | CursorType::DndMove
+            | CursorType::DndCopy
+            | CursorType::DndLink
             | CursorType::Pointer => Some(CursorIcon::Default),
             CursorType::Cross => Some(CursorIcon::Crosshair),
             CursorType::Hand => Some(CursorIcon::Hand),
@@ -380,7 +380,6 @@ fn main() {
                                 poll_instant = work_time + poll_duration;
                                 scheduled_work_queue.push(poll_instant);
                             }
-                            println!("do work");
                             context.do_message_loop_work();
                         }
                     }
@@ -533,7 +532,6 @@ fn main() {
                     Event::UserEvent(event) => match event {
                         CefEvent::ScheduleWork(instant) => {
                             if instant <= Instant::now() {
-                                println!("do scheduled work b {:?}", instant);
                                 context.do_message_loop_work();
                             } else {
                                 let i = match scheduled_work_queue.binary_search(&instant) {

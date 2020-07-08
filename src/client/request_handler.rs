@@ -13,7 +13,7 @@ use cef_sys::{
     cef_select_client_certificate_callback_t, cef_request_handler_t, cef_termination_status_t,
     cef_window_open_disposition_t, cef_errorcode_t,
 };
-use std::{ptr::null_mut};
+use std::ptr::null_mut;
 
 use crate::{
     browser::Browser,
@@ -233,6 +233,9 @@ pub trait RequestHandlerCallbacks: Sync + Send + 'static {
     /// Called on the browser process UI thread when the render process terminates
     /// unexpectedly. `status` indicates how the process terminated.
     fn on_render_process_terminated(&self, browser: Browser, status: TerminationStatus) {}
+    /// Called on the browser process UI thread when the window.document object of
+    /// the main frame has been created.
+    fn on_document_available_in_main_frame(&self, browser: Browser) {}
 }
 
 #[repr(transparent)]
@@ -260,6 +263,7 @@ impl Wrapper for RequestHandlerWrapper {
                 on_plugin_crashed: Some(Self::on_plugin_crashed),
                 on_render_view_ready: Some(Self::on_render_view_ready),
                 on_render_process_terminated: Some(Self::on_render_process_terminated),
+                on_document_available_in_main_frame: Some(Self::on_document_available_in_main_frame),
             },
             self,
         )
@@ -390,6 +394,12 @@ cef_callback_impl!{
             status: TerminationStatus: cef_termination_status_t::Type
         ) {
             self.0.on_render_process_terminated(browser, status);
+        }
+        fn on_document_available_in_main_frame(
+            &self,
+            browser: Browser: *mut cef_browser_t,
+        ) {
+            self.0.on_document_available_in_main_frame(browser);
         }
     }
 }

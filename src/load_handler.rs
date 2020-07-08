@@ -19,6 +19,8 @@ bitflags!{
         const BLOCKED = cef_transition_type_t::TT_BLOCKED_FLAG.0;
         /// Used the Forward or Back function to navigate among browsing history.
         const FORWARD_BACK = cef_transition_type_t::TT_FORWARD_BACK_FLAG.0;
+        /// Loaded a URL directly via CreateBrowser, LoadURL or LoadRequest.
+        const DIRECT_LOAD = cef_transition_type_t::TT_DIRECT_LOAD_FLAG.0;
         /// The beginning of a navigation chain.
         const CHAIN_START = cef_transition_type_t::TT_CHAIN_START_FLAG.0;
         /// The last transition in a redirect chain.
@@ -310,9 +312,6 @@ pub enum ErrorCode {
     /// The proxy requested authentication (for tunnel establishment).
     ProxyAuthRequested = cef_errorcode_t::ERR_PROXY_AUTH_REQUESTED as isize,
 
-    /// The SSL server attempted to use a weak ephemeral Diffie-Hellman key.
-    SslWeakServerEphemeralDhKey = cef_errorcode_t::ERR_SSL_WEAK_SERVER_EPHEMERAL_DH_KEY as isize,
-
     /// Could not create a connection to the proxy server. An error occurred
     /// either in resolving its name, or in connecting a socket to it.
     /// Note that this does NOT include failures during the actual "CONNECT" method
@@ -602,6 +601,16 @@ pub enum ErrorCode {
     /// are allowed.
     QuicCertRootNotKnown = cef_errorcode_t::ERR_QUIC_CERT_ROOT_NOT_KNOWN as isize,
 
+    /// The certificate is known to be used for interception by an entity other
+    /// the device owner.
+    CertKnownInterceptionBlocked = cef_errorcode_t::ERR_CERT_KNOWN_INTERCEPTION_BLOCKED as isize,
+
+    /// The connection uses an obsolete version of SSL/TLS.
+    SslObsoleteVersion = cef_errorcode_t::ERR_SSL_OBSOLETE_VERSION as isize,
+
+    /// The value immediately past the last certificate error code.
+    CertEnd = cef_errorcode_t::ERR_CERT_END as isize,
+
     /// The URL is invalid.
     InvalidUrl = cef_errorcode_t::ERR_INVALID_URL as isize,
 
@@ -887,8 +896,15 @@ pub enum ErrorCode {
     /// An error occurred while handling a signed exchange.
     InvalidSignedExchange = cef_errorcode_t::ERR_INVALID_SIGNED_EXCHANGE as isize,
 
-    /// An error occurred while handling a bundled-exchanges source.
-    InvalidBundledExchanges = cef_errorcode_t::ERR_INVALID_BUNDLED_EXCHANGES as isize,
+    /// An error occurred while handling a Web Bundle source.
+    InvalidWebBundle = cef_errorcode_t::ERR_INVALID_WEB_BUNDLE as isize,
+    /// A Trust Tokens protocol operation-executing request failed for one of a
+    /// number of reasons (precondition failure, internal error, bad response).
+    TrustTokenOperationFailed = cef_errorcode_t::ERR_TRUST_TOKEN_OPERATION_FAILED as isize,
+    /// When handling a Trust Tokens protocol operation-executing request, the system
+    /// found that the request's desired Trust Tokens results were already present in
+    /// a local cache; as a result, the main request was cancelled.
+    TrustTokenOperationCacheHit = cef_errorcode_t::ERR_TRUST_TOKEN_OPERATION_CACHE_HIT as isize,
 
     /// A generic error for failed FTP control connection command.
     /// If possible, please use or add a more specific error code.
@@ -991,8 +1007,8 @@ pub enum ErrorCode {
     /// Failed to sort addresses according to RFC3484.
     DnsSortError = cef_errorcode_t::ERR_DNS_SORT_ERROR as isize,
 
-    /// Failed to resolve over HTTP, fallback to legacy
-    DnsHttpFailed = cef_errorcode_t::ERR_DNS_HTTP_FAILED as isize,
+    /// Failed to resolve the hostname of a DNS-over-HTTPS server.
+    DnsSecureResolverHostnameResolutionFailed = cef_errorcode_t::ERR_DNS_SECURE_RESOLVER_HOSTNAME_RESOLUTION_FAILED as isize,
 }
 
 impl ErrorCode {

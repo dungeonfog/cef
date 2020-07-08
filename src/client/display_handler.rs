@@ -8,7 +8,7 @@ use crate::string::CefString;
 use cef_sys::cef_string_list_t;
 use std::mem::ManuallyDrop;
 use crate::{
-    browser::{Browser},
+    browser::Browser,
     frame::Frame,
     refcounted::{RefCountedPtr, Wrapper},
 };
@@ -137,7 +137,6 @@ impl Wrapper for DisplayHandlerWrapper {
                 on_console_message: Some(Self::on_console_message),
                 on_auto_resize: Some(Self::on_auto_resize),
                 on_loading_progress_change: Some(Self::on_loading_progress_change),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

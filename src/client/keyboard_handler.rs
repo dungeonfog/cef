@@ -61,7 +61,6 @@ impl Wrapper for KeyboardHandlerWrapper {
                 base: unsafe { std::mem::zeroed() },
                 on_pre_key_event: Some(Self::on_pre_key_event),
                 on_key_event: Some(Self::on_key_event),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )
