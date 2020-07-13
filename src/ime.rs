@@ -15,10 +15,15 @@ pub enum CompositionUnderlineStyle {
 /// wrapper around Blink's WebCompositionUnderline class.
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Default)]
 pub struct CompositionUnderline {
+    /// Underline character range.
     pub range: Range,
+    /// Text color.
     pub color: Color,
+    /// Background color.
     pub background_color: Color,
+    /// Set to true for thick underline.
     pub thick: bool,
+    /// True for thick underline.
     pub style: CompositionUnderlineStyle,
 }
 

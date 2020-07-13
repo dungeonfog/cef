@@ -39,13 +39,13 @@ use std::{
 };
 use winit::event::{Touch, TouchPhase};
 use winit::{
-    dpi::{LogicalPosition, PhysicalPosition},
+    dpi::{LogicalPosition, PhysicalPosition, PhysicalSize},
     event::{
         ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, StartCause,
         VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
-    window::{CursorIcon, Window, WindowBuilder},
+    window::{CursorIcon, Window, WindowBuilder, Icon},
 };
 
 pub struct AppCallbacksImpl {
@@ -215,7 +215,8 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
         unimplemented!()
     }
     fn on_cursor_change(&self, _browser: Browser, _cursor: cef_cursor_handle_t, type_: CursorType) {
-        let winit_cursor = match dbg!(type_) {
+        println!("cursor change");
+        let winit_cursor = match type_ {
             CursorType::MiddlePanning
             | CursorType::EastPanning
             | CursorType::NorthPanning
@@ -225,7 +226,6 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             | CursorType::SouthEastPanning
             | CursorType::SouthWestPanning
             | CursorType::WestPanning
-            | CursorType::Custom(_)
             | CursorType::MiddlePanning
             | CursorType::MiddlePanningVertical
             | CursorType::MiddlePanningHorizontal
@@ -267,6 +267,18 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             CursorType::ZoomOut => Some(CursorIcon::ZoomOut),
             CursorType::Grab => Some(CursorIcon::Grab),
             CursorType::Grabbing => Some(CursorIcon::Grabbing),
+            CursorType::Custom(custom_cursor) => {
+                let hot_spot = PhysicalPosition::new(custom_cursor.hotspot.x as u32, custom_cursor.hotspot.y as u32);
+                let size = PhysicalSize::new(custom_cursor.size.width as u32, custom_cursor.size.height as u32);
+                let mut buffer = custom_cursor.buffer.to_owned();
+                for pixel in buffer.chunks_mut(4) {
+                    let (l, r) = pixel.split_at_mut(2);
+                    std::mem::swap(&mut l[0], &mut r[0]);
+                }
+                Some(Icon::from_rgba_with_hot_spot(&buffer, size, hot_spot)
+                    .ok().map(|c| CursorIcon::Custom(c))
+                    .unwrap_or(CursorIcon::Default))
+            }
         };
         let renderer = self.renderer.lock();
         let window = renderer.window();

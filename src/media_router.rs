@@ -16,7 +16,7 @@ use crate::{
     registration::Registration, send_protector::SendProtectorMut,
 };
 
-/// Result codes for CefMediaRouter::CreateRoute.
+/// Result codes for `MediaRouter::create_route`.
 #[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MediaRouteCreateResult {
@@ -31,7 +31,7 @@ pub enum MediaRouteCreateResult {
     RouteAlreadyExists = cef_media_route_create_result_t::CEF_MRCR_ROUTE_ALREADY_EXISTS as isize,
 }
 
-/// Connection state for a MediaRoute object.
+/// Connection state for a `MediaRoute` object.
 #[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MediaRouteConnectionState {
@@ -42,7 +42,7 @@ pub enum MediaRouteConnectionState {
     Terminated = cef_media_route_connection_state_t::CEF_MRCS_TERMINATED as isize,
 }
 
-/// Icon types for a MediaSink object.
+/// Icon types for a `MediaSink` object.
 #[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum MediaSinkIconType {
@@ -82,15 +82,15 @@ ref_counted_ptr!{
 }
 
 ref_counted_ptr!{
-    /// Implemented by the client to observe MediaRouter events and registered via
-    /// cef_media_router_t::AddObserver. The functions of this structure will be
+    /// Implemented by the client to observe `MediaRouter` events and registered via
+    /// `MediaRouter::add_observer`. The functions of this structure will be
     /// called on the browser process UI thread.
     pub struct MediaObserver(*mut cef_media_observer_t);
 }
 
 ref_counted_ptr!{
     /// Represents a source from which media can be routed. Instances of this object
-    /// are retrieved via cef_media_router_t::GetSource. The functions of this
+    /// are retrieved via `MediaRouter::get_source`. The functions of this
     /// structure may be called on any browser process thread unless otherwise
     /// indicated.
     pub struct MediaSource(*mut cef_media_source_t);
@@ -98,7 +98,7 @@ ref_counted_ptr!{
 
 ref_counted_ptr!{
     /// Represents a sink to which media can be routed. Instances of this object are
-    /// retrieved via cef_media_observer_t::OnSinks. The functions of this structure
+    /// retrieved via `MediaObserver::on_sinks`. The functions of this structure
     /// may be called on any browser process thread unless otherwise indicated.
     pub struct MediaSink(*mut cef_media_sink_t);
 }
@@ -111,30 +111,29 @@ ref_counted_ptr!{
     struct MediaRouteCreateCallback(*mut cef_media_route_create_callback_t);
 }
 
-/// Implemented by the client to observe MediaRouter events and registered via
-/// cef_media_router_t::AddObserver. The functions of this structure will be
+/// Implemented by the client to observe `MediaRouter` events and registered via
+/// `MediaRouter::add_observer`. The functions of this structure will be
 /// called on the browser process UI thread.
 pub trait MediaObserverCallbacks: 'static + Send {
     /// The list of available media sinks has changed or
-    /// cef_media_router_t::NotifyCurrentSinks was called.
+    /// [`MediaRouter::notify_current_sinks`] was called.
     fn on_sinks(
         &mut self,
         sinks: &[MediaSink],
     ) {}
     /// The list of available media routes has changed or
-    /// cef_media_router_t::NotifyCurrentRoutes was called.
+    /// [`MediaRouter::notify_current_routes`] was called.
     fn on_routes(
         &mut self,
         routes: &[MediaRoute],
     ) {}
-    /// The connection state of |route| has changed.
+    /// The connection state of `route` has changed.
     fn on_route_state_changed(
         &mut self,
         route: MediaRoute,
         state: MediaRouteConnectionState,
     ) {}
-    /// A message was recieved over |route|. |message| is only valid for the scope
-    /// of this callback and should be copied if necessary.
+    /// A message was recieved over `route`.
     fn on_route_message_received(
         &mut self,
         route: MediaRoute,
@@ -146,8 +145,8 @@ impl MediaRouter {
     pub fn global() -> MediaRouter {
         unsafe{ Self::from_ptr_unchecked(cef_sys::cef_media_router_get_global()) }
     }
-    /// Add an observer for MediaRouter events. The observer will remain registered
-    /// until the returned Registration object is destroyed.
+    /// Add an observer for `MediaRouter` events. The observer will remain registered
+    /// until the returned `Registration` object is destroyed.
     pub fn add_observer(
         &self,
         observer: MediaObserver,
@@ -161,9 +160,9 @@ impl MediaRouter {
             )
         }
     }
-    /// Returns a MediaSource object for the specified media source URN. Supported
-    /// URN schemes include "cast:" and "dial:", and will be already known by the
-    /// client application (e.g. "cast:<appId>?clientId=<clientId>").
+    /// Returns a `MediaSource` object for the specified media source URN. Supported
+    /// URN schemes include `cast:` and `dial:`, and will be already known by the
+    /// client application (e.g. `cast:<appId>?clientId=<clientId>`).
     pub fn get_source(
         &self,
         urn: &str,
@@ -177,18 +176,18 @@ impl MediaRouter {
             )
         }
     }
-    /// Trigger an asynchronous call to cef_media_observer_t::OnSinks on all
+    /// Trigger an asynchronous call to [`MediaObserver::on_sinks`] on all
     /// registered observers.
     pub fn notify_current_sinks(&self) {
         unsafe {
             (self.0.notify_current_sinks.unwrap())(self.as_ptr())
         }
     }
-    /// Create a new route between |source| and |sink|. Source and sink must be
-    /// valid, compatible (as reported by cef_media_sink_t::IsCompatibleWith), and
-    /// a route between them must not already exist. |callback| will be executed on
+    /// Create a new route between `source` and `sink`. Source and sink must be
+    /// valid, compatible (as reported by [`MediaSink::is_compatible_with`]), and
+    /// a route between them must not already exist. `callback` will be executed on
     /// success or failure. If route creation succeeds it will also trigger an
-    /// asynchronous call to cef_media_observer_t::OnRoutes on all registered
+    /// asynchronous call to [`MediaObserver::on_routes`] on all registered
     /// observers.
     ///
     /// # Method parameters
@@ -210,7 +209,7 @@ impl MediaRouter {
             )
         }
     }
-    /// Trigger an asynchronous call to cef_media_observer_t::OnRoutes on all
+    /// Trigger an asynchronous call to [`MediaObserver::on_routes`] on all
     /// registered observers.
     pub fn notify_current_routes(&self) {
         unsafe {
@@ -255,7 +254,7 @@ impl MediaRoute {
         }
     }
     /// Terminate this route. Will result in an asynchronous call to
-    /// cef_media_observer_t::OnRoutes on all registered observers.
+    /// [`MediaObserver::on_routes`] on all registered observers.
     pub fn terminate(&self) {
         unsafe {
             (self.0.terminate.unwrap())(self.as_ptr())

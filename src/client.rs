@@ -197,24 +197,6 @@ cef_callback_impl! {
         fn get_request_handler(&self) -> *mut cef_request_handler_t {
             self.0.get_request_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
         }
-        // fn get_context_menu_handler(&self) -> *mut cef_context_menu_handler_t {
-        //     self.0.get_context_menu_handler
-        // }
-        // fn get_load_handler(&self) -> *mut cef_load_handler_t {
-        //     self.0.get_load_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
-        // }
-        // fn get_life_span_handler(&self) -> *mut cef_life_span_handler_t {
-        //     self.0.get_life_span_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
-        // }
-        // fn get_context_menu_handler(&self) -> *mut cef_context_menu_handler_t {
-        //     self.0.get_context_menu_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
-        // }
-        // fn get_render_handler(&self) -> *mut cef_render_handler_t {
-        //     self.0.get_render_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
-        // }
-        // fn get_request_handler(&self) -> *mut cef_request_handler_t {
-        //     self.0.get_request_handler().map(|cef| cef.into_raw()).unwrap_or(null_mut())
-        // }
         fn process_message_received(
             &self,
             browser       : Browser       : *mut cef_browser_t,

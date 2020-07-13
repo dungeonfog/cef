@@ -424,29 +424,29 @@ impl BrowserHost {
             .map(|has_dev_tools| unsafe { has_dev_tools(self.0.as_ptr()) != 0 })
             .unwrap_or(false)
     }
-    /// Send a function call message over the DevTools protocol. |message| must be
-    /// a UTF8-encoded JSON dictionary that contains "id" (int), "function"
-    /// (string) and "params" (dictionary, optional) values. See the DevTools
-    /// protocol documentation at https://chromedevtools.github.io/devtools-
-    /// protocol/ for details of supported functions and the expected "params"
-    /// dictionary contents. |message| will be copied if necessary. This function
-    /// will return true (1) if called on the UI thread and the message was
-    /// successfully submitted for validation, otherwise false (0). Validation will
+    /// Send a function call message over the DevTools protocol. `message` must be
+    /// a UTF8-encoded JSON dictionary that contains `id` (int), `function`
+    /// (string) and `params` (dictionary, optional) values. See the DevTools
+    /// protocol documentation at https://chromedevtools.github.io/devtools-protocol/
+    /// for details of supported functions and the expected `params`
+    /// dictionary contents. `message` will be copied if necessary. This function
+    /// will return `true` if called on the UI thread and the message was
+    /// successfully submitted for validation, otherwise `false`. Validation will
     /// be applied asynchronously and any messages that fail due to formatting
     /// errors or missing parameters may be discarded without notification. Prefer
-    /// ExecuteDevToolsMethod if a more structured approach to message formatting
+    /// `execute_dev_tools_method` if a more structured approach to message formatting
     /// is desired.
     ///
     /// Every valid function call will result in an asynchronous function result or
-    /// error message that references the sent message "id". Event messages are
+    /// error message that references the sent message `id`. Event messages are
     /// received while notifications are enabled (for example, between function
-    /// calls for "Page.enable" and "Page.disable"). All received messages will be
-    /// delivered to the observer(s) registered with AddDevToolsMessageObserver.
-    /// See cef_dev_tools_message_observer_t::OnDevToolsMessage documentation for
+    /// calls for `Page.enable` and `Page.disable`). All received messages will be
+    /// delivered to the observer(s) registered with `add_dev_tools_message_observer`.
+    /// See [`DevToolsMessageObserverCallbacks::on_dev_tools_message`] documentation for
     /// details of received message contents.
     ///
-    /// Usage of the SendDevToolsMessage, ExecuteDevToolsMethod and
-    /// AddDevToolsMessageObserver functions does not require an active DevTools
+    /// Usage of the `send_dev_tools_message`, `execute_dev_tools_method` and
+    /// `add_dev_tools_message_observer` functions does not require an active DevTools
     /// front-end or remote-debugging session. Other active DevTools sessions will
     /// continue to function independently. However, any modification of global
     /// browser state by one session may not be reflected in the UI of other
@@ -468,33 +468,33 @@ impl BrowserHost {
         }
     }
     /// Execute a function call over the DevTools protocol. This is a more
-    /// structured version of SendDevToolsMessage. |message_id| is an incremental
+    /// structured version of `send_dev_tools_message`. `message_id` is an incremental
     /// number that uniquely identifies the message (pass 0 to have the next number
-    /// assigned automatically based on previous values). |function| is the
-    /// function name. |params| are the function parameters, which may be NULL. See
+    /// assigned automatically based on previous values). `function` is the
+    /// function name. `params` are the function parameters, which may be `None`. See
     /// the DevTools protocol documentation (linked above) for details of supported
-    /// functions and the expected |params| dictionary contents. This function will
+    /// functions and the expected `params` dictionary contents. This function will
     /// return the assigned message ID if called on the UI thread and the message
     /// was successfully submitted for validation, otherwise 0. See the
-    /// SendDevToolsMessage documentation for additional usage information.
+    /// `send_dev_tools_message` documentation for additional usage information.
     pub fn execute_dev_tools_method(
         &self,
         message_id: i32,
         method: &str,
-        params: DictionaryValue,
+        params: Option<DictionaryValue>,
     ) -> bool {
         unsafe {
             self.0.execute_dev_tools_method.unwrap()(
                 self.as_ptr(),
                 message_id,
                 CefString::from(method).as_ptr(),
-                params.into_raw(),
+                params.map(|p| p.into_raw()).unwrap_or_else(null_mut),
             ) != 0
         }
     }
     /// Add an observer for DevTools protocol messages (function results and
     /// events). The observer will remain registered until the returned
-    /// Registration object is destroyed. See the SendDevToolsMessage documentation
+    /// Registration object is destroyed. See the `send_dev_tools_message` documentation
     /// for additional usage information.
     pub fn add_dev_tools_message_observer(
         &self,

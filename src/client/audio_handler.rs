@@ -13,8 +13,6 @@ use cef_sys::{
 use std::{sync::atomic::{AtomicUsize, Ordering}, os::raw::c_int, slice};
 
 /// Enumerates the various representations of the ordering of audio channels.
-/// Must be kept synchronized with media::ChannelLayout from Chromium.
-/// See media\base\channel_layout.h
 #[repr(C)]
 #[derive(PartialEq, Eq, Clone, Copy, Debug)]
 pub enum ChannelLayout {
@@ -185,8 +183,8 @@ pub trait AudioHandlerCallbacks: 'static + Send + Sync {
         params: &mut AudioParameters,
     ) -> bool;
     /// Called on a browser audio capture thread when the browser starts streaming
-    /// audio. OnAudioSteamStopped will always be called after
-    /// OnAudioStreamStarted; both functions may be called multiple times for the
+    /// audio. `on_audio_stream_stopped` will always be called after
+    /// `on_audio_stream_started`; both functions may be called multiple times for the
     /// same browser. `params` contains the audio parameters like sample rate and
     /// channel layout. `channels` is the number of channels.
     fn on_audio_stream_started(
@@ -200,18 +198,16 @@ pub trait AudioHandlerCallbacks: 'static + Send + Sync {
     /// point type, i.e. 4-byte value(s). `frames` is the number of frames in the
     /// PCM packet. `pts` is the presentation timestamp (in milliseconds since the
     /// Unix Epoch) and represents the time at which the decompressed packet should
-    /// be presented to the user. Based on `frames` and the `channel_layout` value
-    /// passed to OnAudioStreamStarted you can calculate the size of the `data`
-    /// array in bytes.
+    /// be presented to the user.
     fn on_audio_stream_packet(
         &self,
         browser: Browser,
         data: &[&f32],
         frames: usize,
-        pts: i64, // TODO INSTANT?
+        pts: i64, // TODO MAKE INSTANT?
     );
-    /// Called on the UI thread when the stream has stopped. OnAudioSteamStopped
-    /// will always be called after OnAudioStreamStarted; both functions may be
+    /// Called on the UI thread when the stream has stopped. `on_audio_stream_stopped`
+    /// will always be called after `on_audio_stream_started`; both functions may be
     /// called multiple times for the same stream.
     fn on_audio_stream_stopped(
         &self,
@@ -286,7 +282,6 @@ cef_callback_impl!{
             frames: i32: c_int,
             pts: i64: i64,
         ) {
-            // TODO: IMPLEMENT
             assert!(frames > 0);
             let data_len = self.floats_per_frame.load(Ordering::SeqCst);
             let data = unsafe{ slice::from_raw_parts(data as *const &f32, data_len) };
