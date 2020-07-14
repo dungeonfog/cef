@@ -1,6 +1,6 @@
 use crate::{
     accessibility_handler::AccessibilityHandler,
-    browser::{Browser},
+    browser::Browser,
     browser_host::PaintElementType,
     drag::{DragData, DragOperation},
     refcounted::{RefCountedPtr, Wrapper},
@@ -50,7 +50,7 @@ impl TextInputMode {
 
 pub type CursorHandle = cef_sys::cef_cursor_handle_t;
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub enum CursorType<'a> {
     Pointer,
     Cross,
@@ -95,10 +95,16 @@ pub enum CursorType<'a> {
     ZoomOut,
     Grab,
     Grabbing,
+    MiddlePanningVertical,
+    MiddlePanningHorizontal,
     Custom(CustomCursorInfo<'a>),
+    DndNone,
+    DndMove,
+    DndCopy,
+    DndLink,
 }
 
-#[derive(Copy, Clone, PartialEq)]
+#[derive(Debug, Copy, Clone, PartialEq)]
 pub struct CustomCursorInfo<'a> {
     pub hotspot: Point,
     pub image_scale_factor: f32,
@@ -153,6 +159,8 @@ impl<'a> CursorType<'a> {
             cef_cursor_type_t::CT_ZOOMOUT => Self::ZoomOut,
             cef_cursor_type_t::CT_GRAB => Self::Grab,
             cef_cursor_type_t::CT_GRABBING => Self::Grabbing,
+            cef_cursor_type_t::CT_MIDDLE_PANNING_VERTICAL => Self::MiddlePanningVertical,
+            cef_cursor_type_t::CT_MIDDLE_PANNING_HORIZONTAL => Self::MiddlePanningHorizontal,
             cef_cursor_type_t::CT_CUSTOM => Self::Custom({
                 let cci = &*custom_cursor_info;
                 CustomCursorInfo {
@@ -162,6 +170,10 @@ impl<'a> CursorType<'a> {
                     size: Size::from(&cci.size),
                 }
             }),
+            cef_cursor_type_t::CT_DND_NONE => Self::DndNone,
+            cef_cursor_type_t::CT_DND_MOVE => Self::DndMove,
+            cef_cursor_type_t::CT_DND_COPY => Self::DndCopy,
+            cef_cursor_type_t::CT_DND_LINK => Self::DndLink,
             _ => panic!("bad custom cursor value"),
         }
     }
@@ -476,7 +488,6 @@ impl Wrapper for RenderHandlerWrapper {
                 on_ime_composition_range_changed: Some(RenderHandlerWrapper::on_ime_composition_range_changed),
                 on_text_selection_changed: Some(RenderHandlerWrapper::on_text_selection_changed),
                 on_virtual_keyboard_requested: Some(RenderHandlerWrapper::on_virtual_keyboard_requested),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

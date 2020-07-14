@@ -232,7 +232,6 @@ impl Wrapper for LifeSpanHandlerWrapper {
                 on_after_created: Some(Self::on_after_created),
                 do_close: Some(Self::do_close),
                 on_before_close: Some(Self::on_before_close),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

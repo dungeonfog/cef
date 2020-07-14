@@ -51,7 +51,6 @@ impl Wrapper for RunContextMenuWrapper {
                 base: unsafe { std::mem::zeroed() },
                 cont: Some(Self::cont),
                 cancel: Some(Self::cancel),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

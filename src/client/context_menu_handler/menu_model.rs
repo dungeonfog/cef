@@ -949,7 +949,6 @@ impl Wrapper for MenuModelDelegateWrapper {
                 menu_will_show: Some(Self::menu_will_show),
                 menu_closed: Some(Self::menu_closed),
                 format_label: Some(Self::format_label),
-                ..unsafe { std::mem::zeroed() }
             },
             self,
         )

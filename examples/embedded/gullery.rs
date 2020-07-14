@@ -50,7 +50,6 @@ impl crate::Renderer for GulleryRenderer {
         width: i32,
         height: i32,
     ) {
-        println!("paint {:?}", dirty_rects);
         let buffer = BGRA::from_raw_slice(buffer);
         assert_eq!(buffer.len(), (width * height) as usize);
         let buffer_row = |row: usize| {

@@ -39,13 +39,13 @@ use std::{
 };
 use winit::event::{Touch, TouchPhase};
 use winit::{
-    dpi::{LogicalPosition, PhysicalPosition},
+    dpi::{LogicalPosition, PhysicalPosition, PhysicalSize},
     event::{
         ElementState, Event, KeyboardInput, MouseButton, MouseScrollDelta, StartCause,
         VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
-    window::{CursorIcon, Window, WindowBuilder},
+    window::{CursorIcon, Window, WindowBuilder, Icon},
 };
 
 pub struct AppCallbacksImpl {
@@ -112,7 +112,6 @@ impl ClientCallbacks for ClientCallbacksImpl {
 
 impl LifeSpanHandlerCallbacks for LifeSpanHandlerImpl {
     fn on_before_close(&self, _browser: Browser) {
-        println!("close browser");
         self.proxy.lock().send_event(CefEvent::Quit).unwrap();
     }
 }
@@ -199,12 +198,6 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
         width: i32,
         height: i32,
     ) {
-        println!(
-            "paint: buffer len {:?} dirty rects: {:?}",
-            buffer.len(),
-            dirty_rects
-        );
-
         // FIXME: this completely ignores dirty rects for now and only
         // just re-uploads and re-renders everything anew
         assert_eq!(buffer.len(), 4 * (width * height) as usize);
@@ -222,6 +215,7 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
         unimplemented!()
     }
     fn on_cursor_change(&self, _browser: Browser, _cursor: cef_cursor_handle_t, type_: CursorType) {
+        println!("cursor change");
         let winit_cursor = match type_ {
             CursorType::MiddlePanning
             | CursorType::EastPanning
@@ -232,7 +226,13 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             | CursorType::SouthEastPanning
             | CursorType::SouthWestPanning
             | CursorType::WestPanning
-            | CursorType::Custom(_)
+            | CursorType::MiddlePanning
+            | CursorType::MiddlePanningVertical
+            | CursorType::MiddlePanningHorizontal
+            | CursorType::DndNone
+            | CursorType::DndMove
+            | CursorType::DndCopy
+            | CursorType::DndLink
             | CursorType::Pointer => Some(CursorIcon::Default),
             CursorType::Cross => Some(CursorIcon::Crosshair),
             CursorType::Hand => Some(CursorIcon::Hand),
@@ -267,6 +267,18 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             CursorType::ZoomOut => Some(CursorIcon::ZoomOut),
             CursorType::Grab => Some(CursorIcon::Grab),
             CursorType::Grabbing => Some(CursorIcon::Grabbing),
+            CursorType::Custom(custom_cursor) => {
+                let hot_spot = PhysicalPosition::new(custom_cursor.hotspot.x as u32, custom_cursor.hotspot.y as u32);
+                let size = PhysicalSize::new(custom_cursor.size.width as u32, custom_cursor.size.height as u32);
+                let mut buffer = custom_cursor.buffer.to_owned();
+                for pixel in buffer.chunks_mut(4) {
+                    let (l, r) = pixel.split_at_mut(2);
+                    std::mem::swap(&mut l[0], &mut r[0]);
+                }
+                Some(Icon::from_rgba_with_hot_spot(&buffer, size, hot_spot)
+                    .ok().map(|c| CursorIcon::Custom(c))
+                    .unwrap_or(CursorIcon::Default))
+            }
         };
         let renderer = self.renderer.lock();
         let window = renderer.window();
@@ -380,7 +392,6 @@ fn main() {
                                 poll_instant = work_time + poll_duration;
                                 scheduled_work_queue.push(poll_instant);
                             }
-                            println!("do work");
                             context.do_message_loop_work();
                         }
                     }
@@ -533,7 +544,6 @@ fn main() {
                     Event::UserEvent(event) => match event {
                         CefEvent::ScheduleWork(instant) => {
                             if instant <= Instant::now() {
-                                println!("do scheduled work b {:?}", instant);
                                 context.do_message_loop_work();
                             } else {
                                 let i = match scheduled_work_queue.binary_search(&instant) {
