@@ -408,7 +408,7 @@ pub(crate) unsafe fn drop_settings(settings: cef_settings_t) {
         &settings.application_client_id_for_file_scanning,
     ] {
         if let Some(dtor) = cefstr.dtor {
-            dtor(cefstr.str);
+            dtor(cefstr.str_);
         }
     }
 }

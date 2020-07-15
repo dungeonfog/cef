@@ -101,7 +101,7 @@ impl CommandLine {
         let command_line = unsafe { (self.0.get_command_line_string.unwrap())(self.as_ptr()) };
 
         let command_line_str = String::from_utf16_lossy(unsafe {
-            std::slice::from_raw_parts((*command_line).str, (*command_line).length)
+            std::slice::from_raw_parts((*command_line).str_, (*command_line).length)
         });
 
         unsafe {
@@ -113,7 +113,7 @@ impl CommandLine {
     pub fn get_program(&self) -> String {
         let program = unsafe { (self.0.get_program.unwrap())(self.as_ptr()) };
         let program_str = String::from_utf16_lossy(unsafe {
-            std::slice::from_raw_parts((*program).str, (*program).length)
+            std::slice::from_raw_parts((*program).str_, (*program).length)
         });
 
         unsafe {
@@ -146,7 +146,7 @@ impl CommandLine {
             return None;
         }
         let value_str = String::from_utf16_lossy(unsafe {
-            std::slice::from_raw_parts((*value).str, (*value).length)
+            std::slice::from_raw_parts((*value).str_, (*value).length)
         });
 
         unsafe {

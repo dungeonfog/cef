@@ -26,7 +26,7 @@ pub(crate) struct CefString(cef_string_t);
 impl CefString {
     pub fn null() -> Self {
         Self(cef_string_t {
-            str: null_mut(),
+            str_: null_mut(),
             length: 0,
             dtor: None,
         })
@@ -112,7 +112,7 @@ impl CefString {
 
 impl std::fmt::Debug for CefString {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        let s = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(self.0.str, self.0.length) });
+        let s = String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(self.0.str_, self.0.length) });
         <String as std::fmt::Debug>::fmt(&s, f)
     }
 }
@@ -136,7 +136,7 @@ impl Drop for CefString {
     fn drop(&mut self) {
         if let Some(dtor) = self.0.dtor {
             unsafe {
-                dtor(self.0.str);
+                dtor(self.0.str_);
             }
         }
     }
@@ -172,13 +172,13 @@ impl From<CefString> for String {
 
 impl<'a> From<&'a mut CefString> for String {
     fn from(cef: &'a mut CefString) -> String {
-        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(cef.0.str, cef.0.length) })
+        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(cef.0.str_, cef.0.length) })
     }
 }
 
 impl<'a> From<&'a CefString> for String {
     fn from(cef: &'a CefString) -> String {
-        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(cef.0.str, cef.0.length) })
+        String::from_utf16_lossy(unsafe { std::slice::from_raw_parts(cef.0.str_, cef.0.length) })
     }
 }
 
