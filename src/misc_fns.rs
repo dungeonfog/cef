@@ -149,6 +149,7 @@ impl Context {
     /// value of true indicates that it succeeded and false indicates that it
     /// failed. The `windows_sandbox_info` parameter is only used on Windows and may
     /// be None (see [SandboxInfo] for details).
+    #[allow(unused_mut)]
     pub fn initialize(
         mut settings: Settings,
         application: Option<App>,

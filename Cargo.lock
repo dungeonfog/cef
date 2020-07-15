@@ -615,7 +615,7 @@ dependencies = [
  "parking_lot 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "wayland-client 0.23.6 (registry+https://github.com/rust-lang/crates.io-index)",
  "winapi 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "winit 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "winit 0.22.2 (git+https://github.com/Osspial/winit.git?rev=8cef81047dad52aaf327f8d8ef78539f72414fd1)",
 ]
 
 [[package]]
@@ -2030,36 +2030,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "winit"
-version = "0.22.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-dependencies = [
- "bitflags 1.2.1 (registry+https://github.com/rust-lang/crates.io-index)",
- "cocoa 0.20.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-foundation 0.7.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-graphics 0.19.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "core-video-sys 0.1.4 (registry+https://github.com/rust-lang/crates.io-index)",
- "dispatch 0.2.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "instant 0.1.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "lazy_static 1.4.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "libc 0.2.71 (registry+https://github.com/rust-lang/crates.io-index)",
- "log 0.4.8 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio 0.6.22 (registry+https://github.com/rust-lang/crates.io-index)",
- "mio-extras 2.0.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "ndk 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ndk-glue 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "ndk-sys 0.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "objc 0.2.7 (registry+https://github.com/rust-lang/crates.io-index)",
- "parking_lot 0.10.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "percent-encoding 2.1.0 (registry+https://github.com/rust-lang/crates.io-index)",
- "raw-window-handle 0.3.3 (registry+https://github.com/rust-lang/crates.io-index)",
- "smithay-client-toolkit 0.6.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "wayland-client 0.23.6 (registry+https://github.com/rust-lang/crates.io-index)",
- "winapi 0.3.9 (registry+https://github.com/rust-lang/crates.io-index)",
- "x11-dl 2.18.5 (registry+https://github.com/rust-lang/crates.io-index)",
-]
-
-[[package]]
 name = "winit-blit"
 version = "0.0.0"
 source = "git+https://github.com/rust-windowing/winit-blit.git#17a03190d4682f253739f75c7e94aee7289b3ea3"
@@ -2377,7 +2347,6 @@ dependencies = [
 "checksum winapi-x86_64-pc-windows-gnu 0.4.0 (registry+https://github.com/rust-lang/crates.io-index)" = "712e227841d057c1ee1cd2fb22fa7e5a5461ae8e48fa2ca79ec42cfc1931183f"
 "checksum winit 0.20.0-alpha4 (registry+https://github.com/rust-lang/crates.io-index)" = "56c565622ccb05351d92445415952ca09dade6a53e75dd9e75d9bd35d4e99333"
 "checksum winit 0.22.2 (git+https://github.com/Osspial/winit.git?rev=8cef81047dad52aaf327f8d8ef78539f72414fd1)" = "<none>"
-"checksum winit 0.22.2 (registry+https://github.com/rust-lang/crates.io-index)" = "1e4ccbf7ddb6627828eace16cacde80fc6bf4dbb3469f88487262a02cf8e7862"
 "checksum winit-blit 0.0.0 (git+https://github.com/rust-windowing/winit-blit.git)" = "<none>"
 "checksum winreg 0.6.2 (registry+https://github.com/rust-lang/crates.io-index)" = "b2986deb581c4fe11b621998a5e53361efe6b48a151178d0cd9eeffa4dc6acc9"
 "checksum wio 0.2.2 (registry+https://github.com/rust-lang/crates.io-index)" = "5d129932f4644ac2396cb456385cbf9e63b5b30c6e8dc4820bdca4eb082037a5"
