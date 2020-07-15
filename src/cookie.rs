@@ -34,7 +34,7 @@ pub enum CookieSameSite {
 }
 
 impl CookiePriority {
-    pub unsafe fn from_unchecked(c: crate::CEnumType) -> Self {
+    pub unsafe fn from_unchecked(c: cef_cookie_priority_t::Type) -> Self {
         std::mem::transmute(c)
     }
 }
