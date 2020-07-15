@@ -316,19 +316,12 @@ fn main() {
                 ),
             });
 
-            #[cfg(not(target_os = "macos"))]
             let settings = Settings::new()
                 .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true);
-            #[cfg(target_os = "macos")]
-            let settings = Settings::new()
-                .log_severity(LogSeverity::Verbose)
-                .windowless_rendering_enabled(true)
-                .external_message_pump(true)
-                .framework_dir_path("/Library/Frameworks/Chromium Embedded Framework.framework");
 
-            let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
+            let context = cef::Context::initialize(settings, Some(app), None).unwrap();
 
             let window_builder = WindowBuilder::new()
                 .with_title("CEF Example Window");

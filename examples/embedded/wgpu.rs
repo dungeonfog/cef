@@ -69,7 +69,7 @@ impl WgpuRenderer {
         let surface = wgpu::Surface::create(&window);
         let adapter = wgpu::Adapter::request(&wgpu::RequestAdapterOptions {
             power_preference: wgpu::PowerPreference::HighPerformance,
-            backends: wgpu::BackendBit::DX12,
+            backends: wgpu::BackendBit::PRIMARY,
         })
         .expect("Failed to find adapter satisfying the options");
         let (device, queue) = adapter.request_device(&wgpu::DeviceDescriptor {

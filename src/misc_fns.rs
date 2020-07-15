@@ -14,6 +14,7 @@ use cef_sys::{
     cef_initialize, cef_quit_message_loop, cef_run_message_loop, cef_shutdown,
 };
 use std::{
+    path::{Path, PathBuf},
     ptr::null_mut,
     sync::atomic::{AtomicBool, Ordering},
 };
@@ -76,16 +77,24 @@ pub fn execute_process(
     application: Option<App>,
     sandbox_info: Option<&SandboxInfo>,
 ) -> i32 {
-    let args = MainArgs::new();
-    enable_highdpi_support();
-    unsafe {
-        cef_execute_process(
-            args.get(),
-            application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
-            sandbox_info
-                .map(|wsi| wsi.get())
-                .unwrap_or_else(null_mut),
-        )
+    if process_type() != ProcessType::Browser {
+        #[cfg(target_os = "macos")]
+        {
+            crate::framework_loader_macos::load_framework(framework_dir_path()).expect("framework path must have parent to be valid");
+        }
+        let args = MainArgs::new();
+        enable_highdpi_support();
+        unsafe {
+            cef_execute_process(
+                args.get(),
+                application.map(|app| app.into_raw()).unwrap_or_else(null_mut),
+                sandbox_info
+                    .map(|wsi| wsi.get())
+                    .unwrap_or_else(null_mut),
+            )
+        }
+    } else {
+        -1
     }
 }
 
@@ -96,6 +105,18 @@ pub enum ProcessType {
     Gpu,
     Utility,
     Other,
+}
+
+fn framework_dir_path() -> Option<&'static Path> {
+    lazy_static::lazy_static!{
+        static ref FRAMEWORK_DIR_PATH: Option<PathBuf> = {
+            let flag = "--framework-dir-path=";
+            let arg = std::env::args().find(|s| s.starts_with(flag));
+            let arg = arg.as_ref().map(|s| &s[flag.len()..]);
+            arg.map(PathBuf::from)
+        };
+    }
+    FRAMEWORK_DIR_PATH.as_deref()
 }
 
 pub fn process_type() -> ProcessType {
@@ -129,10 +150,17 @@ impl Context {
     /// failed. The `windows_sandbox_info` parameter is only used on Windows and may
     /// be None (see [SandboxInfo] for details).
     pub fn initialize(
-        settings: &Settings,
+        mut settings: Settings,
         application: Option<App>,
         sandbox_info: Option<&SandboxInfo>,
     ) -> Result<Context, std::io::Error> {
+        #[cfg(target_os = "macos")]
+        {
+            let framework_path = crate::framework_loader_macos::load_framework(settings.framework_dir_path.as_deref())?;
+            if settings.framework_dir_path.is_none() {
+                settings.framework_dir_path = Some(framework_path.parent().expect("framework path must have parent to be valid").to_owned());
+            }
+        }
         let args = MainArgs::new();
         enable_highdpi_support();
         CONTEXT_INITIALIZED.swap(true, Ordering::SeqCst);
@@ -237,25 +265,4 @@ pub fn quit_message_loop() -> Result<(), QuitMessageLoopError> {
         cef_quit_message_loop();
     }
     Ok(())
-}
-
-#[cfg(target_os = "macos")]
-/// Load the CEF library at the specified |path|. Returns true on
-/// success and false on failure.
-pub fn load_library<P: AsRef<std::path::Path>>(path: P) -> bool {
-    let path = path.as_ref().as_os_str().as_bytes();
-    let mut path = path.to_vec();
-    path.push(0);
-    unsafe {
-        cef_sys::cef_load_library(path.as_ptr() as *const _) != 0
-    }
-}
-
-#[cfg(target_os = "macos")]
-/// Unload the CEF library that was previously loaded. Returns true (1)
-/// on success and false (0) on failure.
-pub fn unload_library() -> bool {
-    unsafe {
-        cef_sys::cef_unload_library() != 0
-    }
 }

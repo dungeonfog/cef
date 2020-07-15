@@ -61,6 +61,7 @@ pub mod ssl;
 pub mod task;
 pub mod logging;
 mod send_protector;
+mod framework_loader_macos;
 
 /// Return value types.
 #[repr(C)]

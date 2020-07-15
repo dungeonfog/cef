@@ -80,7 +80,7 @@ fn main() {
     let settings = Settings::new()
         .log_severity(cef::settings::LogSeverity::Info);
 
-    let context = cef::Context::initialize(&settings, Some(app), None).unwrap();
+    let context = cef::Context::initialize(settings, Some(app), None).unwrap();
     let mut logger_builder = Logger::builder();
     logger_builder.level(log::LevelFilter::Info);
     let logger = Box::new(logger_builder.build());
