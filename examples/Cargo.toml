@@ -6,7 +6,7 @@ edition = "2018"
 
 [dependencies]
 cef = {path = ".."}
-cef-sys = { git = "https://github.com/dungeonfog/cef-sys.git", rev = "90e1ce93cb3c64208c5af1dbb786b9d2b475d1c2" }
+cef-sys = { git = "https://github.com/dungeonfog/cef-sys.git", rev = "5207209d8a40079252cbb8648a237b51ff639112" }
 winit = "0.22"
 log = { version = "0.4", features = ["std"] }
 parking_lot = "0.9"
