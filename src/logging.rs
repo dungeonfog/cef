@@ -2,6 +2,7 @@ use cef_sys::{cef_log, cef_log_severity_t, cef_get_min_log_level};
 use log::{Record, Level, Metadata};
 use std::borrow::Cow;
 use std::ffi::CString;
+use crate::misc_fns::panic_if_cef_not_loaded;
 
 /// Integration of Rust's log crate with CEF. Example usage:
 ///
@@ -49,6 +50,7 @@ impl Logger {
 
 impl log::Log for Logger {
     fn enabled(&self, metadata: &Metadata) -> bool {
+        panic_if_cef_not_loaded();
         let level = unsafe { cef_get_min_log_level() };
         if level == cef_log_severity_t::LOGSEVERITY_DISABLE as _ {
             false
@@ -59,6 +61,7 @@ impl log::Log for Logger {
 
     fn log(&self, record: &Record) {
         if self.enabled(record.metadata()) {
+            panic_if_cef_not_loaded();
             let log_module_path = record.module_path().or(record.module_path_static());
             let log_level = record.metadata().level();
 

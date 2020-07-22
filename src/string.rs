@@ -18,7 +18,10 @@ use std::ptr::null_mut;
 use std::{iter::FromIterator, mem, ops::Range};
 use parking_lot::Mutex;
 
-use crate::refcounted::{RefCountedPtr, Wrapper};
+use crate::{
+    refcounted::{RefCountedPtr, Wrapper},
+    misc_fns::panic_if_cef_not_loaded,
+};
 
 #[repr(transparent)]
 pub(crate) struct CefString(cef_string_t);
@@ -34,6 +37,7 @@ impl CefString {
     pub fn new(source: &str) -> Self {
         let mut instance = unsafe { std::mem::zeroed() };
         let len = source.len();
+        panic_if_cef_not_loaded();
         unsafe {
             cef_string_utf8_to_utf16(
                 source.as_ptr() as *const std::os::raw::c_char,
@@ -44,6 +48,7 @@ impl CefString {
         CefString(instance)
     }
     pub fn set_string(&mut self, str: &str) {
+        panic_if_cef_not_loaded();
         unsafe {
             cef_string_utf8_to_utf16(
                 str.as_ptr() as *const std::os::raw::c_char,
@@ -150,6 +155,7 @@ impl From<cef_string_t> for CefString {
 
 impl From<CefString> for cef_string_userfree_t {
     fn from(string: CefString) -> cef_string_userfree_t {
+        panic_if_cef_not_loaded();
         unsafe {
             let userfree = cef_string_userfree_utf16_alloc();
             *userfree = string.into_raw();
@@ -186,6 +192,7 @@ pub(crate) struct CefStringList(cef_string_list_t);
 
 impl Default for CefStringList {
     fn default() -> Self {
+        panic_if_cef_not_loaded();
         Self(unsafe { cef_string_list_alloc() })
     }
 }

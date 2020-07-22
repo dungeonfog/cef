@@ -5,7 +5,7 @@ authors = ["Andreas Monitzer <andreas@monitzer.com>", "Osspial <osspial@gmail.co
 edition = "2018"
 
 [dependencies]
-cef-sys = { git = "https://github.com/dungeonfog/cef-sys.git", rev = "5207209d8a40079252cbb8648a237b51ff639112" }
+cef-sys = { git = "https://github.com/dungeonfog/cef-sys.git", rev = "5e77de224dec7becd27c90ad1b664b6c16857497" }
 parking_lot = "0.9"
 downcast-rs = "1.1"
 libc = "0.2"

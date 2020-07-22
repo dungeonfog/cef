@@ -307,6 +307,14 @@ fn main() {
         }
 
         cef::ProcessType::Browser => {
+            let framework_dir_path = {
+                #[cfg(target_os = "macos")] {
+                    Some(cef::load_framework(None).unwrap())
+                }
+                #[cfg(not(target_os = "macos"))] {
+                    None
+                }
+            };
             let logger = cef::logging::Logger::builder()
                 .level(log::LevelFilter::Trace)
                 .build();
@@ -314,6 +322,8 @@ fn main() {
             log::set_boxed_logger(logger)
                 .map(|()| log::set_max_level(log::LevelFilter::Trace))
                 .unwrap();
+
+            log::info!("testing logs");
 
             let event_loop: EventLoop<CefEvent> = EventLoop::with_user_event();
             let app = App::new(AppCallbacksImpl {
@@ -324,10 +334,12 @@ fn main() {
                 ),
             });
 
-            let settings = Settings::new()
+            let mut settings = Settings::new()
                 .log_severity(LogSeverity::Verbose)
                 .windowless_rendering_enabled(true)
                 .external_message_pump(true);
+
+            settings.framework_dir_path = framework_dir_path;
 
             let context = cef::Context::initialize(settings, Some(app), None).unwrap();
 

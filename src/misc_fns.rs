@@ -137,6 +137,16 @@ pub fn process_type() -> ProcessType {
     *PROCESS_TYPE
 }
 
+pub(crate) fn panic_if_cef_not_loaded() {
+    #[cfg(target_os = "macos")]
+    {
+        if !crate::framework_loader_macos::framework_is_loaded() {
+            panic!("CEF must be loaded, either implicitly by Context::initialize or explicitly by \
+                load_framework, before calling this function")
+        }
+    }
+}
+
 pub struct Context(std::marker::PhantomData<&'static std::cell::Cell<u8>>); // not Send nor Sync
 
 static CONTEXT_INITIALIZED: AtomicBool = AtomicBool::new(false);
@@ -159,7 +169,7 @@ impl Context {
         {
             let framework_path = crate::framework_loader_macos::load_framework(settings.framework_dir_path.as_deref())?;
             if settings.framework_dir_path.is_none() {
-                settings.framework_dir_path = Some(framework_path.parent().expect("framework path must have parent to be valid").to_owned());
+                settings.framework_dir_path = Some(framework_path);
             }
         }
         let args = MainArgs::new();

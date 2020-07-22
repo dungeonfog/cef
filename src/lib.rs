@@ -62,6 +62,7 @@ pub mod task;
 pub mod logging;
 mod send_protector;
 #[cfg(target_os = "macos")] mod framework_loader_macos;
+#[cfg(target_os = "macos")] pub use framework_loader_macos::load_framework;
 
 /// Return value types.
 #[repr(C)]

@@ -2,10 +2,27 @@ use std::{io, ffi::CString, path::{Path, PathBuf}};
 use lazy_static::lazy_static;
 use parking_lot::Mutex;
 
+/// On macos, loads CEF at runtime based on the given framework directory path.
+///
+/// If no path is provided, we look in a series of default paths to try to find CEF. Returns the
+/// path that ends up getting used.
+///
+/// This will be automatically called by [`Context::initialize`](crate::Context::initialize).
+/// However, if you need to call CEF functions before initializing the app, you should call this
+/// function before calling any other functions.
 pub fn load_framework(framework_dir_path: Option<&Path>) -> Result<PathBuf, io::Error> {
     let framework_path = framework_path_with_fallbacks(framework_dir_path)?;
-    *FRAMEWORK_LOADER.lock() = unsafe{ Some(FrameworkLoader::new(&framework_path)?) };
-    Ok(framework_path)
+    {
+        let mut loader = FRAMEWORK_LOADER.lock();
+        if loader.is_none() {
+             *loader = unsafe{ Some(FrameworkLoader::new(&framework_path)?) };
+        }
+    }
+    Ok(framework_path.parent().expect("framework path needs to have parent").to_owned())
+}
+
+pub fn framework_is_loaded() -> bool {
+    FRAMEWORK_LOADER.lock().is_some()
 }
 
 fn framework_path_with_fallbacks(framework_dir_path: Option<&Path>) -> Result<PathBuf, io::Error> {
