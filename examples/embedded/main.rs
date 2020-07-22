@@ -307,6 +307,14 @@ fn main() {
         }
 
         cef::ProcessType::Browser => {
+            let logger = cef::logging::Logger::builder()
+                .level(log::LevelFilter::Trace)
+                .build();
+            let logger = Box::new(logger);
+            log::set_boxed_logger(logger)
+                .map(|()| log::set_max_level(log::LevelFilter::Trace))
+                .unwrap();
+
             let event_loop: EventLoop<CefEvent> = EventLoop::with_user_event();
             let app = App::new(AppCallbacksImpl {
                 browser_process_handler: BrowserProcessHandler::new(

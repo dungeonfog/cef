@@ -108,16 +108,18 @@ impl LoggerBuilder {
         }
     }
 
-    pub fn level(&mut self, level: log::LevelFilter) {
+    pub fn level(mut self, level: log::LevelFilter) -> Self {
         self.level = level;
+        self
     }
 
     pub fn level_for_module_path<S: Into<Cow<'static, str>>>(
-        &mut self,
+        mut self,
         module_path: S,
         level: log::LevelFilter,
-    ) {
+    ) -> Self {
         self.module_path_levels.push((module_path.into(), level));
+        self
     }
 
     pub fn build(self) -> Logger {
