@@ -81,9 +81,7 @@ fn main() {
         .log_severity(cef::settings::LogSeverity::Info);
 
     let context = cef::Context::initialize(settings, Some(app), None).unwrap();
-    let mut logger_builder = Logger::builder();
-    logger_builder.level(log::LevelFilter::Info);
-    let logger = Box::new(logger_builder.build());
+    let logger = Box::new(Logger::builder().level(log::LevelFilter::Info).build());
     log::set_boxed_logger(logger).map(|()| log::set_max_level(log::LevelFilter::Info)).unwrap();
     info!("Startup"); // This is the earliest you can use logging!
 
