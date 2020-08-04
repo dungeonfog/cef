@@ -107,7 +107,6 @@ fn main() {
         &browser_settings,
         None,
         None,
-        &context,
     );
 
     info!("Running message loop");

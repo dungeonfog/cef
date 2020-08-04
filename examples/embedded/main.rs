@@ -383,7 +383,6 @@ fn main() {
                 &browser_settings,
                 None,
                 None,
-                &context,
             );
 
             println!("initialize done");

@@ -103,7 +103,6 @@ impl BrowserHost {
         settings: &BrowserSettings,
         extra_info: Option<&HashMap<String, StoredValue>>,
         request_context: Option<RequestContext>,
-        context: &crate::Context,
     ) -> Browser {
         let extra_info = extra_info.map(DictionaryValue::from);
 
