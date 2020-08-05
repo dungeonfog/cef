@@ -2,7 +2,8 @@ use cef_sys::{
     cef_string_t,
     cef_media_router_t, cef_media_observer_t, cef_media_source_t, cef_media_sink_t,
     cef_media_route_create_callback_t, cef_media_route_t, cef_media_route_create_result_t,
-    cef_media_route_connection_state_t, cef_media_sink_icon_type_t,
+    cef_media_route_connection_state_t, cef_media_sink_icon_type_t, cef_media_sink_device_info_t,
+    cef_media_sink_device_info_callback_t,
 };
 
 use std::{
@@ -56,6 +57,23 @@ pub enum MediaSinkIconType {
     Generic = cef_media_sink_icon_type_t::CEF_MSIT_GENERIC as isize,
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Hash)]
+pub struct MediaSinkDeviceInfo {
+    pub ip_address: String,
+    pub port: i32,
+    pub model_name: String,
+}
+
+impl MediaSinkDeviceInfo {
+    pub(crate) unsafe fn from_raw(info: &cef_media_sink_device_info_t) -> MediaSinkDeviceInfo {
+        MediaSinkDeviceInfo {
+            ip_address: CefString::from_ptr_unchecked(&info.ip_address).into(),
+            port: info.port,
+            model_name: CefString::from_ptr_unchecked(&info.model_name).into(),
+        }
+    }
+}
+
 impl MediaRouteCreateResult {
     pub unsafe fn from_unchecked(raw: crate::CEnumType) -> Self {
         std::mem::transmute(raw)
@@ -105,6 +123,10 @@ ref_counted_ptr!{
 
 ref_counted_ptr!{
     pub struct MediaRoute(*mut cef_media_route_t);
+}
+
+ref_counted_ptr!{
+    struct MediaSinkDeviceInfoCallback(*mut cef_media_sink_device_info_callback_t);
 }
 
 ref_counted_ptr!{
@@ -301,6 +323,14 @@ impl MediaSink {
             )
         }
     }
+    pub fn get_device_info(&self, callback: impl 'static + Send + FnOnce(MediaSinkDeviceInfo)) {
+        unsafe {
+            self.0.get_device_info.unwrap()(
+                self.as_ptr(),
+                MediaSinkDeviceInfoCallback::new(callback).into_raw()
+            )
+        }
+    }
     /// Returns `true` if this sink accepts content via Cast.
     pub fn is_cast_sink(&self) -> bool {
         unsafe {
@@ -352,6 +382,44 @@ impl MediaSource {
         }
     }
 }
+
+struct MediaSinkDeviceInfoCallbackWrapper(SendProtectorMut<Option<Box<dyn 'static + Send + FnOnce(MediaSinkDeviceInfo)>>>);
+
+impl MediaSinkDeviceInfoCallback {
+    fn new(callback: impl 'static + Send + FnOnce(MediaSinkDeviceInfo)) -> MediaSinkDeviceInfoCallback {
+        unsafe{ MediaSinkDeviceInfoCallback::from_ptr_unchecked(MediaSinkDeviceInfoCallbackWrapper(SendProtectorMut::new(Some(Box::new(callback)))).wrap().into_raw()) }
+    }
+}
+
+impl Wrapper for MediaSinkDeviceInfoCallbackWrapper {
+    type Cef = cef_media_sink_device_info_callback_t;
+    fn wrap(self) -> RefCountedPtr<Self::Cef> {
+        RefCountedPtr::wrap(
+            cef_media_sink_device_info_callback_t {
+                base: unsafe { std::mem::zeroed() },
+                on_media_sink_device_info: Some(Self::on_media_sink_device_info),
+            },
+            self,
+        )
+    }
+}
+
+cef_callback_impl!{
+    impl for MediaSinkDeviceInfoCallbackWrapper: cef_media_sink_device_info_callback_t {
+        fn on_media_sink_device_info(
+            &self,
+            info: MediaSinkDeviceInfo: *const cef_media_sink_device_info_t
+        ) {
+            unsafe {
+                self.0.get_mut().take().unwrap()(
+                    info
+                )
+            }
+        }
+    }
+}
+
+
 
 struct MediaRouteCreateCallbackWrapper(SendProtectorMut<Option<Box<dyn 'static + Send + FnOnce(MediaRouteCreateResult, Option<&str>, Option<MediaRoute>)>>>);
 

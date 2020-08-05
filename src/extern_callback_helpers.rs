@@ -263,6 +263,13 @@ impl CToRustType for crate::web_plugin::WebPluginInfo {
     }
 }
 
+impl CToRustType for crate::media_router::MediaSinkDeviceInfo {
+    type CType = *const cef_sys::cef_media_sink_device_info_t;
+    unsafe fn from_c_type(c_type: Self::CType) -> Self {
+        Self::from_raw(&*c_type)
+    }
+}
+
 impl CToRustType for Option<crate::resource_bundle_handler::ScaleFactor> {
     type CType = cef_sys::cef_scale_factor_t::Type;
     unsafe fn from_c_type(c_type: Self::CType) -> Self {
