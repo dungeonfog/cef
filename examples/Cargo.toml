@@ -29,6 +29,10 @@ path = "cefsimple/main.rs"
 name = "embedded"
 path = "embedded/main.rs"
 
+[[bin]]
+name = "embedded-internal-message-pump"
+path = "embedded-internal-message-pump/main.rs"
+
 [target.'cfg(target_os = "windows")'.dependencies]
 winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
 winit-blit = {git = "https://github.com/rust-windowing/winit-blit.git", optional = true}
