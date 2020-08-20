@@ -38,4 +38,4 @@ winapi = { version = "0.3", features = ["winuser", "libloaderapi"] }
 members = ["./examples"]
 
 [patch.crates-io]
-winit = { git = "https://github.com/Osspial/winit.git", rev = "8cef81047dad52aaf327f8d8ef78539f72414fd1" }
+winit = { git = "https://github.com/Osspial/winit.git", rev = "b21a92e0c92facda80518d5988c164c489487f02" }

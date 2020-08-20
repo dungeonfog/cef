@@ -7,6 +7,7 @@ mod wgpu;
 #[cfg(not(any(feature = "winit-blit-renderer", feature = "gullery-renderer", feature = "wgpu-renderer")))]
 compile_error!("At least one renderer feature must be enabled! Enable winit-blit-renderer, gullery-renderer, or wgpu-renderer to continue");
 
+use cef::color::Color;
 use cef::browser_host::PaintElementType;
 use cef::client::render_handler::CursorType;
 use cef::client::render_handler::ScreenInfo;
@@ -45,7 +46,7 @@ use winit::{
         VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
-    window::{CursorIcon, Window, WindowBuilder, Icon},
+    window::{CursorIcon, Window, WindowBuilder, CustomCursorIcon},
 };
 
 pub struct AppCallbacksImpl {
@@ -215,7 +216,8 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
         unimplemented!()
     }
     fn on_cursor_change(&self, _browser: Browser, _cursor: cef_cursor_handle_t, type_: CursorType) {
-        println!("cursor change");
+        // this is a good website for testing cursor changes
+        // http://html5advent2011.digitpaint.nl/3/index.html
         let winit_cursor = match type_ {
             CursorType::MiddlePanning
             | CursorType::EastPanning
@@ -275,7 +277,7 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
                     let (l, r) = pixel.split_at_mut(2);
                     std::mem::swap(&mut l[0], &mut r[0]);
                 }
-                Some(Icon::from_rgba_with_hot_spot(&buffer, size, hot_spot)
+                Some(CustomCursorIcon::from_rgba(&buffer, size, hot_spot)
                     .ok().map(|c| CursorIcon::Custom(c))
                     .unwrap_or(CursorIcon::Default))
             }
@@ -364,7 +366,10 @@ fn main() {
                 ..WindowInfo::new()
             };
 
-            let browser_settings = BrowserSettings::new();
+            let browser_settings = BrowserSettings {
+                background_color: Color::rgba(1.0, 1.0, 1.0, 1.0),
+                ..BrowserSettings::new()
+            };
 
             let renderer = Arc::new(Mutex::new(renderer));
             let client = Client::new(ClientCallbacksImpl {
@@ -379,7 +384,7 @@ fn main() {
             let browser = BrowserHost::create_browser_sync(
                 &window_info,
                 client,
-                "https://www.google.com",
+                "http://html5advent2011.digitpaint.nl/3/index.html",
                 &browser_settings,
                 None,
                 None,
