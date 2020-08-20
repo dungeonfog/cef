@@ -9,7 +9,7 @@ compile_error!("At least one renderer feature must be enabled! Enable winit-blit
 
 use cef::color::Color;
 use cef::browser_host::PaintElementType;
-use cef::client::render_handler::CursorType;
+use cef::client::render_handler::{CursorType, CustomCursorInfo};
 use cef::client::render_handler::ScreenInfo;
 use cef::drag::DragOperation;
 use cef::events::KeyEvent;
@@ -46,7 +46,7 @@ use winit::{
         VirtualKeyCode, WindowEvent,
     },
     event_loop::{ControlFlow, EventLoop, EventLoopProxy},
-    window::{CursorIcon, Window, WindowBuilder, CustomCursorIcon},
+    window::{CursorIcon, Window, WindowBuilder, CustomCursorIcon, RgbaBuffer},
 };
 
 pub struct AppCallbacksImpl {
@@ -228,7 +228,6 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             | CursorType::SouthEastPanning
             | CursorType::SouthWestPanning
             | CursorType::WestPanning
-            | CursorType::MiddlePanning
             | CursorType::MiddlePanningVertical
             | CursorType::MiddlePanningHorizontal
             | CursorType::DndNone
@@ -270,16 +269,54 @@ impl<R: Renderer> RenderHandlerCallbacks for RenderHandlerCallbacksImpl<R> {
             CursorType::Grab => Some(CursorIcon::Grab),
             CursorType::Grabbing => Some(CursorIcon::Grabbing),
             CursorType::Custom(custom_cursor) => {
-                let hot_spot = PhysicalPosition::new(custom_cursor.hotspot.x as u32, custom_cursor.hotspot.y as u32);
-                let size = PhysicalSize::new(custom_cursor.size.width as u32, custom_cursor.size.height as u32);
-                let mut buffer = custom_cursor.buffer.to_owned();
+                let CustomCursorInfo {
+                    hotspot,
+                    image_scale_factor,
+                    buffer,
+                    size,
+                } = custom_cursor;
+                let hot_spot = PhysicalPosition::new(hotspot.x as u32, hotspot.y as u32);
+                let size = PhysicalSize::new(size.width as u32, size.height as u32);
+                let mut buffer = buffer.to_owned();
+
+                // convert from BGRA to RGBA
                 for pixel in buffer.chunks_mut(4) {
                     let (l, r) = pixel.split_at_mut(2);
                     std::mem::swap(&mut l[0], &mut r[0]);
                 }
-                Some(CustomCursorIcon::from_rgba(&buffer, size, hot_spot)
-                    .ok().map(|c| CursorIcon::Custom(c))
-                    .unwrap_or(CursorIcon::Default))
+                let source_scale_factor = image_scale_factor as f64;
+
+                Some(CursorIcon::Custom(
+                    CustomCursorIcon::from_rgba_fn(move |_, requested_scale_factor| {
+                        let scaled_size = size
+                            .to_logical::<u32>(source_scale_factor)
+                            .to_physical::<u32>(requested_scale_factor);
+                        let scaled_hotspot = hot_spot
+                            .to_logical::<u32>(source_scale_factor)
+                            .to_physical::<u32>(requested_scale_factor);
+                        let buffer = if requested_scale_factor != source_scale_factor {
+                            let mut resizer = resize::new(
+                                size.width as usize,
+                                size.height as usize,
+                                scaled_size.width as usize,
+                                scaled_size.height as usize,
+                                resize::Pixel::RGBA,
+                                if requested_scale_factor < source_scale_factor {
+                                    resize::Type::Lanczos3
+                                } else {
+                                    resize::Type::Catrom
+                                },
+                            );
+                            let mut out = vec![0; (scaled_size.width * scaled_size.height * 4) as usize];
+                            resizer.resize(&buffer, &mut out);
+                            out
+                        } else {
+                            buffer.clone()
+                        };
+                        let rgba_buffer = RgbaBuffer::from_rgba(buffer, scaled_size);
+                        Ok((rgba_buffer, scaled_hotspot))
+                    })
+                ))
             }
         };
         let renderer = self.renderer.lock();

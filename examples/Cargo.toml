@@ -18,6 +18,8 @@ glutin = {version = "0.24.0", optional = true}
 gullery = {git = "https://github.com/Osspial/gullery.git", optional = true }
 gullery_macros = {git = "https://github.com/Osspial/gullery.git", optional = true }
 
+resize = "0.5"
+
 [build-dependencies]
 embed-resource = "1"
 
